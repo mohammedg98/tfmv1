@@ -1,0 +1,79 @@
+.column-header {
+  background-color: var(--neutral);
+  font-weight: bold;
+}
+
+.categorical-cell {
+  background-color: rgba(222, 107, 6, 0.1);
+}
+
+.numerical-cell {
+  background-color: rgba(0, 80, 111, 0.05);
+}
+
+/* Pour les colonnes numériques */
+.numerical-header {
+  background-color: rgba(0, 80, 111, 0.1) !important;
+}
+.numerical-cell {
+  background-color: rgba(0, 80, 111, 0.05);
+}
+
+/* Pour les colonnes catégorielles */
+.categorical-header {
+  background-color: rgba(222, 107, 6, 0.1) !important;
+}
+.categorical-cell {
+  background-color: rgba(222, 107, 6, 0.05);
+}
+
+/* Pour les erreurs de validation */
+.Mui-error {
+  color: var(--danger);
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+
+.fixed-select {
+  min-width: 200px;
+  width: 200px;
+}
+
+
+
+
+.categorical-cell {
+  background-color: rgba(222, 107, 6, 0.1);
+}
+
+.numerical-cell {
+  background-color: rgba(0, 80, 111, 0.05);
+}
+
+/* Pour les colonnes numériques */
+.numerical-header {
+  background-color: rgba(0, 80, 111, 0.1) !important;
+}
+.numerical-cell {
+  background-color: rgba(0, 80, 111, 0.05);
+}
+
+/* Pour les colonnes catégorielles */
+.categorical-header {
+  background-color: rgba(222, 107, 6, 0.1) !important;
+}
+.categorical-cell {
+  background-color: rgba(222, 107, 6, 0.05);
+}
+
+/* Pour les erreurs de validation */
+.Mui-error {
+  color: #d32f2f;
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+
+.fixed-select {
+  min-width: 200px;
+  width: 200px;
+}

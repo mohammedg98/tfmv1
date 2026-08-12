@@ -1,0 +1,1806 @@
+:root {
+  --primary: #384850;
+  --primary-dark: #003d54;
+  --accent: #DE6B06;
+  --accent-dark: #c55a05;
+  --neutral: #DDDEDF;
+  --neutral-dark: #c8c9ca;
+  --success: #28a745;
+  --danger: #dc3545;
+  --warning: #ffc107;
+  --info: #17a2b8;
+  --light: #f8f9fa;
+  --dark: #343a40;
+  --white: #ffffff;
+  --border-radius: 8px;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s ease;
+}
+
+/* Container Principal */
+.data_cleaning-container {
+  padding: 0;
+  max-width: 100%;
+  width: 100%;
+  background: transparent;
+  min-height: auto;
+}
+
+/* Header Section */
+.data_cleaning-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  border: 1px solid var(--neutral);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+}
+
+.header-title-section {
+  display: flex;
+  align-items: center;
+  margin-right: 5px;
+}
+
+.data_cleaning-title {
+  margin-right: 1rem;
+  color: var(--primary);
+  font-weight: bold;
+}
+
+.unsaved-chip {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.help-button {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.help-button:hover {
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+.reset-button {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.reset-button:hover {
+  background-color: rgba(222, 107, 6, 0.1);
+}
+
+/* Action Toolbar */
+.action-toolbar {
+  padding: 1rem;
+  margin-bottom: 2rem;
+  background-color: var(--neutral);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.toolbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.toolbar-title {
+  margin-right: 0.5rem;
+  color: var(--primary);
+  font-weight: bold;
+}
+
+.delete-selected-button {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.delete-selected-button:hover {
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+.delete-selected-button:disabled {
+  border-color: var(--neutral-dark);
+  color: var(--neutral-dark);
+}
+
+.save-button {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+.save-button:hover {
+  background-color: var(--accent-dark);
+}
+
+.save-button:disabled {
+  background-color: var(--neutral);
+  color: var(--neutral-dark);
+}
+
+.toolbar-navigation {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.back-button {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.back-button:hover {
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+.next-button {
+  background-color: #338938ff;
+  color: var(--white);
+}
+
+.next-button:hover {
+  background-color: #2e7d32;
+}
+
+/* Stats Overview Cards */
+.stats-grid {
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--neutral);
+  background-color: var(--white);
+}
+
+.stat-card-content {
+  padding: 1rem;
+}
+
+.stat-label {
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.stat-value {
+  color: var(--dark);
+  font-weight: bold;
+}
+
+.empty-stat-card {
+  border-color: var(--accent);
+  background-color: rgba(222, 107, 6, 0.1);
+}
+
+.duplicated-stat-card {
+  border-color: var(--primary);
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+.empty-stat-value {
+  color: var(--accent);
+}
+
+.duplicated-stat-value {
+  color: var(--primary);
+}
+
+/* Data Quality Actions */
+.data-quality-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: var(--neutral);
+  border-radius: var(--border-radius);
+}
+
+.data-quality-title {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  color: var(--primary);
+  font-weight: bold;
+}
+
+.quality-icon {
+  margin-right: 0.5rem;
+  color: var(--primary);
+}
+
+.quality-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter-button {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filter-button.empty.active {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+.filter-button.duplicated {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-button.duplicated.active {
+  background-color: var(--primary);
+  color: var(--white);
+}
+
+.filter-button:disabled {
+  border-color: var(--neutral-dark);
+  color: var(--neutral-dark);
+}
+
+.clean-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.delete-empty-button {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+.delete-empty-button:hover {
+  background-color: var(--accent-dark);
+}
+
+.delete-empty-button:disabled {
+  background-color: var(--neutral);
+  color: var(--neutral-dark);
+}
+
+.delete-duplicates-button {
+  background-color: var(--primary);
+  color: var(--white);
+}
+
+.delete-duplicates-button:hover {
+  background-color: var(--primary-dark);
+}
+
+.delete-duplicates-button:disabled {
+  background-color: var(--neutral);
+  color: var(--neutral-dark);
+}
+
+.auto-clean-button {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+.auto-clean-button:hover {
+  background-color: var(--accent-dark);
+}
+
+.auto-clean-button:disabled {
+  background-color: var(--neutral);
+  color: var(--neutral-dark);
+}
+
+/* Data Grid */
+.data-grid-container {
+  height: 500px;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.data-grid {
+  border: 1px solid var(--neutral);
+  border-radius: var(--border-radius);
+  background-color: var(--white);
+}
+
+.data-grid .MuiDataGrid-cell--editing {
+  background-color: rgba(222, 107, 6, 0.15);
+  color: var(--primary);
+}
+
+.data-grid .MuiDataGrid-row:hover {
+  background-color: rgba(221, 222, 223, 0.3);
+}
+
+.data-grid .MuiDataGrid-columnHeaders {
+  background-color: var(--neutral);
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* Style pour les cellules des lignes vides */
+.preview-grid .row-type-empty {
+  background-color: rgba(222, 107, 6, 0.15) !important;
+}
+
+/* Style pour les cellules des lignes dupliquées */
+.preview-grid .row-type-duplicated {
+  background-color: rgba(0, 80, 111, 0.15) !important;
+}
+
+/* Style pour les bordures */
+.preview-grid .MuiDataGrid-cell {
+  font-size: 0.75rem;
+  padding: 4px;
+  border-bottom: 1px solid var(--neutral);
+}
+
+.preview-grid .MuiDataGrid-columnHeaders {
+  font-size: 0.75rem;
+  background-color: var(--neutral);
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* Style pour la légende */
+.legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.625rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.legend-color {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 2px;
+}
+
+.empty-legend {
+  background-color: rgba(222, 107, 6, 0.3);
+}
+
+.duplicated-legend {
+  background-color: rgba(0, 80, 111, 0.3);
+}
+
+.legend-text {
+  font-size: 0.75rem;
+  color: var(--dark);
+}
+
+/* Dialogs */
+.confirm-dialog .MuiDialog-paper,
+.help-dialog .MuiDialog-paper,
+.save-confirm-dialog .MuiDialog-paper,
+.empty-values-dialog .MuiDialog-paper,
+.duplicates-dialog .MuiDialog-paper {
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  background-color: var(--white);
+}
+
+.dialog-title {
+  background-color: var(--primary);
+  color: var(--white);
+  font-weight: bold;
+  padding: 1rem 1.5rem;
+}
+
+.dialog-content {
+  padding: 1.5rem;
+}
+
+.dialog-actions {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--neutral);
+}
+
+.dialog-button {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.dialog-button:hover {
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+.confirm-button {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+.confirm-button:hover {
+  background-color: var(--accent-dark);
+}
+
+.preview-section {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: var(--neutral);
+  border-radius: var(--border-radius);
+}
+
+.preview-legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.preview-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.preview-color {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 2px;
+}
+
+.preview-empty-color {
+  background-color: rgba(222, 107, 6, 0.3);
+}
+
+.preview-duplicated-color {
+  background-color: rgba(0, 80, 111, 0.3);
+}
+
+.preview-text {
+  font-size: 0.75rem;
+  color: var(--dark);
+}
+
+.preview-subtitle {
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.preview-grid-container {
+  height: 300px;
+  width: 100%;
+}
+
+/* Snackbar */
+.snackbar-alert {
+  border-radius: var(--border-radius);
+  background-color: var(--white);
+  color: var(--dark);
+}
+
+.snackbar-alert .MuiAlert-message {
+  color: var(--dark);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .data_cleaning-container {
+    padding: 1rem;
+  }
+  
+  .data_cleaning-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .toolbar-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .toolbar-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .toolbar-actions .MuiButton-root {
+    width: 100%;
+  }
+  
+  .toolbar-navigation {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .quality-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .clean-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  
+  .legend {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .data_cleaning-container {
+    padding: 0.5rem;
+  }
+  
+  .data_cleaning-title {
+    font-size: 1.5rem;
+  }
+  
+  .data-grid-container {
+    height: 400px;
+  }
+  
+  .clean-actions {
+    flex-direction: column;
+  }
+  
+  .clean-actions .MuiButton-root {
+    width: 100%;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.data_cleaning-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.action-toolbar {
+  animation: fadeInUp 0.4s ease-out 0.2s both;
+}
+
+.stats-grid {
+  animation: fadeInUp 0.4s ease-out 0.3s both;
+}
+
+.data-quality-section {
+  animation: fadeInUp 0.4s ease-out 0.4s both;
+}
+
+.data-grid-container {
+  animation: fadeInUp 0.4s ease-out 0.5s both;
+}
+
+/* Focus States */
+button:focus-visible,
+.MuiCheckbox-root:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.alert-title {
+  color: var(--accent) !important;
+  font-weight: bold !important;
+}
+
+.dialog-title {
+  background-color: var(--primary);
+  color: var(--white);
+  font-weight: bold;
+  padding: 1rem 1.5rem;
+}
+
+/* Help Dialog spécifique */
+.help-dialog .MuiDialog-paper {
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  background-color: var(--white);
+  border: 2px solid var(--primary);
+}
+
+.help-dialog-title {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: var(--white);
+  font-weight: bold;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.help-dialog-content {
+  padding: 1.5rem;
+  background-color: var(--white);
+}
+
+.help-section-title {
+  color: var(--primary);
+  font-weight: bold;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.help-subtitle {
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.help-important-box {
+  background-color: rgba(222, 107, 6, 0.1);
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--accent);
+  margin-top: 1.5rem;
+}
+
+.help-important-title {
+  color: var(--accent);
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.css-rvoa5x-MuiTypography-root-MuiDialogTitle-root {
+color: #ffffff;
+}
+
+.css-rvoa5x-MuiTypography-root-MuiDialogTitle-root {
+color: #ffffff;
+}
+
+
+
+.stat-percentage {
+  color: #666;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.empty-stat-card .stat-percentage {
+  color: #d32f2f; /* Rouge pour les valeurs vides */
+}
+
+.duplicated-stat-card .stat-percentage {
+  color: #ed6c02; /* Orange pour les doublons */
+}
+
+/* Assurez-vous que le contenu des cartes est bien aligné */
+.stat-card-content {
+  text-align: center;
+  padding: 16px !important;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+}
+
+.stat-value {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.empty-stat-value {
+  color: #d32f2f;
+}
+
+.duplicated-stat-value {
+  color: #ed6c02;
+}
+
+/* Ajustements responsifs */
+@media (max-width: 600px) {
+  .stat-card-content {
+    padding: 12px !important;
+  }
+  
+  .stat-value {
+    font-size: 1.25rem;
+  }
+  
+  .stat-percentage {
+    font-size: 0.75rem;
+  }
+}
+
+/* Styles pour les cartes de statistiques de taille égale */
+.stats-grid {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  height: 100%;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 24px 16px !important;
+  height: 100%;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.stat-value {
+  font-weight: 700;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.total-stat-value {
+  color: #384850; /* rgb(0, 80, 111) */
+}
+
+.empty-stat-value {
+  color: #d32f2f; /* Rouge pour les valeurs vides */
+}
+
+.duplicated-stat-value {
+  color: #ed6c02; /* Orange pour les doublons */
+}
+
+.stat-percentage {
+  color: #666;
+  font-weight: 500;
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+.empty-stat-card .stat-percentage {
+  color: #d32f2f;
+}
+
+.duplicated-stat-card .stat-percentage {
+  color: #ed6c02;
+}
+
+.stat-spacer {
+  height: 24px; /* Espace équivalent à la ligne de pourcentage manquante */
+  visibility: hidden;
+}
+
+/* Couleurs de fond subtiles pour différencier les cartes */
+.total-rows-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-left: 4px solid #384850;
+}
+
+.total-columns-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-left: 4px solid #384850;
+}
+
+.empty-stat-card {
+  background: linear-gradient(135deg, #ffeaea 0%, #ffcdd2 100%);
+  border-left: 4px solid #d32f2f;
+}
+
+.duplicated-stat-card {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffccbc 100%);
+  border-left: 4px solid #ed6c02;
+}
+
+/* Ajustements responsifs */
+@media (max-width: 900px) {
+  .stat-card {
+    min-height: 120px;
+  }
+  
+  .stat-card-content {
+    padding: 20px 12px !important;
+  }
+  
+  .stat-value {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .stat-card {
+    min-height: 110px;
+  }
+  
+  .stat-card-content {
+    padding: 16px 8px !important;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .stat-label {
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+  }
+  
+  .stat-percentage {
+    font-size: 0.8rem;
+  }
+}
+
+
+
+/* Data_cleaning.css - Ajouts pour la nouvelle fonctionnalité */
+
+/* Workflow Progress */
+.workflow-progress {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-left: 4px solid var(--primary);
+}
+
+/* Split & Imputation Section */
+.split-imputation-section {
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+  border: 1px solid #b3d9ff;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.split-imputation-section .MuiAlert-root {
+  margin-top: 1rem;
+  border-radius: var(--border-radius);
+}
+
+/* Style pour les boutons d'imputation désactivés */
+.split-imputation-section .MuiButton-root:disabled {
+  background-color: var(--neutral);
+  color: var(--neutral-dark);
+  border-color: var(--neutral-dark);
+}
+
+/* Indicateur de progression */
+.progress-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: var(--light);
+  border-radius: var(--border-radius);
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+
+.step-number {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.step-number.completed {
+  background-color: var(--success);
+  color: var(--white);
+}
+
+.step-number.current {
+  background-color: var(--primary);
+  color: var(--white);
+}
+
+.step-number.pending {
+  background-color: var(--neutral);
+  color: var(--dark);
+}
+
+.step-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Style pour la prévisualisation du split */
+.split-preview-table {
+  margin-top: 1rem;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.split-preview-table .MuiTableHead-root {
+  background-color: var(--primary);
+}
+
+.split-preview-table .MuiTableHead-root .MuiTableCell-root {
+  color: var(--white);
+  font-weight: bold;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .progress-indicator {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .progress-step {
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+  
+  .step-label {
+    text-align: left;
+  }
+  
+  .split-imputation-section .MuiBox-root {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .split-imputation-section .MuiBox-root:last-child {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Animation pour les transitions d'état */
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0 rgba(0, 80, 111, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(0, 80, 111, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 80, 111, 0); }
+}
+
+.split-completed {
+  animation: pulse-glow 2s infinite;
+}
+
+/* Style pour les indicateurs visuels */
+.requirement-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+.requirement-met {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.requirement-not-met {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+
+
+/* Ajoutez à Data_cleaning.css */
+
+.split-config-dialog .MuiDialog-paper {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.split-stats-card {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.split-stats-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.split-stats-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Animation pour les indicateurs */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.split-config-dialog .MuiDialogContent-root {
+  animation: slideIn 0.4s ease-out;
+}
+
+/* Style pour les cartes de prévisualisation */
+.preview-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.preview-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+}
+
+/* Responsive design */
+@media (max-width: 900px) {
+  .split-config-dialog .MuiDialog-paper {
+    margin: 16px;
+  }
+  
+  .split-config-dialog .MuiGrid-container {
+    flex-direction: column;
+  }
+}
+
+/* Style pour les alertes dans le dialogue */
+.split-config-dialog .MuiAlert-root {
+  border-radius: 8px;
+  border: 1px solid;
+}
+
+.split-config-dialog .MuiAlert-standardInfo {
+  border-color: #384850;
+  background-color: #e3f2fd;
+}
+
+.split-config-dialog .MuiAlert-standardWarning {
+  border-color: #ed6c02;
+  background-color: #fff3e0;
+}
+
+.split-config-dialog .MuiAlert-standardError {
+  border-color: #d32f2f;
+  background-color: #ffebee;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(100px);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.1) translateY(-10px);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(0.89) translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 4px 20px rgba(222, 107, 6, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 30px rgba(222, 107, 6, 0.8);
+  }
+  100% {
+    box-shadow: 0 4px 20px rgba(222, 107, 6, 0.4);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes highlight {
+  0% {
+    background-color: rgba(222, 107, 6, 0.1);
+  }
+  50% {
+    background-color: rgba(222, 107, 6, 0.3);
+  }
+  100% {
+    background-color: rgba(222, 107, 6, 0.1);
+  }
+}
+
+/* Style pour le bouton flottant */
+.floating-save-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+}
+
+/* Badge de notification */
+.save-notification-badge {
+  position: relative;
+}
+
+.save-notification-badge::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 12px;
+  height: 12px;
+  background-color: #DE6B06;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+/* Style pour les cellules éditées */
+.data-grid .MuiDataGrid-cell--editing {
+  background-color: rgba(222, 107, 6, 0.15) !important;
+  animation: highlight 1s ease-in-out;
+}
+
+
+
+
+@keyframes typing {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.editing-indicator {
+  animation: typing 1.5s infinite;
+}
+
+/* Style pour l'indicateur d'édition en cours */
+.editing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 152, 0, 0.1);
+  pointer-events: none;
+  z-index: 10;
+  border: 2px dashed #ff9800;
+  border-radius: 4px;
+}
+
+/* Améliorer le style des cellules en édition */
+.data-grid .MuiDataGrid-cell--editing {
+  background-color: rgba(222, 107, 6, 0.15) !important;
+  animation: highlight 1s ease-in-out;
+  position: relative;
+}
+
+.data-grid .MuiDataGrid-cell--editing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid #DE6B06;
+  pointer-events: none;
+  animation: pulse 1s infinite;
+}
+
+
+
+
+
+
+
+
+
+
+/* Suppression du bouton Saved Change principal et Unsaved changes */
+.header-title-section .unsaved-chip {
+  display: none !important;
+}
+
+/* Style pour le bouton Delete Selection - même style que Save Changes */
+.delete-selected-button {
+  background-color: #DE6B06 !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  min-width: 180px !important;
+  transition: background-color 0.3s ease !important;
+}
+
+.delete-selected-button:hover {
+  background-color: #c55a05 !important;
+}
+
+.delete-selected-button:disabled {
+  background-color: #cccccc !important;
+  color: #666666 !important;
+  cursor: not-allowed !important;
+}
+
+/* Afficher le bouton Delete Selection seulement quand il y a des lignes sélectionnées */
+.toolbar-actions .delete-selected-button {
+  display: inline-flex !important;
+}
+
+/* Mettre les boutons Help, Reset, Next, Back dans la même ligne */
+.header-actions {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+}
+
+/* Supprimer l'ancienne toolbar-navigation */
+.toolbar-navigation {
+  display: none !important;
+}
+
+/* Réorganiser l'ordre des sections */
+.split-imputation-section {
+  order: 1;
+}
+
+.data-quality-section {
+  order: 2;
+  margin-top: 16px;
+}
+
+/* Style pour la remarque du bouton Split */
+.split-button-tooltip {
+  max-width: 300px;
+}
+
+.split-button-tooltip .MuiTooltip-tooltip {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  background-color: #384850;
+  padding: 12px;
+}
+
+/* Ajustements responsifs */
+@media (max-width: 768px) {
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  
+  .delete-selected-button {
+    min-width: 140px;
+  }
+  
+  .header-actions .MuiButton-root {
+    margin-bottom: 8px;
+  }
+}
+
+
+
+/* Data_cleaning.css */
+
+.data_cleaning-container {
+  padding: 0;
+  background-color: transparent;
+  min-height: auto;
+  max-width: 100%;
+  width: 100%;
+}
+
+.data_cleaning-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1px solid #DDDEDF;
+  border-left: 4px solid #DE6B06;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.header-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.data_cleaning-title {
+  color: #384850;
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.workflow-progress {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-left: 4px solid rgb(0, 80, 111);
+}
+
+.stats-grid {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  height: 120px;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  border-radius: 8px;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+}
+
+.stat-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.stat-value {
+  font-weight: 700;
+  margin: 8px 0;
+}
+
+.total-stat-value {
+  color: rgb(0, 80, 111);
+}
+
+.empty-stat-value {
+  color: #d32f2f;
+}
+
+.duplicated-stat-value {
+  color: #ed6c02;
+}
+
+.stat-percentage {
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-spacer {
+  flex: 1;
+}
+
+.split-imputation-section {
+  background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
+  border-left: 4px solid rgb(0, 80, 111);
+}
+
+.data-quality-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.data-quality-title {
+  color: rgb(0, 80, 111);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quality-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.clean-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.filter-button.active {
+  background-color: rgb(0, 80, 111);
+  color: white;
+}
+
+.data-grid-container {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.data-grid {
+  border: none;
+}
+
+.data-grid .MuiDataGrid-cell {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.data-grid .MuiDataGrid-columnHeaders {
+  background-color: rgb(0, 80, 111);
+  color: white;
+}
+
+.data-grid .MuiDataGrid-columnHeaderTitle {
+  font-weight: 600;
+}
+
+.data-grid .MuiDataGrid-row:hover {
+  background-color: rgba(0, 80, 111, 0.04);
+}
+
+.data-grid .MuiDataGrid-cell:focus {
+  outline: none;
+}
+
+.data-grid .MuiDataGrid-cell--editing {
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+.help-dialog-title {
+  background-color: rgb(0, 80, 111);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.help-dialog-content {
+  padding: 24px;
+}
+
+.help-section-title {
+  color: rgb(0, 80, 111);
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.help-important-box {
+  background-color: #fff3e0;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #ff9800;
+  margin-top: 16px;
+}
+
+.help-important-title {
+  color: #e65100;
+  font-weight: 600;
+}
+
+.split-config-dialog .MuiDialog-paper {
+  border-radius: 12px;
+}
+
+.dialog-title {
+  background-color: rgb(0, 80, 111);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dialog-content {
+  padding: 24px;
+}
+
+.dialog-actions {
+  padding: 16px 24px;
+  gap: 8px;
+}
+
+.confirm-button {
+  background-color: rgb(0, 80, 111) !important;
+  color: white !important;
+}
+
+.dialog-button {
+  color: rgb(0, 80, 111) !important;
+  border-color: rgb(0, 80, 111) !important;
+}
+
+.preview-section {
+  margin: 16px 0;
+}
+
+.preview-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.preview-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.preview-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.preview-empty-color {
+  background-color: #d32f2f;
+}
+
+.preview-duplicated-color {
+  background-color: #ed6c02;
+}
+
+.preview-text {
+  font-weight: 500;
+}
+
+.preview-subtitle {
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.preview-grid-container {
+  height: 300px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.preview-grid .MuiDataGrid-columnHeaders {
+  background-color: #f5f5f5;
+}
+
+.row-type-empty {
+  background-color: rgba(211, 47, 47, 0.08);
+}
+
+.row-type-duplicated {
+  background-color: rgba(237, 108, 2, 0.08);
+}
+
+.save-notification-badge::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  background-color: #d32f2f;
+  border-radius: 50%;
+  border: 2px solid white;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(211, 47, 47, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes highlight {
+  0% {
+    background-color: rgba(0, 80, 111, 0.2);
+  }
+  100% {
+    background-color: rgba(0, 80, 111, 0.1);
+  }
+}
+
+.snackbar-alert {
+  border-radius: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .data_cleaning-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .quality-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .clean-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+
+.split-config-dialog .MuiGrid-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.split-config-dialog .stat-card,
+.split-config-dialog .analysis-card,
+.split-config-dialog .quality-card {
+  flex: 1;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-config-dialog .stat-card-content,
+.split-config-dialog .analysis-content,
+.split-config-dialog .quality-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ajustements responsifs pour le dialogue */
+@media (max-width: 1200px) {
+  .split-config-dialog .MuiGrid-container {
+    flex-direction: column;
+  }
+  
+  .split-config-dialog .MuiGrid-item {
+    min-height: auto;
+  }
+}
+
+/* Styles pour l'affichage des statistiques au-dessus du tableau */
+.split-distribution-analysis {
+  transition: all 0.3s ease;
+}
+
+.split-distribution-analysis .class-distribution-card {
+  transition: transform 0.2s ease;
+}
+
+.split-distribution-analysis .class-distribution-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}

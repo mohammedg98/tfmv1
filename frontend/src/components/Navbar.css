@@ -1,0 +1,175 @@
+.navbar {
+  background: #384850; /* Couleur primaire foncée */
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-logo {
+  color: #DDDEDF; /* Couleur neutre claire */
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.nav-logo:hover {
+  color: #DE6B06; /* Couleur d'accent pour le hover */
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.nav-link {
+  color: #DDDEDF; /* Couleur neutre claire */
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.nav-link:hover {
+  background: rgba(221, 222, 223, 0.1); /* Légère transparence avec la couleur neutre */
+  color: #DE6B06; /* Couleur d'accent pour le hover */
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #DE6B06; /* Couleur d'accent pour la ligne animée */
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+.nav-link-button {
+  background: none;
+  border: none;
+  color: #DDDEDF; /* Couleur neutre claire */
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  position: relative;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.nav-link-button:hover {
+  background: rgba(221, 222, 223, 0.1); /* Légère transparence avec la couleur neutre */
+  color: #DE6B06; /* Couleur d'accent pour le hover */
+}
+
+.nav-link-button::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #DE6B06; /* Couleur d'accent pour la ligne animée */
+  transition: width 0.3s ease;
+}
+
+.nav-link-button:hover::after {
+  width: 100%;
+}
+
+/* Style spécial pour le bouton Admin Panel */
+.admin-panel-btn {
+  background: rgba(222, 107, 6, 0.1); /* Fond légèrement orangé */
+  border: 1px solid rgba(222, 107, 6, 0.3);
+  font-weight: 600;
+}
+
+.admin-panel-btn:hover {
+  background: rgba(222, 107, 6, 0.2); /* Fond plus visible au hover */
+  border-color: rgba(222, 107, 6, 0.5);
+}
+
+/* Indicateur visuel pour l'admin */
+.admin-panel-btn::before {
+  content: '⚡';
+  margin-right: 6px;
+  font-size: 0.9em;
+}
+
+/* Version responsive */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 1rem;
+  }
+  
+  .nav-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .nav-link,
+  .nav-link-button {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Ajustement pour les petits écrans */
+  .admin-panel-btn {
+    order: -1; /* Met le bouton admin en premier sur mobile */
+    background: rgba(222, 107, 6, 0.2);
+  }
+}
+
+/* Animation pour le bouton admin */
+@keyframes adminPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(222, 107, 6, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(222, 107, 6, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(222, 107, 6, 0);
+  }
+}
+
+.admin-panel-btn {
+  animation: adminPulse 2s infinite;
+}
+
+/* Désactiver l'animation au hover pour éviter les distractions */
+.admin-panel-btn:hover {
+  animation: none;
+}
+
+
+
+
+
+
+
+
+

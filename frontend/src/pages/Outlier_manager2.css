@@ -1,0 +1,236 @@
+/* Outlier_manager2.css - Color Palette Styles */
+:root {
+  --primary-color: #384850;   /* Bleu foncé */
+  --secondary-color: #DE6B06; /* Orange */
+  --neutral-color: #DDDEDF;   /* Gris */
+  --success-color: #4caf50;
+  --error-color: #f44336;
+  --warning-color: #ff9800;
+  --background-light: #f8f9fa;
+}
+
+/* Header styles */
+.dataset-header {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+.highlighted-column {
+  background-color: rgba(255, 165, 0, 0.2) !important;
+}
+/* Button styles with color palette */
+.primary-button {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.primary-button:hover {
+  background-color: #003d54 !important;
+}
+
+.secondary-button {
+  background-color: var(--secondary-color) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.secondary-button:hover {
+  background-color: #b85605 !important;
+}
+
+.outlined-primary-button {
+  border-color: var(--primary-color) !important;
+  color: var(--primary-color) !important;
+  background-color: transparent !important;
+}
+
+.outlined-primary-button:hover {
+  background-color: rgba(0, 80, 111, 0.04) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.outlined-secondary-button {
+  border-color: var(--secondary-color) !important;
+  color: var(--secondary-color) !important;
+  background-color: transparent !important;
+}
+
+.outlined-secondary-button:hover {
+  background-color: rgba(222, 107, 6, 0.04) !important;
+  border-color: var(--secondary-color) !important;
+}
+
+/* Success button for model creation */
+.success-button {
+  background-color: var(--success-color) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.success-button:hover {
+  background-color: #388e3c !important;
+}
+
+/* Table and DataGrid styles */
+.numerical-header {
+  background-color: rgba(0, 80, 111, 0.1) !important;
+  font-weight: bold !important;
+  color: var(--primary-color) !important;
+}
+
+.numerical-cell {
+  background-color: rgba(0, 80, 111, 0.05) !important;
+}
+
+.categorical-header {
+  background-color: rgba(222, 107, 6, 0.1) !important;
+  font-weight: bold !important;
+  color: var(--secondary-color) !important;
+}
+
+.categorical-cell {
+  background-color: rgba(222, 107, 6, 0.05) !important;
+}
+
+.boolean-header {
+  background-color: rgba(221, 222, 223, 0.2) !important;
+  font-weight: bold !important;
+  color: var(--neutral-color) !important;
+}
+
+.boolean-cell {
+  background-color: rgba(221, 222, 223, 0.1) !important;
+}
+
+.text-header {
+  background-color: #f5f5f5 !important;
+  font-weight: bold !important;
+}
+
+.text-cell {
+  background-color: #fafafa !important;
+}
+
+/* Chip styles */
+.selection-chip {
+  border-color: var(--primary-color) !important;
+  color: var(--primary-color) !important;
+  background-color: rgba(0, 80, 111, 0.1) !important;
+}
+
+/* Paper and container styles */
+.configuration-paper {
+  border-left: 4px solid var(--primary-color) !important;
+  background-color: var(--background-light) !important;
+}
+
+.visualization-paper {
+  border: 1px solid var(--neutral-color) !important;
+  border-radius: 8px !important;
+}
+
+/* Typography colors */
+.primary-text {
+  color: var(--primary-color) !important;
+}
+
+.secondary-text {
+  color: var(--secondary-color) !important;
+}
+
+.neutral-text {
+  color: var(--neutral-color) !important;
+}
+
+/* Alert and status styles */
+.outlier-alert {
+  border-left: 4px solid var(--error-color) !important;
+}
+
+.normal-point-alert {
+  border-left: 4px solid var(--success-color) !important;
+}
+
+/* Form control styles */
+.form-label {
+  color: var(--primary-color) !important;
+  font-weight: 600 !important;
+}
+
+.select-control .MuiOutlinedInput-notchedOutline {
+  border-color: var(--neutral-color) !important;
+}
+
+.select-control:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary-color) !important;
+}
+
+.select-control.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary-color) !important;
+}
+
+/* Checkbox styles */
+.colored-checkbox .MuiCheckbox-root {
+  color: var(--primary-color) !important;
+}
+
+.colored-checkbox .MuiCheckbox-root.Mui-checked {
+  color: var(--primary-color) !important;
+}
+
+/* Tooltip styles */
+.custom-tooltip {
+  background-color: white !important;
+  border: 1px solid var(--neutral-color) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Visualization chart styles */
+.outlier-point {
+  fill: var(--error-color) !important;
+  stroke: var(--error-color) !important;
+}
+
+.normal-point {
+  fill: var(--primary-color) !important;
+  stroke: var(--primary-color) !important;
+}
+
+.chart-axis {
+  color: var(--primary-color) !important;
+  font-weight: 500 !important;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  color: var(--primary-color) !important;
+}
+
+/* Status indicators */
+.outlier-count {
+  color: var(--error-color) !important;
+  font-weight: bold !important;
+}
+
+.normal-count {
+  color: var(--success-color) !important;
+  font-weight: bold !important;
+}
+
+.selection-count {
+  color: var(--primary-color) !important;
+  font-weight: bold !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .button-container {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  .button-container button {
+    width: 100% !important;
+  }
+}

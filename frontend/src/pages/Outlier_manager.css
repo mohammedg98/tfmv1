@@ -1,0 +1,482 @@
+/* Outlier_manager.css */
+:root {
+  --primary: #384850;
+  --primary-dark: #003d54;
+  --accent: #DE6B06;
+  --accent-dark: #c55a05;
+  --neutral: #DDDEDF;
+  --neutral-dark: #c8c9ca;
+  --success: #28a745;
+  --danger: #dc3545;
+  --warning: #ffc107;
+  --info: #17a2b8;
+  --light: #f8f9fa;
+  --dark: #343a40;
+  --white: #ffffff;
+  --border-radius: 8px;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s ease;
+}
+
+/* Styles généraux */
+.container {
+  padding: 2rem;
+  background-color: var(--neutral);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--primary);
+  margin-bottom: 1.5rem;
+}
+
+.graph-container {
+  background-color: var(--white);
+  border: 1px solid var(--neutral);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+  flex: 1;
+  min-width: 300px;
+  height: 300px;
+}
+
+.button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--border-radius);
+  background-color: var(--accent);
+  color: var(--white);
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 500;
+}
+
+.button:hover {
+  background-color: var(--accent-dark);
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  background-color: var(--neutral);
+  color: var(--neutral-dark);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 1.5rem;
+  border: 1px solid;
+}
+
+.alert-warning {
+  background-color: rgba(222, 107, 6, 0.1);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.alert-success {
+  background-color: rgba(40, 167, 69, 0.1);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.modifications-log {
+  background-color: var(--white);
+  border: 1px solid var(--neutral);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.modifications-log-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 0.5rem;
+}
+
+.modifications-log-item {
+  font-size: 0.9rem;
+  color: var(--dark);
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--neutral);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.section {
+  background: var(--white);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+  border: 1px solid var(--neutral);
+}
+
+.section-title {
+  margin-bottom: 1rem !important;
+  color: var(--primary);
+  font-weight: bold !important;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 0.5rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.primary-button {
+  background-color: var(--primary);
+  color: var(--white);
+}
+
+.primary-button:hover {
+  background-color: var(--primary-dark);
+}
+
+.secondary-button {
+  background-color: var(--neutral);
+  color: var(--dark);
+  border: 1px solid var(--neutral-dark);
+}
+
+.secondary-button:hover {
+  background-color: var(--neutral-dark);
+}
+
+.visualization-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.graph-card {
+  background: var(--white);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  transition: var(--transition);
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--neutral);
+}
+
+.graph-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.graph-title {
+  color: var(--primary);
+  font-weight: 600 !important;
+  margin-bottom: 1rem !important;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--accent);
+  font-size: 1rem !important;
+}
+
+.graph-container {
+  flex: 1;
+  position: relative;
+  background-color: var(--white);
+  border-radius: 4px;
+}
+
+/* Stats Cards */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--white);
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  text-align: center;
+  border-left: 4px solid var(--accent);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--dark);
+  font-weight: 500;
+}
+
+/* Action Section */
+.action-section {
+  background: linear-gradient(135deg, var(--white) 0%, var(--neutral) 100%);
+  border-left: 4px solid var(--accent);
+}
+
+/* Navigation */
+.navigation-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--neutral);
+}
+
+/* Loading States */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  background-color: var(--neutral);
+  border-radius: var(--border-radius);
+}
+
+.loading-text {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .visualization-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .graph-card {
+    height: 350px;
+    padding: 1rem;
+  }
+  
+  .button-group {
+    flex-direction: column;
+  }
+  
+  .button-group .button {
+    width: 100%;
+  }
+  
+  .navigation-buttons {
+    flex-direction: column;
+  }
+  
+  .stats-container {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0.5rem;
+  }
+  
+  .title {
+    font-size: 1.5rem;
+  }
+  
+  .graph-card {
+    height: 300px;
+  }
+  
+  .section {
+    padding: 1rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.section {
+  animation: fadeInUp 0.4s ease-out 0.2s both;
+}
+
+.graph-card {
+  animation: fadeInUp 0.4s ease-out 0.3s both;
+}
+
+/* Focus States */
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+.modifications-log {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.modifications-log::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modifications-log::-webkit-scrollbar-track {
+  background: var(--neutral);
+  border-radius: 3px;
+}
+
+.modifications-log::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+.modifications-log::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+
+
+
+
+
+
+
+/* Outlier_manager.css - Additional styles for info buttons */
+
+.info-button-container {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.info-button {
+  color: #1976d2;
+  transition: color 0.2s ease-in-out;
+}
+
+.info-button:hover {
+  color: #115293;
+}
+
+.info-button-small {
+  font-size: 16px;
+}
+
+/* Enhanced section headers with info buttons */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tooltip enhancements */
+.MuiTooltip-tooltip {
+  background-color: #2c3e50;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  padding: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
+
+.MuiTooltip-arrow {
+  color: #2c3e50;
+}
+
+/* Responsive adjustments for action buttons with info buttons */
+@media (max-width: 768px) {
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .info-button-container {
+    margin-left: 0;
+    margin-top: 4px;
+  }
+}
+
+/* Button groups with info buttons */
+.button-with-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Alert enhancements */
+.alert-with-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Data grid action cell enhancements */
+.MuiDataGrid-cell .outlier-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Form control with info enhancements */
+.form-control-with-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Bulk actions container */
+.bulk-actions-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.bulk-action-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

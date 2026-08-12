@@ -1,0 +1,453 @@
+/* Creat_Model.css - Color Palette Styles */
+:root {
+  --primary-color: #384850;   /* Bleu foncé */
+  --secondary-color: #DE6B06; /* Orange */
+  --neutral-color: #DDDEDF;   /* Gris */
+  --success-color: #4caf50;
+  --error-color: #f44336;
+  --warning-color: #ff9800;
+  --info-color: #2196f3;
+  --background-light: #f8f9fa;
+}
+
+/* Layout and container styles */
+.model-training-container {
+  width: 90% !important;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  gap: 24px !important;
+}
+
+.model-training-container.embedded {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 16px !important;
+}
+
+.model-training-container.embedded .model-training-header {
+  text-align: left !important;
+  margin-bottom: 0 !important;
+  margin-top: 0 !important;
+  font-size: 1.35rem !important;
+}
+
+/* Header styles */
+.model-training-header {
+  color: var(--primary-color) !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  margin-bottom: 32px !important;
+  margin-top: 10px;
+}
+
+/* Card styles */
+.info-card {
+  border-left: 4px solid var(--primary-color) !important;
+  background-color: var(--background-light) !important;
+}
+
+.model-card {
+  border: 1px solid var(--neutral-color) !important;
+  border-radius: 8px !important;
+}
+
+.card-title {
+  color: var(--primary-color) !important;
+  font-weight: 600 !important;
+}
+
+/* Button styles */
+.primary-button {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+
+.primary-button:hover {
+  background-color: #003d54 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 80, 111, 0.3);
+}
+
+.secondary-button {
+  background-color: var(--secondary-color) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+
+.secondary-button:hover {
+  background-color: #b85605 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(222, 107, 6, 0.3);
+}
+
+.model-selection-button {
+  border: 2px solid var(--neutral-color) !important;
+  color: var(--primary-color) !important;
+  background-color: white !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+
+.model-selection-button:hover {
+  border-color: var(--primary-color) !important;
+  background-color: rgba(0, 80, 111, 0.04) !important;
+  transform: translateY(-2px);
+}
+
+.model-selection-button.selected {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 2px 8px rgba(0, 80, 111, 0.3);
+}
+
+.model-selection-button:disabled {
+  background-color: var(--neutral-color) !important;
+  color: #666 !important;
+  border-color: var(--neutral-color) !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Training button */
+.training-button {
+  height: 56px !important;
+  width: 300px !important;
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+}
+
+.training-button:disabled {
+  background-color: var(--neutral-color) !important;
+  color: #666 !important;
+  cursor: not-allowed !important;
+}
+
+/* Status indicators */
+.target-column-success {
+  color: var(--success-color) !important;
+  font-weight: bold !important;
+}
+
+.target-column-warning {
+  color: var(--warning-color) !important;
+  font-weight: bold !important;
+}
+
+.model-mode-indicator {
+  font-weight: bold !important;
+  margin-left: 8px !important;
+}
+
+.classification-mode {
+  color: var(--primary-color) !important;
+}
+
+.regression-mode {
+  color: var(--secondary-color) !important;
+}
+
+/* Alert styles */
+.warning-alert {
+  border-left: 4px solid var(--warning-color) !important;
+  background-color: rgba(255, 152, 0, 0.05) !important;
+}
+
+.error-alert {
+  border-left: 4px solid var(--error-color) !important;
+  background-color: rgba(244, 67, 54, 0.05) !important;
+}
+
+.success-alert {
+  border-left: 4px solid var(--success-color) !important;
+  background-color: rgba(76, 175, 80, 0.05) !important;
+}
+
+/* Progress and loading */
+.loading-spinner {
+  color: var(--primary-color) !important;
+}
+
+.progress-bar {
+  background-color: var(--primary-color) !important;
+}
+
+/* Slider styles */
+.parameter-slider .MuiSlider-track {
+  color: var(--primary-color) !important;
+}
+
+.parameter-slider .MuiSlider-rail {
+  color: var(--neutral-color) !important;
+}
+
+.parameter-slider .MuiSlider-thumb {
+  color: var(--primary-color) !important;
+  border: 2px solid white !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.parameter-slider .MuiSlider-valueLabel {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+/* Table styles */
+.feature-table {
+  margin-top: 16px !important;
+}
+
+.feature-table .MuiTableHead-root {
+  background-color: rgba(0, 80, 111, 0.1) !important;
+}
+
+.feature-table .MuiTableCell-head {
+  color: var(--primary-color) !important;
+  font-weight: 600 !important;
+  background-color: rgba(0, 80, 111, 0.05) !important;
+}
+
+.feature-table .MuiTableRow-root:nth-of-type(odd) {
+  background-color: rgba(0, 80, 111, 0.02) !important;
+}
+
+.feature-table .MuiTableRow-root:hover {
+  background-color: rgba(0, 80, 111, 0.04) !important;
+}
+
+/* Accordion styles */
+.metrics-accordion {
+  border: 1px solid var(--neutral-color) !important;
+  border-radius: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+.metrics-accordion .MuiAccordionSummary-root {
+  background-color: rgba(0, 80, 111, 0.05) !important;
+  border-bottom: 1px solid var(--neutral-color) !important;
+}
+
+.metrics-accordion .MuiAccordionSummary-expandIconWrapper {
+  color: var(--primary-color) !important;
+}
+
+/* Visualization containers */
+.visualization-container {
+  border: 1px solid var(--neutral-color) !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  background-color: white !important;
+  margin-bottom: 16px !important;
+}
+
+.visualization-title {
+  color: var(--primary-color) !important;
+  font-weight: 600 !important;
+  margin-bottom: 16px !important;
+}
+
+/* Model-specific result styles */
+.lightgbm-results {
+  border-left: 4px solid var(--info-color) !important;
+  background-color: rgba(33, 150, 243, 0.05) !important;
+}
+
+.svm-results {
+  border-left: 4px solid var(--secondary-color) !important;
+  background-color: rgba(222, 107, 6, 0.05) !important;
+}
+
+.knn-results {
+  border-left: 4px solid var(--success-color) !important;
+  background-color: rgba(76, 175, 80, 0.05) !important;
+}
+
+.mlp-results {
+  border-left: 4px solid var(--primary-color) !important;
+  background-color: rgba(0, 80, 111, 0.05) !important;
+}
+
+.kmeans-results {
+  border-left: 4px solid var(--warning-color) !important;
+  background-color: rgba(255, 152, 0, 0.05) !important;
+}
+
+/* Typography helpers */
+.primary-text {
+  color: var(--primary-color) !important;
+}
+
+.secondary-text {
+  color: var(--secondary-color) !important;
+}
+
+.neutral-text {
+  color: var(--neutral-color) !important;
+}
+
+.success-text {
+  color: var(--success-color) !important;
+}
+
+.warning-text {
+  color: var(--warning-color) !important;
+}
+
+.error-text {
+  color: var(--error-color) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .model-training-container {
+    width: 95% !important;
+    padding: 16px !important;
+  }
+  
+  .model-selection-buttons {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  .model-selection-button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  
+  .training-button {
+    width: 100% !important;
+    max-width: 300px !important;
+  }
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+
+.model-param-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.param-field {
+  margin-bottom: 16px;
+}
+
+.param-helper-text {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+
+.MuiInputLabel-root {
+  font-weight: 500 !important;
+}
+
+.MuiInputLabel-shrink {
+  transform: translate(14px, -6px) scale(0.75) !important;
+  background-color: white !important;
+  padding: 0 4px !important;
+}
+
+.param-field .MuiFormHelperText-root {
+  font-size: 0.7rem !important;
+  margin-top: 2px !important;
+}
+
+
+.save-model-button {
+  background: linear-gradient(45deg, #384850, #0088CC) !important;
+  color: white !important;
+  font-weight: bold !important;
+  padding: 12px 24px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 80, 111, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.save-model-button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(0, 80, 111, 0.4) !important;
+  background: linear-gradient(45deg, #003d54, #006699) !important;
+}
+
+.save-model-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+  border-left: 6px solid var(--primary-color) !important;
+  border-radius: 12px !important;
+}
+
+.problem-type-classification {
+  color: #1976d2;
+  font-weight: bold;
+}
+
+.problem-type-regression {
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+.problem-type-unsupervised {
+  color: #ed6c02;
+  font-weight: bold;
+}
+
+/* Styles pour les boutons désactivés */
+.model-selection-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.model-selection-button.selected {
+  background-color: #1976d2;
+  color: white;}
+
+
+  .model-info-button {
+  background: linear-gradient(45deg, #2196F3, #21CBF3);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  text-transform: none;
+  transition: all 0.3s ease;
+}
+
+.model-info-button:hover {
+  background: linear-gradient(45deg, #1976D2, #00B0FF);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}

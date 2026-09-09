@@ -18,10 +18,6 @@ import {
   Select,
   Typography,
 } from "@mui/material";
-import {
-  AutoFixHigh as AutoFixHighIcon,
-  HelpOutline as HelpOutlineIcon,
-} from "@mui/icons-material";
 import axios from "axios";
 import { backendUrl } from "../config";
 
@@ -234,12 +230,10 @@ export default function AutoTransformDialog({
         onClose={phase === "running" ? undefined : handleClose}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ className: "transform-dialog" }}
       >
         <DialogTitle
           sx={{
-            color: "rgb(0, 80, 111)",
-            fontWeight: 700,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -247,15 +241,11 @@ export default function AutoTransformDialog({
             pr: 2,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <AutoFixHighIcon sx={{ color: "#DE6B06" }} />
-            Auto Transform
-          </Box>
+          <span>Auto Transform</span>
           <Button
             size="small"
-            startIcon={<HelpOutlineIcon />}
             onClick={() => setHowOpen(true)}
-            sx={{ textTransform: "none", color: "rgb(0, 80, 111)" }}
+            sx={{ textTransform: "none", color: "#fff" }}
           >
             How it works
           </Button>
@@ -264,16 +254,8 @@ export default function AutoTransformDialog({
           {phase === "intro" && (
             <Box>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                Profile each column → choose a safe transform from the{" "}
-                <strong>existing manual methods</strong> → apply (fit on train when
-                split exists) → always finish by removing rows with empty values.
+                Encodes columns for modeling. If a cell is a sentence and you need a value inside it, use Extract from text first.
               </Typography>
-
-              <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
-                If you need fields from free text (URLs, logs, etc.), use{" "}
-                <strong>Extract from text</strong> first. Pure text columns may be
-                deleted by Auto Transform (this is not an NLP tool).
-              </Alert>
 
               <FormControl component="fieldset" sx={{ mb: 2, display: "block" }}>
                 <FormLabel component="legend" sx={{ fontWeight: 600, mb: 1 }}>
@@ -391,48 +373,40 @@ export default function AutoTransformDialog({
                 </FormControl>
               )}
 
-              <Alert severity="info" variant="outlined">
-                This modifies your current dataset. You can still use manual tools
-                afterward, or Reset to roll back this stage.
-                {scalingStrategy === "standard" || scalingStrategy === "minmax" ? (
-                  <>
-                    {" "}
-                    Scaling rewrites the full table once: on large datasets wait a few
-                    minutes without closing the dialog.
-                  </>
-                ) : null}
-              </Alert>
+              {scalingStrategy === "standard" || scalingStrategy === "minmax" ? (
+                <Alert severity="info" icon={false} className="transform-alert">
+                  Scaling rewrites the full table once. On large datasets wait a few minutes without closing this window.
+                </Alert>
+              ) : null}
             </Box>
           )}
 
           {(phase === "running" || phase === "done" || phase === "error") && (
             <Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <Typography variant="subtitle2" sx={{ color: "rgb(0, 80, 111)" }}>
-                  Pipeline log
+                <Typography variant="subtitle2" sx={{ color: "#384850" }}>
+                  Analysis log
                 </Typography>
                 {phase === "running" && <CircularProgress size={16} />}
-                {jobId && (
-                  <Typography variant="caption" color="text.secondary">
-                    job {jobId.slice(0, 8)}…
-                  </Typography>
-                )}
               </Box>
               <Box
                 ref={logBoxRef}
                 sx={{
-                  bgcolor: "#1e1e1e",
-                  color: "#d4d4d4",
-                  fontFamily: "Consolas, Monaco, monospace",
+                  bgcolor: "#384850",
+                  color: "#ffffff",
+                  fontFamily: "Consolas, 'Courier New', monospace",
                   fontSize: 12,
+                  lineHeight: 1.55,
                   p: 1.5,
-                  borderRadius: 1,
+                  borderRadius: "2px",
                   maxHeight: 320,
                   overflow: "auto",
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {(logs || []).join("\n") || "Waiting…"}
+                {(logs.length ? logs : ["running..."]).map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
               </Box>
 
               {phase === "done" && report && (
@@ -468,7 +442,7 @@ export default function AutoTransformDialog({
                     Empty rows removed: {report.empty_rows_deleted ?? 0}
                   </Typography>
                   {(report.warnings || []).length > 0 && (
-                    <Alert severity="warning" sx={{ mt: 1 }}>
+                    <Alert severity="warning" icon={false} className="transform-alert" sx={{ mt: 1 }}>
                       {(report.warnings || []).slice(0, 5).join(" · ")}
                     </Alert>
                   )}
@@ -493,11 +467,12 @@ export default function AutoTransformDialog({
                 variant="contained"
                 onClick={startJob}
                 disabled={!canStart()}
-                startIcon={<AutoFixHighIcon />}
                 sx={{
                   textTransform: "none",
                   bgcolor: "#DE6B06",
                   fontWeight: 700,
+                  boxShadow: "none",
+                  borderRadius: "2px",
                   "&:hover": { bgcolor: "#c55a05" },
                 }}
               >
@@ -521,11 +496,14 @@ export default function AutoTransformDialog({
                   onClick={finishAndRefresh}
                   sx={{
                     textTransform: "none",
-                    bgcolor: "rgb(0, 80, 111)",
+                    bgcolor: "#384850",
                     fontWeight: 700,
+                    boxShadow: "none",
+                    borderRadius: "2px",
+                    "&:hover": { bgcolor: "#2a3942" },
                   }}
                 >
-                  Done, refresh table
+                  Done
                 </Button>
               )}
             </>
@@ -533,35 +511,33 @@ export default function AutoTransformDialog({
         </DialogActions>
       </Dialog>
 
-      <Dialog open={howOpen} onClose={() => setHowOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>How Auto Transform works</DialogTitle>
+      <Dialog open={howOpen} onClose={() => setHowOpen(false)} maxWidth="sm" fullWidth
+        PaperProps={{ className: "transform-dialog" }}>
+        <DialogTitle>How it works</DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2" paragraph>
-            Decisions stay inside the same methods as the manual Transform UI.
+            1. Drop columns that are empty, constant, long free text, or look like IDs.
           </Typography>
-          <Typography variant="body2" component="div">
-            <ul style={{ marginTop: 0, paddingLeft: 18 }}>
-              <li>Constant / mostly-missing / free-text / ID-like → delete</li>
-              <li>Boolean → Binary (skip if already 0/1)</li>
-              <li>Categorical ≤10 classes → One-Hot; else Label</li>
-              <li>Repetitive text → Frequency; unique-ish text → delete</li>
-              <li>Target categorical → Label only</li>
-              <li>
-                Date → Keep one for optional Time Series validation, or delete
-                (never treated as a normal feature)
-              </li>
-              <li>Numeric scaling only if you choose it (default: none)</li>
-              <li>Always ends with delete rows that still have empty values</li>
-            </ul>
+          <Typography variant="body2" paragraph>
+            2. Boolean: Binary (skip if already 0/1). Categorical: One-Hot if 10 classes or fewer, otherwise Label. Target categorical: Label only.
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Short repetitive strings are usually already typed as categorical by
-            the platform: Auto does not re-invent that step.
+          <Typography variant="body2" paragraph>
+            3. Repetitive text: Frequency. Unique-ish text: delete. Short repetitive strings are usually already typed as categorical.
+          </Typography>
+          <Typography variant="body2" paragraph>
+            4. Date: keep one for optional Time Series validation, or delete. A kept date is not used as a normal feature.
+          </Typography>
+          <Typography variant="body2">
+            5. Numeric scaling only if you choose it (default: none). Always ends by deleting rows that still have empty values. Fit on train when a split exists.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setHowOpen(false)} sx={{ textTransform: "none" }}>
-            Close
+          <Button
+            variant="contained"
+            onClick={() => setHowOpen(false)}
+            sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" }, textTransform: "none", borderRadius: "2px", boxShadow: "none" }}
+          >
+            Got it
           </Button>
         </DialogActions>
       </Dialog>

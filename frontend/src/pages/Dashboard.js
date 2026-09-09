@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
-  FaPlus, FaTimes, FaDatabase, FaRobot, FaSignOutAlt, 
-  FaUser, FaEnvelope, FaChartLine, FaCog, FaBox,
-  FaDownload, FaEye, FaStar, FaUpload, FaHistory,
-  FaChartBar, FaTable, FaInfoCircle, FaExclamationTriangle,
-  FaBalanceScale, FaCheck
+  FaPlus, FaTimes, FaDatabase, FaRobot, FaBox,
+  FaDownload, FaUpload, FaChartLine, FaTable, FaInfoCircle,
+  FaExclamationTriangle, FaCheck
 } from "react-icons/fa";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -18,12 +16,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Legend, Cell,
 } from "recharts";
-import { 
-  Info as InfoIcon, 
-  Close as CloseIcon,
-  TableChart as TableChartIcon,
-  BarChart as BarChartIcon
-} from "@mui/icons-material";
+import { Close as CloseIcon } from "@mui/icons-material";
 import "./Dashboard.css";
 import { backendUrl } from "../config";
 import { normalizeDatasetName, validateDatasetNameInput } from "../utils/datasetName";
@@ -88,7 +81,9 @@ function formatPrimaryMetric(family, value) {
 }
 
 const MAX_COMPARE_MODELS = 5;
-const COMPARE_BAR_COLORS = ["#DE6B06", "#384850", "#0088CC", "#2e7d32", "#7b1fa2"];
+const NAVY = "#384850";
+const ACCENT = "#DE6B06";
+const COMPARE_BAR_COLORS = [ACCENT, NAVY, "#6a757c", NAVY, ACCENT];
 
 const ALGORITHM_LABELS = {
   ridge: "Ridge Regression",
@@ -276,12 +271,15 @@ function Dashboard() {
 
   const tabDescriptions = {
     databases: {
+      title: "My Datasets",
       description:
         "Your datasets. Upload new ones, continue preparation, reset and restart, or delete. Continue opens Data Preparation at your last stage.",
+      action: "Upload, continue, start over, or delete.",
       emptyDescription:
         "No datasets yet. Upload a CSV/Excel file, or copy one from Predefined Datasets.",
     },
     predefined: {
+      title: "Predefined Datasets",
       description:
         "Ready-made cybersecurity tabular datasets. Visualize details, then copy one to your account to start Data Preparation.",
       emptyDescription:
@@ -289,6 +287,7 @@ function Dashboard() {
       action: "Copy a dataset, then follow Target → Clean/Split → Transform → Train → Use Model.",
     },
     models: {
+      title: "My Models",
       description:
         "Models you saved after training. Open Use Model for predictions, download the file, or delete unused models.",
       emptyDescription:
@@ -557,7 +556,7 @@ const handleAddDatasetInfo = async (dataset, e) => {
     };
 
     return (
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ className: "dash-dialog" }}>
         <DialogTitle>
           Start from predefined dataset
         </DialogTitle>
@@ -572,7 +571,7 @@ const handleAddDatasetInfo = async (dataset, e) => {
               Delete some datasets before creating new ones.
             </Alert>
           ) : (
-            <Alert severity="info" sx={{ mb: 2 }}>
+            <Alert severity="info" icon={false} sx={{ mb: 2, backgroundColor: "#e8e9ea", color: "#384850" }}>
               Creates a personal copy and opens Data Preparation (Target → Clean/Split → Transform → Train).
             </Alert>
           )}
@@ -611,9 +610,9 @@ const handleAddDatasetInfo = async (dataset, e) => {
 
 const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, saving }) => {
     const customColors = {
-      primary: '#003d54',
-      secondary: '#384850',
-      accent: '#DE6B06'
+      primary: NAVY,
+      secondary: NAVY,
+      accent: ACCENT
     };
 
     // État local uniquement - pas de synchronisation avec le parent
@@ -636,15 +635,12 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
     };
 
     return (
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth PaperProps={{ className: "dash-dialog" }}>
         <DialogTitle sx={{ backgroundColor: customColors.primary, color: 'white' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FaInfoCircle />
-              <Typography variant="h6">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">
                 Dataset Information - {dataset?.table_name}
               </Typography>
-            </Box>
             <IconButton onClick={handleClose} size="small" sx={{ color: 'white' }}>
               <CloseIcon />
             </IconButton>
@@ -652,7 +648,11 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
         </DialogTitle>
         
         <DialogContent dividers sx={{ p: 3 }}>
-          <Alert severity="info" sx={{ mb: 3 }}>
+          <Alert
+            severity="info"
+            icon={false}
+            sx={{ mb: 3, backgroundColor: "#e8e9ea", color: "#384850" }}
+          >
             <Typography variant="body2">
               Add helpful information about this dataset for users. This will be displayed 
               in the visualization modal and can include:
@@ -770,9 +770,9 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
 
     // Couleurs personnalisées
     const customColors = {
-      primary: '#003d54',
-      secondary: '#384850',
-      accent: '#DE6B06'
+      primary: NAVY,
+      secondary: NAVY,
+      accent: ACCENT
     };
 
     return (
@@ -782,6 +782,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
         maxWidth="xl" 
         fullWidth
         PaperProps={{
+          className: "dash-dialog",
           sx: {
             height: '85vh',
             maxHeight: '85vh'
@@ -831,21 +832,17 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                       fontSize: '0.9rem'
                     },
                     '& .Mui-selected': {
-                      color: `${customColors.accent} !important`,
+                      color: `${customColors.primary} !important`,
                     },
                     '& .MuiTabs-indicator': {
-                      backgroundColor: customColors.accent,
+                      backgroundColor: customColors.primary,
                     }
                   }}
                 >
                   <Tab 
-                    icon={<FaInfoCircle />} 
-                    iconPosition="start"
                     label="Dataset Information" 
                   />
                   <Tab 
-                    icon={<TableChartIcon />} 
-                    iconPosition="start"
                     label="Data Preview" 
                   />
                 </Tabs>
@@ -858,18 +855,17 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                   <>
                     {/* Dataset Information Section */}
                     {datasetInfo?.has_dataset_info ? (
-                      <Paper 
-                        elevation={1} 
+                      <Paper
+                        elevation={0}
                         sx={{ 
-                          p: 3, 
-                          mb: 3, 
-                          bgcolor: '#f8f9fa',
-                          borderLeft: `4px solid #DE6B06`,
-                          animation: 'fadeIn 0.3s ease'
+                          p: 2, 
+                          mb: 2, 
+                          bgcolor: '#fff',
+                          border: `1px solid ${NAVY}`,
                         }}
                         className="dataset-info-section"
                       >
-                        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#DE6B06' }}>
+                        <Typography variant="h6" gutterBottom sx={{ color: NAVY }}>
                           <FaInfoCircle />
                           Dataset Information
                         </Typography>
@@ -913,7 +909,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                         }}
                         className="no-dataset-info"
                       >
-                        <FaInfoCircle style={{ fontSize: '2rem', marginBottom: 8, opacity: 0.5, color: '#003d54' }} />
+                        <FaInfoCircle style={{ fontSize: '2rem', marginBottom: 8, opacity: 0.5, color: NAVY }} />
                         <Typography variant="body2" color="textSecondary">
                           {isAdmin ? (
                             <>
@@ -937,7 +933,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                     )}
 
                     {/* Dataset Overview - SIMPLIFIÉ */}
-                    <Paper elevation={1} sx={{ p: 3, mb: 3, borderLeft: `4px solid ${customColors.primary}` }}>
+                    <Paper elevation={0} sx={{ p: 2, mb: 2, border: `1px solid ${NAVY}` }}>
                       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: customColors.primary }}>
                         <FaDatabase />
                         Dataset Overview
@@ -947,26 +943,26 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                         gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, 
                         gap: 2 
                       }}>
-                        <Paper sx={{ p: 2, borderLeft: `4px solid ${customColors.primary}` }}>
+                        <Paper sx={{ p: 2, border: `1px solid ${NAVY}` }}>
                           <Typography variant="body2" color="textSecondary">Dataset Name</Typography>
                           <Typography variant="h6" fontWeight="bold" color={customColors.primary}>{dataset?.table_name}</Typography>
                         </Paper>
-                        <Paper sx={{ p: 2, borderLeft: `4px solid ${customColors.secondary}` }}>
-                          <Typography variant="body2" color="textSecondary">Rows</Typography>
-                          <Typography variant="h6" fontWeight="bold" color={customColors.secondary}>
-                            {datasetData.rows?.length || 0}
-                          </Typography>
+                        <Paper sx={{ p: 2, border: `1px solid ${NAVY}` }}>
+                        <Typography variant="body2" color="textSecondary">Rows</Typography>
+                              <Typography variant="h6" fontWeight="bold" color={customColors.secondary}>
+                               {dataset?.row_count ?? (datasetData.rows?.length || 0)}
+                            </Typography>
                         </Paper>
-                        <Paper sx={{ p: 2, borderLeft: `4px solid ${customColors.accent}` }}>
+                        <Paper sx={{ p: 2, border: `1px solid ${NAVY}` }}>
                           <Typography variant="body2" color="textSecondary">Columns</Typography>
-                          <Typography variant="h6" fontWeight="bold" color={customColors.accent}>
+                          <Typography variant="h6" fontWeight="bold" color={NAVY}>
                             {datasetData.columns?.length || 0}
                           </Typography>
                         </Paper>
                         {datasetInfo?.target_column && (
-                          <Paper sx={{ p: 2, borderLeft: `4px solid #28a745` }}>
+                          <Paper sx={{ p: 2, borderLeft: `4px solid ${NAVY}` }}>
                             <Typography variant="body2" color="textSecondary">Target Column</Typography>
-                            <Typography variant="h6" fontWeight="bold" color="#28a745">
+                            <Typography variant="h6" fontWeight="bold" color={NAVY}>
                               {datasetInfo.target_column}
                             </Typography>
                           </Paper>
@@ -975,7 +971,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                     </Paper>
 
                     {/* Columns Information - SIMPLIFIÉ */}
-                    <Paper elevation={1} sx={{ p: 3, mb: 3, borderLeft: `4px solid ${customColors.secondary}` }}>
+                    <Paper elevation={0} sx={{ p: 2, mb: 2, border: `1px solid ${NAVY}` }}>
                       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: customColors.secondary }}>
                         <FaChartLine />
                         Columns ({datasetData.columns?.length || 0})
@@ -1103,8 +1099,8 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                           </TableContainer>
                         </div>
                         <Typography variant="caption" sx={{ mt: 1, display: 'block', color: customColors.secondary }}>
-                          Showing {Math.min(100, datasetData.rows.length)} of {datasetData.rows.length} rows
-                          {datasetData.rows.length > 100 && ' (first 100 rows shown)'}
+                        Showing {Math.min(100, datasetData.rows.length)} of {dataset?.row_count ?? datasetData.rows.length} rows
+                        {(dataset?.row_count ?? datasetData.rows.length) > 100 && ' (first 100 rows shown)'}
                         </Typography>
                       </Box>
                     ) : (
@@ -1191,7 +1187,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
                     sx={{
                       backgroundColor: customColors.primary,
                       '&:hover': {
-                        backgroundColor: '#002a3a'
+                      backgroundColor: '#2a3942'
                       }
                     }}
                   >
@@ -1752,24 +1748,6 @@ const handleCreateFromPredefined = async (newDatasetName) => {
       </header>
 
       <main className="dashboard-content">
-        {/* Debug badge for admin */}
-        {isAdmin && (
-          <div style={{
-            position: 'fixed',
-            top: '10px',
-            right: '10px',
-            background: 'green',
-            color: 'white',
-            padding: '5px 10px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            zIndex: 9999,
-            fontWeight: 'bold'
-          }}>
-            ADMIN MODE
-          </div>
-        )}
-
         {error && (
           <div className="error-banner">
             <span>{error}</span>
@@ -1787,33 +1765,53 @@ const handleCreateFromPredefined = async (newDatasetName) => {
 
         {user ? (
           <div className="dashboard-sections">
-            <div className="section-tabs">
-              <button 
-                className={`tab-btn ${activeTab === 'databases' ? 'active' : ''}`}
-                onClick={() => setActiveTab('databases')}
+            <div className="dash-main-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                className={`dash-main-tab${activeTab === "databases" ? " dash-main-tab-on" : ""}`}
+                onClick={() => setActiveTab("databases")}
                 title={tabDescriptions.databases.description}
+                style={
+                  activeTab === "databases"
+                    ? { background: "#384850", color: "#ffffff", borderBottom: "2px solid #384850" }
+                    : { background: "transparent", color: "#6a757c", borderBottom: "2px solid transparent" }
+                }
               >
-                <FaDatabase /> My Datasets ({userTableCount}/10)
+                My Datasets ({userTableCount}/10)
               </button>
-              <button 
-                className={`tab-btn ${activeTab === 'predefined' ? 'active' : ''}`}
-                onClick={() => setActiveTab('predefined')}
+              <button
+                type="button"
+                role="tab"
+                className={`dash-main-tab${activeTab === "predefined" ? " dash-main-tab-on" : ""}`}
+                onClick={() => setActiveTab("predefined")}
                 title={tabDescriptions.predefined.description}
+                style={
+                  activeTab === "predefined"
+                    ? { background: "#384850", color: "#ffffff", borderBottom: "2px solid #384850" }
+                    : { background: "transparent", color: "#6a757c", borderBottom: "2px solid transparent" }
+                }
               >
-                <FaBox /> Predefined Datasets
+                Predefined Datasets
               </button>
-              <button 
-                className={`tab-btn ${activeTab === 'models' ? 'active' : ''}`}
-                onClick={() => setActiveTab('models')}
+              <button
+                type="button"
+                role="tab"
+                className={`dash-main-tab${activeTab === "models" ? " dash-main-tab-on" : ""}`}
+                onClick={() => setActiveTab("models")}
                 title={tabDescriptions.models.description}
+                style={
+                  activeTab === "models"
+                    ? { background: "#384850", color: "#ffffff", borderBottom: "2px solid #384850" }
+                    : { background: "transparent", color: "#6a757c", borderBottom: "2px solid transparent" }
+                }
               >
-                <FaRobot /> My Models ({savedModels.length})
+                My Models ({savedModels.length})
               </button>
             </div>
 
             {/* Tab Description */}
             <div className="tab-description">
-              <h3>{tabDescriptions[activeTab].title}</h3>
               <p>{tabDescriptions[activeTab].description}</p>
               <p className="tab-action">{tabDescriptions[activeTab].action}</p>
             </div>
@@ -1824,10 +1822,10 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                 <div className="section-header">
                   <div className="section-stats">
                     <span className="stat-item">
-                      <FaDatabase /> Total: {databases.length}
+                      Total: {databases.length}
                     </span>
                     <span className="stat-item">
-                      <FaHistory /> Limit: {userTableCount}/10
+                      Limit: {userTableCount}/10
                     </span>
                   </div>
                   <button 
@@ -1895,15 +1893,6 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                           
                             </div>
                             
-                            <div className="dataset-actions-description">
-                              <p className="action-desc">
-                                <strong>Start from scratch:</strong> reset working data and open Data Preparation from the beginning.
-                              </p>
-                              <p className="action-desc">
-                                <strong>Continue:</strong> open Data Preparation at your last stage.
-                              </p>
-                            </div>
-                            
                             <div className="card-actions">
                               <button 
                                 className="btn primary"
@@ -1958,7 +1947,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                 <div className="section-header">
                   <div className="section-stats">
                     <span className="stat-item">
-                      <FaBox /> Available: {predefinedDatasets.length}
+                      Available: {predefinedDatasets.length}
                     </span>
                   </div>
                 </div>
@@ -2034,20 +2023,6 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                               </div>
                             )}
                             
-                            <div className="action-description">
-                              <p className="action-text">
-                                <strong>Visualize:</strong> preview rows and column info.
-                              </p>
-                              <p className="action-text">
-                                <strong>Start pipeline:</strong> copy the dataset and open Data Preparation.
-                              </p>
-                              {isAdmin && (
-                                <p className="action-text admin-info">
-                                  <strong>Admin:</strong> use the info control to edit notes for users.
-                                </p>
-                              )}
-                            </div>
-                            
                             <div className="card-actions">
                               <button 
                                 className="btn accent"
@@ -2094,7 +2069,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                 <div className="section-header">
                   <div className="section-stats">
                     <span className="stat-item">
-                      <FaRobot /> Total Models: {savedModels.length}
+                      Total models: {savedModels.length}
                     </span>
                   </div>
                 </div>
@@ -2134,7 +2109,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                             : "Select 2 to 5 comparable models first"
                         }
                       >
-                        <FaBalanceScale /> Compare models
+                        Compare models
                       </button>
                       {compareSelection.length > 0 && (
                         <button
@@ -2223,19 +2198,13 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                               </div>
                             </div>
                             
-                            <div className="action-description">
-                              <p className="action-text">
-                                <FaEye /> <strong>Use Model:</strong> Load this model to make predictions on new data
-                              </p>
-                            </div>
-                            
                             <div className="model-card-actions">
                               <button 
                                 className="btn primary"
                                 onClick={() => handleUseModel(model)}
                                 title="Use this model for predictions"
                               >
-                                <FaEye /> Use Model
+                                Use Model
                               </button>
                               <button
                                 type="button"
@@ -2335,6 +2304,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
           onClose={() => !deletingResource && setDeleteDatasetDialog(null)}
           maxWidth="xs"
           fullWidth
+          PaperProps={{ className: "dash-dialog" }}
         >
           <DialogTitle>Delete dataset?</DialogTitle>
           <DialogContent>
@@ -2367,6 +2337,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
           onClose={() => !deletingResource && setDeleteModelDialog(null)}
           maxWidth="xs"
           fullWidth
+          PaperProps={{ className: "dash-dialog" }}
         >
           <DialogTitle>Delete model?</DialogTitle>
           <DialogContent>
@@ -2443,9 +2414,9 @@ const handleCreateFromPredefined = async (newDatasetName) => {
               maxWidth="lg"
               fullWidth
               className="model-compare-dialog"
+              PaperProps={{ className: "dash-dialog" }}
             >
-              <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <FaBalanceScale style={{ color: "#DE6B06" }} />
+              <DialogTitle>
                 Model comparison ({models.length})
               </DialogTitle>
               <DialogContent dividers>
@@ -2482,7 +2453,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                             ]}
                           />
                           <Legend />
-                          <Bar dataKey="value" name={metricLabel} radius={[6, 6, 0, 0]}>
+                          <Bar dataKey="value" name={metricLabel} radius={[0, 0, 0, 0]}>
                             {chartData.map((entry) => (
                               <Cell
                                 key={entry.id}
@@ -2506,7 +2477,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                           <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
                           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                           <RechartsTooltip />
-                          <Bar dataKey="features" name="Features" radius={[6, 6, 0, 0]}>
+                          <Bar dataKey="features" name="Features" radius={[0, 0, 0, 0]}>
                             {featureChartData.map((entry, i) => (
                               <Cell key={`f-${i}`} fill={entry.color} fillOpacity={0.85} />
                             ))}
@@ -2530,7 +2501,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                               <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
                               <YAxis tick={{ fontSize: 11 }} />
                               <RechartsTooltip />
-                              <Bar dataKey="inertia" name="Inertia" fill="#607d8b" radius={[6, 6, 0, 0]} />
+                              <Bar dataKey="inertia" name="Inertia" fill={NAVY} radius={[0, 0, 0, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
@@ -2565,7 +2536,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                                 handleUseModel(m);
                               }}
                             >
-                              <FaEye /> Use
+                              Use
                             </button>
                           </div>
                         );
@@ -2593,8 +2564,8 @@ const handleCreateFromPredefined = async (newDatasetName) => {
                                   size="small"
                                   label={formatAlgorithmLabel(m)}
                                   sx={{
-                                    backgroundColor: "rgba(222,107,6,0.12)",
-                                    color: "#DE6B06",
+                                    backgroundColor: "#f3f4f5",
+                                    color: NAVY,
                                     fontWeight: 600,
                                   }}
                                 />

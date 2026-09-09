@@ -1,24 +1,23 @@
-/* Group_optimizer.css - Version finale optimisée */
+/* Group_optimizer.css */
 :root {
   --primary: #384850;
-  --primary-dark: #003d54;
+  --primary-dark: #384850;
   --accent: #DE6B06;
   --accent-dark: #c55a05;
   --neutral: #DDDEDF;
   --neutral-dark: #c8c9ca;
-  --success: #28a745;
-  --danger: #dc3545;
-  --warning: #ffc107;
-  --info: #17a2b8;
-  --light: #f8f9fa;
-  --dark: #343a40;
+  --success: #384850;
+  --danger: #b42318;
+  --warning: #DE6B06;
+  --info: #384850;
+  --light: #f3f4f5;
+  --dark: #384850;
   --white: #ffffff;
-  --border-radius: 12px;
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --transition: all 0.3s ease;
+  --border-radius: 2px;
+  --shadow: none;
+  --transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
-/* Container Principal */
 .group_optimizer-container {
   padding: 0;
   max-width: 100%;
@@ -38,9 +37,8 @@
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
   background: #ffffff;
-  border: 1px solid #DDDEDF;
-  border-left: 4px solid #DE6B06;
-  border-radius: 12px;
+  border: 1px solid #c8c9ca;
+  border-radius: 2px;
   box-shadow: none;
 }
 
@@ -55,7 +53,6 @@
   font-size: 1.25rem;
 }
 
-/* Barre d'actions supérieure */
 .header-actions-bar {
   display: flex;
   justify-content: flex-end;
@@ -69,7 +66,6 @@
   margin-left: auto;
 }
 
-/* Groupes de boutons */
 .left-button-group,
 .center-button-group,
 .right-button-group {
@@ -78,20 +74,19 @@
   align-items: center;
 }
 
-/* Style commun pour tous les boutons */
 .action-btn {
   font-weight: 600;
   transition: var(--transition);
   text-transform: none;
   padding: 8px 16px;
+  border-radius: 2px;
+  box-shadow: none;
 }
 
 .action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
+  box-shadow: none;
 }
 
-/* Bouton Target Selection */
 .target-btn {
   border: 1px solid var(--accent);
   color: var(--accent);
@@ -103,149 +98,128 @@
   border-color: var(--accent-dark);
 }
 
-/* Bouton Continue */
 .continue-btn {
-  background: linear-gradient(135deg, var(--success) 0%, #218838 100%);
+  background: #384850;
   color: white;
 }
 
 .continue-btn:hover {
-  background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+  background: #2a3942;
 }
 
 .continue-btn:disabled {
   background: var(--neutral);
   color: var(--neutral-dark);
-  transform: none;
-  box-shadow: none;
 }
 
-/* Bouton Save Copy */
-.save-copy-btn {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-  color: white;
-}
-
-.save-copy-btn:hover {
-  background: linear-gradient(135deg, var(--accent-dark) 0%, #b45305 100%);
-}
-
-/* Bouton Reset */
+.save-copy-btn,
 .reset-btn {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  background: #DE6B06;
   color: white;
 }
 
+.save-copy-btn:hover,
 .reset-btn:hover {
-  background: linear-gradient(135deg, var(--accent-dark) 0%, #b45305 100%);
+  background: #c55a05;
 }
 
 .reset-btn:disabled {
   background: var(--neutral);
   color: var(--neutral-dark);
-  transform: none;
-  box-shadow: none;
   opacity: 0.6;
 }
 
-/* Boutons View Dataset et Help */
-.view-btn, .help-btn {
-  border: 1px solid var(--primary);
-  color: var(--primary);
+.view-btn,
+.help-btn {
+  border: 1px solid #384850;
+  color: #384850;
   background: transparent;
 }
 
-.view-btn:hover, .help-btn:hover {
-  background-color: rgba(0, 80, 111, 0.1);
-  border-color: var(--primary-dark);
+.view-btn:hover,
+.help-btn:hover {
+  background-color: rgba(56, 72, 80, 0.08);
+  border-color: #384850;
 }
 
-/* Dataset Info Bar - réduction des marges */
 .dataset-info-bar {
   padding: 0.5rem 1rem;
   margin-bottom: 0.5rem;
   margin-top: 0;
-  border-radius: var(--border-radius);
+  border-radius: 2px;
   background: var(--white);
-  border-left: 4px solid var(--accent);
-  box-shadow: var(--shadow);
+  border: 1px solid #c8c9ca;
+  box-shadow: none;
 }
 
-/* Status messages */
 .status-alert {
   margin-bottom: 0.75rem;
-  border-radius: var(--border-radius);
-  border: none;
-  box-shadow: var(--shadow);
+  border-radius: 2px;
+  border: 1px solid #c8c9ca;
+  box-shadow: none;
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
 }
 
-/* Main Content */
+.MuiAlert-standardError.status-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+}
+
 .main-content {
   margin-top: 0;
 }
 
-/* Panels */
 .left-panel-card,
 .right-panel-card {
   height: 100%;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  border: none;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: none;
+  border: 1px solid #c8c9ca;
 }
 
 .panel-title {
   font-weight: 700;
-  color: var(--primary);
-  display: flex;
-  align-items: center;
+  color: #384850;
 }
 
-/* Column Selector */
 .column-selector {
   margin-bottom: 1.5rem;
 }
 
 .column-selector .MuiOutlinedInput-root {
-  border-radius: var(--border-radius);
+  border-radius: 2px;
   background: var(--white);
 }
 
 .column-selector .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--accent);
-  border-width: 2px;
+  border-color: #384850;
+  border-width: 1px;
 }
 
-/* Stat Cards */
 .stat-card {
   padding: 0.75rem;
   text-align: center;
-  background: rgba(0, 80, 111, 0.02);
-  border-radius: var(--border-radius);
-  transition: var(--transition);
+  background: #f3f4f5;
+  border-radius: 2px;
+  border: 1px solid #c8c9ca;
 }
 
-.stat-card:hover {
-  background: rgba(0, 80, 111, 0.05);
-  transform: translateY(-2px);
-}
-
-/* Value Table Container */
 .value-table-container {
   max-height: 450px;
-  border-radius: var(--border-radius);
+  border-radius: 2px;
   overflow: auto;
   margin-top: 1rem;
   border: 1px solid var(--neutral);
 }
 
 .value-table-row:hover {
-  background-color: rgba(0, 80, 111, 0.03);
+  background-color: rgba(56, 72, 80, 0.05);
 }
 
 .value-table-row.selected {
   background-color: rgba(222, 107, 6, 0.08);
-  border-left: 3px solid var(--accent);
 }
 
 .value-cell {
@@ -256,25 +230,46 @@
   white-space: nowrap;
 }
 
-/* Dialogs */
-.dialog .MuiDialog-paper {
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
+.group-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
+}
+
+.group-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
+}
+
+.group-dialog .MuiDialogTitle-root .MuiIconButton-root {
+  color: #fff;
+}
+
+.group-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca !important;
+  border-radius: 2px !important;
+}
+
+.dialog .MuiDialog-paper,
+.dialog-title {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .dialog-title {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  background: #384850;
   color: white;
   font-weight: 700;
 }
 
-/* Responsive Design */
 @media (max-width: 1024px) {
   .header-actions-bar {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .left-button-group,
   .center-button-group,
   .right-button-group {
@@ -286,29 +281,29 @@
   .group_optimizer-container {
     padding: 1rem;
   }
-  
+
   .group_optimizer-title {
     font-size: 1.5rem;
     margin-bottom: 1rem;
   }
-  
+
   .left-button-group,
   .center-button-group,
   .right-button-group {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .left-button-group button,
   .center-button-group button,
   .right-button-group button {
     width: 100%;
   }
-  
+
   .value-table-container {
     max-height: 350px;
   }
-  
+
   .dataset-info-bar {
     padding: 0.5rem;
   }
@@ -318,29 +313,12 @@
   .group_optimizer-container {
     padding: 0.75rem;
   }
-  
+
   .header-actions-bar {
     padding: 0.75rem;
   }
 }
 
-/* Animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.group_optimizer-container {
-  animation: fadeInUp 0.6s ease-out;
-}
-
-/* Focus States */
 button:focus-visible,
 .MuiSelect-root:focus-visible,
 .MuiTextField-root .MuiOutlinedInput-root:focus-within,
@@ -349,7 +327,6 @@ button:focus-visible,
   outline-offset: 2px;
 }
 
-/* Custom Scrollbar */
 .value-table-container::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -357,14 +334,12 @@ button:focus-visible,
 
 .value-table-container::-webkit-scrollbar-track {
   background: var(--neutral);
-  border-radius: 4px;
 }
 
 .value-table-container::-webkit-scrollbar-thumb {
-  background: var(--accent);
-  border-radius: 4px;
+  background: #384850;
 }
 
 .value-table-container::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-dark);
+  background: #2a3942;
 }

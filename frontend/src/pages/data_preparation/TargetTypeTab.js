@@ -32,14 +32,7 @@ import {
   RadioGroup,
   FormControlLabel,
 } from "@mui/material";
-import {
-  Search as SearchIcon,
-  Info as InfoIcon,
-  CheckCircle as CheckCircleIcon,
-  Psychology as PsychologyIcon,
-  AutoAwesome as AutoAwesomeIcon,
-  HelpOutline as HelpOutlineIcon,
-} from "@mui/icons-material";
+import { Search as SearchIcon } from "@mui/icons-material";
 import axios from "axios";
 import { backendUrl } from "../../config";
 
@@ -61,21 +54,6 @@ const PROBLEM_LABELS = {
   classification: "Classification",
   regression: "Regression",
   unsupervised: "Unsupervised",
-};
-
-const typeColor = (t) => {
-  switch (t) {
-    case "numerical":
-      return "primary";
-    case "categorical":
-      return "secondary";
-    case "boolean":
-      return "success";
-    case "date":
-      return "info";
-    default:
-      return "default";
-  }
 };
 
 const typeLabel = (t) => {
@@ -105,7 +83,7 @@ function ClassDistributionBars({ distribution }) {
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Typography variant="subtitle2" sx={{ mb: 1, color: "rgb(0, 80, 111)" }}>
+      <Typography variant="subtitle2" sx={{ mb: 1, color: "#384850" }}>
         Class distribution
       </Typography>
       {sorted.slice(0, 12).map((d) => (
@@ -118,14 +96,13 @@ function ClassDistributionBars({ distribution }) {
               {d.count} ({d.percentage}%)
             </Typography>
           </Box>
-          <Box sx={{ height: 8, borderRadius: 4, backgroundColor: "#e8ecef", overflow: "hidden" }}>
+          <Box sx={{ height: 8, borderRadius: 0, backgroundColor: "#e8e9ea", overflow: "hidden" }}>
             <Box
               sx={{
                 height: "100%",
                 width: `${(d.percentage / maxPct) * 100}%`,
                 backgroundColor: "#DE6B06",
-                borderRadius: 4,
-                transition: "width 0.3s ease",
+                borderRadius: 0,
               }}
             />
           </Box>
@@ -137,10 +114,10 @@ function ClassDistributionBars({ distribution }) {
         </Typography>
       )}
       {isImbalanced && (
-        <Alert severity="warning" sx={{ mt: 1.5 }} variant="outlined">
-          Strong class imbalance detected
-          {Number.isFinite(imbalanceRatio) ? ` (≈ ${imbalanceRatio.toFixed(1)}:1)` : ""}.
-          Prefer a <strong>stratified split</strong> and consider balancing the training set.
+        <Alert severity="warning" icon={false} sx={{ mt: 1.5 }} className="target-alert">
+          Strong class imbalance
+          {Number.isFinite(imbalanceRatio) ? ` (about ${imbalanceRatio.toFixed(1)} to 1)` : ""}.
+          A stratified split is safer.
         </Alert>
       )}
     </Box>
@@ -455,15 +432,15 @@ function TargetTypeTab({
     return (
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 2 }}>
         <CircularProgress />
-        <Typography color="text.secondary">Analyzing columns on the server…</Typography>
+        <Typography color="text.secondary">Analyzing columns…</Typography>
       </Box>
     );
   }
 
   return (
-    <Box>
+    <Box className="target-tab">
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} action={
+        <Alert severity="error" icon={false} sx={{ mb: 2 }} action={
           <Button color="inherit" size="small" onClick={loadColumnTypes}>Retry</Button>
         }>
           {error}
@@ -471,20 +448,18 @@ function TargetTypeTab({
       )}
 
       <Box className="dp-tab-toolbar">
-        <Typography variant="h6" className="dp-tab-toolbar-title" sx={{ color: "#384850", fontWeight: 700 }}>
-          Target &amp; Type
+        <Typography variant="h6" className="dp-tab-toolbar-title">
+          Target column
         </Typography>
         <Box className="dp-tab-toolbar-actions">
           <Button
             variant="contained"
-            startIcon={<AutoAwesomeIcon />}
+            className="target-btn"
             onClick={handleOpenAutoDialog}
             sx={{
               height: 40,
               backgroundColor: "#DE6B06",
               "&:hover": { backgroundColor: "#c55a05" },
-              textTransform: "none",
-              fontWeight: 700,
             }}
           >
             Auto Select Target
@@ -493,14 +468,13 @@ function TargetTypeTab({
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Choose the variable you want to predict, or pick &quot;No target&quot; for
-        unsupervised learning.
+        Choose the column you want to predict, or &quot;No target&quot; for unsupervised learning.
       </Typography>
 
       <Grid container spacing={2}>
         {/* Colonne gauche : sélection de la target */}
         <Grid item xs={12} md={7}>
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card variant="outlined" className="target-card">
             <CardContent>
               <Box sx={{ mb: 2 }}>
                 <TextField
@@ -525,12 +499,17 @@ function TargetTypeTab({
                       size="small"
                       variant={filterType === t ? "filled" : "outlined"}
                       onClick={() => setFilterType(t)}
+                      sx={
+                        filterType === t
+                          ? { backgroundColor: "#384850", color: "#fff", borderRadius: "2px" }
+                          : { borderColor: "#c8c9ca", color: "#384850", borderRadius: "2px" }
+                      }
                     />
                   ))}
                 </Box>
               </Box>
 
-              <Paper variant="outlined" sx={{ maxHeight: 420, overflow: "auto" }}>
+              <Paper variant="outlined" className="target-list-paper" sx={{ maxHeight: 420, overflow: "auto" }}>
                 <List dense>
                   <ListItemButton
                     selected={selectedTarget === "no-target-column"}
@@ -538,7 +517,6 @@ function TargetTypeTab({
                   >
                     <ListItemText
                       primary="No target column (unsupervised learning)"
-                      secondary="Clustering, dimensionality reduction, pattern discovery"
                     />
                   </ListItemButton>
                   <Divider />
@@ -555,7 +533,8 @@ function TargetTypeTab({
                             <Chip
                               label={typeLabel(col.column_type)}
                               size="small"
-                              color={typeColor(col.column_type)}
+                              variant="outlined"
+                              sx={{ borderColor: "#384850", color: "#384850", borderRadius: "2px" }}
                             />
                             {col.stats?.distinct != null && (
                               <Typography variant="caption" color="text.secondary">
@@ -563,7 +542,7 @@ function TargetTypeTab({
                               </Typography>
                             )}
                             {col.stats && col.stats.total > col.stats.non_null && (
-                              <Chip label="Has nulls" size="small" color="warning" variant="outlined" />
+                              <Chip label="Has nulls" size="small" variant="outlined" sx={{ borderColor: "#b42318", color: "#b42318", borderRadius: "2px" }} />
                             )}
                           </Box>
                         }
@@ -585,11 +564,10 @@ function TargetTypeTab({
 
         {/* Colonne droite : type de problème détecté */}
         <Grid item xs={12} md={5}>
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card variant="outlined" className="target-card">
             <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <PsychologyIcon sx={{ color: "#DE6B06" }} />
-                <Typography variant="h6" sx={{ color: "rgb(0, 80, 111)" }}>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="h6" sx={{ color: "#384850" }}>
                   Problem type
                 </Typography>
               </Box>
@@ -604,41 +582,36 @@ function TargetTypeTab({
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
                   <CircularProgress size={20} />
                   <Typography variant="body2" color="text.secondary">
-                    Detecting on the server…
+                    Detecting problem type…
                   </Typography>
                 </Box>
               )}
 
               {selectedTarget && !detecting && detection && (
                 <>
-                  <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
+                  <Alert severity="info" icon={false} className="target-alert" sx={{ mb: 2 }}>
                     Suggested:{" "}
                     <strong>{PROBLEM_LABELS[detection.problem_type] || detection.problem_type}</strong>
                     {detection.reason ? `: ${detection.reason}` : ""}
                   </Alert>
 
                   {selectedTarget === "no-target-column" ? (
-                    <Alert severity="success" variant="outlined" sx={{ mb: 2 }}>
+                    <Alert severity="info" icon={false} className="target-alert" sx={{ mb: 2 }}>
                       No target selected: unsupervised mode
                     </Alert>
                   ) : (
-                    <>
-                      <Typography variant="body2" sx={{ mb: 1 }}>
-                        You can keep the suggestion or change it manually:
-                      </Typography>
-                      <ToggleButtonGroup
-                        exclusive
-                        fullWidth
-                        size="small"
-                        value={chosenProblemType}
-                        onChange={(_, v) => v && setChosenProblemType(v)}
-                        sx={{ mb: 2 }}
-                      >
-                        <ToggleButton value="classification">Classification</ToggleButton>
-                        <ToggleButton value="regression">Regression</ToggleButton>
-                        <ToggleButton value="unsupervised">Unsupervised</ToggleButton>
-                      </ToggleButtonGroup>
-                    </>
+                    <ToggleButtonGroup
+                      exclusive
+                      fullWidth
+                      size="small"
+                      value={chosenProblemType}
+                      onChange={(_, v) => v && setChosenProblemType(v)}
+                      sx={{ mb: 2, "& .MuiToggleButton-root": { borderRadius: "2px", textTransform: "none" } }}
+                    >
+                      <ToggleButton value="classification">Classification</ToggleButton>
+                      <ToggleButton value="regression">Regression</ToggleButton>
+                      <ToggleButton value="unsupervised">Unsupervised</ToggleButton>
+                    </ToggleButtonGroup>
                   )}
 
                   {selectedInfo && (
@@ -649,8 +622,9 @@ function TargetTypeTab({
                       <Box>
                         <Chip
                           size="small"
+                          variant="outlined"
                           label={typeLabel(selectedInfo.column_type)}
-                          color={typeColor(selectedInfo.column_type)}
+                          sx={{ borderColor: "#384850", color: "#384850", borderRadius: "2px" }}
                         />
                       </Box>
                     </Box>
@@ -659,13 +633,12 @@ function TargetTypeTab({
                   {detection.problem_type === "classification" && (
                     <ClassDistributionBars distribution={detection.class_distribution} />
                   )}
-                  {/* High-cardinality target only: never for "No target column" */}
                   {selectedTarget !== "no-target-column" &&
                     detection.problem_type === "unsupervised" &&
                     detection.reason && (
-                    <Alert severity="warning" variant="outlined" sx={{ mt: 1 }}>
+                    <Alert severity="warning" icon={false} className="target-alert" sx={{ mt: 1 }}>
                       {/unique|cardinal|too many/i.test(detection.reason)
-                        ? "This target has too many unique values relative to the dataset size for a reliable classification suggestion. Prefer another target, or confirm unsupervised / encode the column first."
+                        ? "This target has too many unique values for a reliable classification suggestion. Pick another column, or keep unsupervised."
                         : detection.reason}
                     </Alert>
                   )}
@@ -679,26 +652,24 @@ function TargetTypeTab({
               <Button
                 fullWidth
                 variant="contained"
-                startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <CheckCircleIcon />}
+                className="target-btn"
+                startIcon={saving ? <CircularProgress size={18} color="inherit" /> : undefined}
                 onClick={handleConfirm}
                 disabled={!selectedTarget || detecting || saving}
                 sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" } }}
               >
-                {saving ? "Saving…" : "Confirm & continue to Groups"}
+                {saving ? "Saving…" : "Confirm"}
               </Button>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, textAlign: "center" }}>
-                Your choice is already saved when you select a column (or No target). Confirm continues to the next step.
-              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         {/* Aperçu des 10 premières lignes avec colonne cible mise en évidence */}
         <Grid item xs={12}>
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card variant="outlined" className="target-card">
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexWrap: "wrap", gap: 1 }}>
-                <Typography variant="h6" sx={{ color: "rgb(0, 80, 111)" }}>
+                <Typography variant="h6" sx={{ color: "#384850" }}>
                   Data preview
                   <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
                     first 10 rows · {previewColumns.length} columns
@@ -707,8 +678,8 @@ function TargetTypeTab({
                 {selectedTarget && selectedTarget !== "no-target-column" && (
                   <Chip
                     size="small"
-                    color="warning"
                     label={selectedTarget}
+                    sx={{ backgroundColor: "#DE6B06", color: "#fff", borderRadius: "2px" }}
                   />
                 )}
               </Box>
@@ -735,9 +706,9 @@ function TargetTypeTab({
                                 cursor: "pointer",
                                 whiteSpace: "nowrap",
                                 fontWeight: 700,
-                                backgroundColor: isTarget ? "#DE6B06" : "rgb(0, 80, 111)",
+                                backgroundColor: isTarget ? "#DE6B06" : "#384850",
                                 color: "#fff",
-                                "&:hover": { backgroundColor: isTarget ? "#c55a05" : "#00506f" },
+                                "&:hover": { backgroundColor: isTarget ? "#c55a05" : "#2a3942" },
                               }}
                             >
                               {col}
@@ -780,7 +751,7 @@ function TargetTypeTab({
                 </TableContainer>
               )}
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                Tip: click a column header to select it as the target. Scroll horizontally to see all columns.
+                Click a column header to select it as the target.
               </Typography>
             </CardContent>
           </Card>
@@ -792,12 +763,10 @@ function TargetTypeTab({
         onClose={autoPhase === "running" ? undefined : handleCloseAutoDialog}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ className: "target-dialog" }}
       >
         <DialogTitle
           sx={{
-            color: "rgb(0, 80, 111)",
-            fontWeight: 700,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -808,9 +777,8 @@ function TargetTypeTab({
           <span>Auto Target Detection</span>
           <Button
             size="small"
-            startIcon={<HelpOutlineIcon />}
             onClick={() => setHowItWorksOpen(true)}
-            sx={{ textTransform: "none", color: "rgb(0, 80, 111)" }}
+            sx={{ textTransform: "none" }}
           >
             How it works
           </Button>
@@ -819,8 +787,7 @@ function TargetTypeTab({
           {autoPhase === "intro" && (
             <Box>
               <Typography variant="body1">
-                This analysis reviews each column to find a likely prediction target.
-                You must confirm the result before it is applied.
+                Each column is scored to find a likely target. Nothing is applied until you confirm.
               </Typography>
             </Box>
           )}
@@ -828,51 +795,46 @@ function TargetTypeTab({
           {(autoPhase === "running" || autoPhase === "done" || autoPhase === "error") && (
             <Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <Typography variant="subtitle2" sx={{ color: "rgb(0, 80, 111)" }}>
+                <Typography variant="subtitle2" sx={{ color: "#384850" }}>
                   Analysis log
                 </Typography>
                 {autoPhase === "running" && <CircularProgress size={16} />}
-                {autoJobId && (
-                  <Typography variant="caption" color="text.secondary">
-                    job {autoJobId.slice(0, 8)}…
-                  </Typography>
-                )}
               </Box>
               <Box
                 ref={autoLogBoxRef}
                 sx={{
-                  bgcolor: "#1e1e1e",
-                  color: "#d4d4d4",
+                  bgcolor: "#384850",
+                  color: "#ffffff",
                   fontFamily: "Consolas, 'Courier New', monospace",
                   fontSize: 12,
                   lineHeight: 1.55,
                   p: 1.5,
-                  borderRadius: 1,
+                  borderRadius: "2px",
                   maxHeight: 280,
                   overflow: "auto",
                   whiteSpace: "pre-wrap",
                   mb: 2,
                 }}
               >
-                {(autoLogs.length ? autoLogs : ["Waiting for logs…"]).map((line, i) => (
+                {(autoLogs.length ? autoLogs : ["running..."]).map((line, i) => (
                   <div key={i}>{line}</div>
                 ))}
               </Box>
 
               {autoPhase === "error" && (
-                <Alert severity="error">
+                <Alert severity="error" icon={false}>
                   {autoResult?.message || "Analysis failed"}
                 </Alert>
               )}
 
               {autoPhase === "done" && autoResult?.decision === "single_target" && (
-                <Card variant="outlined" sx={{ borderColor: "#2e7d32", bgcolor: "rgba(46,125,50,0.06)" }}>
+                <Card variant="outlined" className="target-card">
                   <CardContent>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-                      Supervised learning: Detected target: {autoResult.target}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: "#384850" }}>
+                      Suggested target: {autoResult.target}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      Confidence: {Math.round((autoResult.score || 0) * 100)}%
+                      Score: {Math.round((autoResult.score || 0) * 100)}%
                     </Typography>
                     {(autoResult.reasons || []).length > 0 && (
                       <Box component="ul" sx={{ m: 0, pl: 2, mb: 1 }}>
@@ -884,10 +846,9 @@ function TargetTypeTab({
                       </Box>
                     )}
                     {autoResult.potential_leakage_column && (
-                      <Alert severity="warning" sx={{ mt: 1 }}>
-                        Possible leakage: column{" "}
-                        <strong>{autoResult.potential_leakage_column}</strong> looks almost
-                        identical to the target on a sample.
+                      <Alert severity="warning" icon={false} className="target-alert" sx={{ mt: 1 }}>
+                        Another column looks almost identical:{" "}
+                        <strong>{autoResult.potential_leakage_column}</strong>
                       </Alert>
                     )}
                   </CardContent>
@@ -895,10 +856,10 @@ function TargetTypeTab({
               )}
 
               {autoPhase === "done" && autoResult?.decision === "ambiguous" && (
-                <Card variant="outlined" sx={{ borderColor: "#ed6c02", bgcolor: "rgba(237,108,2,0.06)" }}>
+                <Card variant="outlined" className="target-card">
                   <CardContent>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-                      Several candidate columns with similar scores
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: "#384850" }}>
+                      Several columns have similar scores
                     </Typography>
                     <RadioGroup
                       value={ambiguousChoice}
@@ -914,8 +875,8 @@ function TargetTypeTab({
                       ))}
                     </RadioGroup>
                     {autoResult.potential_leakage_column && (
-                      <Alert severity="warning" sx={{ mt: 1 }}>
-                        Possible leakage with column{" "}
+                      <Alert severity="warning" icon={false} className="target-alert" sx={{ mt: 1 }}>
+                        Another column looks almost identical:{" "}
                         <strong>{autoResult.potential_leakage_column}</strong>
                       </Alert>
                     )}
@@ -924,20 +885,20 @@ function TargetTypeTab({
               )}
 
               {autoPhase === "done" && autoResult?.decision === "no_target" && (
-                <Card variant="outlined" sx={{ borderColor: "#90a4ae", bgcolor: "rgba(144,164,174,0.08)" }}>
+                <Card variant="outlined" className="target-card">
                   <CardContent>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: "#384850" }}>
                       No reliable target detected
                     </Typography>
                     <Typography variant="body2">
-                      This dataset may be a better fit for unsupervised learning.
+                      You can continue without a target (unsupervised), or pick a column yourself.
                     </Typography>
                   </CardContent>
                 </Card>
               )}
               {autoPhase === "done" && autoResult && !["single_target", "ambiguous", "no_target"].includes(autoResult.decision) && (
-                <Alert severity="warning">
-                  Unexpected result. You can close and select a target manually.
+                <Alert severity="warning" icon={false} className="target-alert">
+                  Unexpected result. Close and select a target manually.
                 </Alert>
               )}
             </Box>
@@ -946,36 +907,38 @@ function TargetTypeTab({
         <DialogActions sx={{ px: 3, py: 2, gap: 1, flexWrap: "wrap" }}>
           {autoPhase === "intro" && (
             <>
-              <Button onClick={handleCloseAutoDialog}>Cancel</Button>
+              <Button onClick={handleCloseAutoDialog} sx={{ textTransform: "none" }}>Cancel</Button>
               <Button
                 variant="contained"
+                className="target-btn"
                 onClick={startAutoDetect}
-                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}
+                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" } }}
               >
                 Start analysis
               </Button>
             </>
           )}
           {autoPhase === "running" && (
-            <Button disabled startIcon={<CircularProgress size={16} />}>
+            <Button disabled startIcon={<CircularProgress size={16} />} sx={{ textTransform: "none" }}>
               Analysis in progress…
             </Button>
           )}
           {autoPhase === "error" && (
             <>
-              <Button onClick={handleCloseAutoDialog}>Close</Button>
-              <Button variant="outlined" onClick={() => { resetAutoDialog(); setAutoOpen(true); setAutoPhase("intro"); }}>
+              <Button onClick={handleCloseAutoDialog} sx={{ textTransform: "none" }}>Close</Button>
+              <Button variant="outlined" onClick={() => { resetAutoDialog(); setAutoOpen(true); setAutoPhase("intro"); }} sx={{ textTransform: "none", borderRadius: "2px" }}>
                 Try again
               </Button>
             </>
           )}
           {autoPhase === "done" && autoResult?.decision === "single_target" && (
             <>
-              <Button onClick={handleCloseAutoDialog}>Choose manually</Button>
+              <Button onClick={handleCloseAutoDialog} sx={{ textTransform: "none" }}>Choose manually</Button>
               <Button
                 variant="contained"
+                className="target-btn"
                 onClick={() => applyAutoSelection(autoResult.target)}
-                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}
+                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" } }}
               >
                 Confirm this target
               </Button>
@@ -983,12 +946,13 @@ function TargetTypeTab({
           )}
           {autoPhase === "done" && autoResult?.decision === "ambiguous" && (
             <>
-              <Button onClick={handleCloseAutoDialog}>Choose manually</Button>
+              <Button onClick={handleCloseAutoDialog} sx={{ textTransform: "none" }}>Choose manually</Button>
               <Button
                 variant="contained"
+                className="target-btn"
                 disabled={!ambiguousChoice}
                 onClick={() => applyAutoSelection(ambiguousChoice)}
-                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}
+                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" } }}
               >
                 Confirm selection
               </Button>
@@ -996,13 +960,14 @@ function TargetTypeTab({
           )}
           {autoPhase === "done" && autoResult?.decision === "no_target" && (
             <>
-              <Button onClick={handleCloseAutoDialog}>Choose manually anyway</Button>
+              <Button onClick={handleCloseAutoDialog} sx={{ textTransform: "none" }}>Choose manually anyway</Button>
               <Button
                 variant="contained"
+                className="target-btn"
                 onClick={() => applyAutoSelection("no-target-column")}
-                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}
+                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" } }}
               >
-                Continue without target (unsupervised)
+                Continue without target
               </Button>
             </>
           )}
@@ -1014,55 +979,123 @@ function TargetTypeTab({
         onClose={() => setHowItWorksOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ className: "target-dialog" }}
       >
-        <DialogTitle sx={{ color: "rgb(0, 80, 111)", fontWeight: 700 }}>
-          How Auto Target Detection works
-        </DialogTitle>
+        <DialogTitle>How Auto Target Detection works</DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2" paragraph>
-            Guesses which column is the <strong>target</strong> (the value a supervised model
-            should predict). Nothing is saved until you confirm.
+            We look at each column and give it a score from 0 to 100%. The higher the score, the more it looks like something a model should predict. Nothing is saved until you confirm.
           </Typography>
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 0.5 }}>1. Profile every column</Typography>
           <Typography variant="body2" paragraph>
-            For each column (except internal ones like id / split_type), we estimate type
-            (numerical, categorical, text…), unique value count, missing ratio, and whether
-            values look like identifiers (UUID, hash, email, IP…).
+            The score is built from the data itself. A name like <strong>target</strong>, <strong>label</strong> or <strong>class</strong> only adds extra points. A column without that kind of name can still win.
           </Typography>
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 0.5 }}>2. Detect dataset context</Typography>
-          <Typography variant="body2" paragraph>
-            If several column names look network/cyber related (src_ip, protocol, bytes…),
-            we apply cybersecurity-oriented name hints (attack_type, malware, threat…).
-            Otherwise we stay in a general ML context.
+
+          <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, color: "#384850" }}>
+            Main score
           </Typography>
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 0.5 }}>3. Score candidates (structure first)</Typography>
-          <Typography variant="body2" paragraph>
-            The score is driven mainly by structure: class count (e.g. 2–50 categories is
-            good for classification), data type, position (first/last often holds the label),
-            and penalties (IDs, constants, heavy missingness, free text).
-            A name like label / class / target is only a <strong>bonus</strong> when present
-            not matching a predefined name does <strong>not</strong> mean the column is not a target.
+          <table className="target-score-table">
+            <thead>
+              <tr>
+                <th>What we look at</th>
+                <th>Weight</th>
+                <th>How points are given</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>How many different values</td>
+                <td>40%</td>
+                <td>
+                  2–50 classes (category / yes-no): 90<br />
+                  Many different numbers, not an ID: 70<br />
+                  Anything else: 20
+                </td>
+              </tr>
+              <tr>
+                <td>Column type</td>
+                <td>25%</td>
+                <td>
+                  Number, category or yes-no: 80<br />
+                  Date: 20<br />
+                  Text: 10
+                </td>
+              </tr>
+              <tr>
+                <td>Column name</td>
+                <td>up to 25%</td>
+                <td>
+                  Bonus only if the name looks like a target.<br />
+                  target / label / class: 100 of this bonus<br />
+                  y / output / outcome: 85<br />
+                  result / category / status / type: 60<br />
+                  value / score / grade / group: 35<br />
+                  price / amount / count: 25
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, color: "#384850" }}>
+            Extra points or penalties
           </Typography>
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 0.5 }}>4. Extra check for classic datasets</Typography>
-          <Typography variant="body2" paragraph>
-            If there is only one low-cardinality class-like column among mostly numeric
-            features, that column receives a structural bonus (typical supervised tabular layout).
+          <table className="target-score-table">
+            <thead>
+              <tr>
+                <th>Situation</th>
+                <th>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>First or last column</td>
+                <td>+2 (+5 if it looks like a class column)</td>
+              </tr>
+              <tr>
+                <td>Network / security dataset and a matching name (attack, malware…)</td>
+                <td>+15</td>
+              </tr>
+              <tr>
+                <td>Only one class-like column in the table</td>
+                <td>+35</td>
+              </tr>
+              <tr>
+                <td>Same value in every row</td>
+                <td>−100</td>
+              </tr>
+              <tr>
+                <td>Looks like an ID, email, IP or UUID</td>
+                <td>−60</td>
+              </tr>
+              <tr>
+                <td>Numbers in sequence (1, 2, 3…)</td>
+                <td>−15 (−40 if the name also looks like an ID)</td>
+              </tr>
+              <tr>
+                <td>More than half of the values missing</td>
+                <td>up to −50</td>
+              </tr>
+              <tr>
+                <td>Long free text</td>
+                <td>−40</td>
+              </tr>
+              <tr>
+                <td>Date column</td>
+                <td>−30</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            If one column is clearly ahead, we suggest it. If several are close, you choose. If none look reliable, we suggest working without a target. We also warn you if another column is almost a copy of the suggested target.
           </Typography>
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 0.5 }}>5. Leakage warning &amp; decision</Typography>
-          <Typography variant="body2" paragraph>
-            We warn if another column nearly duplicates the top candidate. Then we either
-            recommend one clear target, show a short list to choose from, or suggest
-            unsupervised learning if nothing looks reliable.
-          </Typography>
-          <Alert severity="info" variant="outlined" sx={{ mt: 1 }}>
-            Confirming only pre-fills the existing target selector and runs the same save /
-            problem-type detection flow you already use.
-          </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setHowItWorksOpen(false)} variant="contained"
-            sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}>
+          <Button
+            onClick={() => setHowItWorksOpen(false)}
+            variant="contained"
+            className="target-btn"
+            sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" } }}
+          >
             Got it
           </Button>
         </DialogActions>

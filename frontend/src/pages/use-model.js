@@ -20,34 +20,188 @@ function isAttackishLabel(label) {
   );
 }
 
-const ACTION_LABELS_EN = {
-  standard_scaling: "Standard scaling",
-  minmax_normalization: "MinMax normalization",
-  log_transformation: "Log transformation",
-  log_transform: "Log transformation",
-  onehot_encoding: "One-hot encoding",
-  label_encoding: "Label encoding",
-  column_deletion: "Column deletion",
-  delete: "Column deletion",
-  regex_extraction: "Regex extraction",
-  binary: "Binary encoding",
-  invert: "Invert binary",
-};
+const BATCH_MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
+const BATCH_CSV_TYPES = [
+  "text/csv",
+  "text/plain",
+  "text/comma-separated-values",
+  "application/csv",
+  "application/vnd.ms-excel",
+  "application/octet-stream",
+];
 
-/** Build an English description; ignore French text stored in metadata. */
-function formatActionEn(stepOrAction) {
-  const action =
-    stepOrAction?.action ||
-    (typeof stepOrAction === "string" ? stepOrAction.split(":")[0] : "") ||
-    "";
-  const col =
-    stepOrAction?.column ||
-    stepOrAction?.source_column ||
-    (typeof stepOrAction === "string" ? stepOrAction.split(":")[1] : "") ||
-    "N/A";
-  const key = String(action).toLowerCase();
-  const label = ACTION_LABELS_EN[key] || String(action).replace(/_/g, " ") || "Transform";
-  return { label, column: col, description: `${label} on ${col}` };
+function sniffNotSpreadsheet(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arr = new Uint8Array(e.target.result || []);
+      const isZip =
+        arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b && arr[2] === 0x03 && arr[3] === 0x04;
+      resolve(!isZip);
+    };
+    reader.onerror = () => resolve(false);
+    reader.readAsArrayBuffer(file.slice(0, 4));
+  });
+}
+
+async function validateBatchCsvFile(file) {
+  if (!file) return "Please choose a CSV file.";
+  if (file.size > BATCH_MAX_UPLOAD_BYTES) {
+    return "File is too large. Maximum allowed size is 100 MB.";
+  }
+  const nameOk = /\.csv$/i.test(String(file.name || ""));
+  if (!nameOk) {
+    return "Invalid file. Only CSV (.csv) files are allowed.";
+  }
+  const mime = String(file.type || "").toLowerCase();
+  if (mime && !BATCH_CSV_TYPES.includes(mime)) {
+    return "Invalid file. Only CSV (.csv) files are allowed.";
+  }
+  const looksCsv = await sniffNotSpreadsheet(file);
+  if (!looksCsv) {
+    return "Invalid file. Excel/ZIP files are not allowed. Please upload a CSV.";
+  }
+  return null;
+}
+
+function fmtPct(v) {
+  if (v == null || Number.isNaN(Number(v))) return "—";
+  return `${(Number(v) * 100).toFixed(1)}%`;
+}
+
+function fmtNum(v, digits = 3) {
+  if (v == null || Number.isNaN(Number(v))) return "—";
+  const n = Number(v);
+  if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return n.toFixed(digits);
+}
+
+function BatchStat({ label, value }) {
+  return (
+    <div className="um-stat">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function BatchScores({ metrics, isAnomalyModel }) {
+  if (!metrics || !metrics.kind) return null;
+  const kind = isAnomalyModel ? "anomaly" : metrics.kind;
+  const title =
+    kind === "regression"
+      ? "Batch scores (regression)"
+      : kind === "anomaly"
+      ? "Batch scores (anomaly)"
+      : kind === "clustering"
+      ? "Batch scores (clustering)"
+      : "Batch scores (classification)";
+
+  const items = [];
+  if (kind === "classification") {
+    if (metrics.has_ground_truth) {
+      items.push(["Accuracy", fmtPct(metrics.accuracy)]);
+      items.push(["Precision", fmtPct(metrics.precision)]);
+      items.push(["Recall", fmtPct(metrics.recall)]);
+      items.push(["F1", fmtPct(metrics.f1)]);
+      if (metrics.n_correct != null) {
+        items.push(["Correct", `${Number(metrics.n_correct).toLocaleString()} / ${Number(metrics.n_evaluated).toLocaleString()}`]);
+      }
+      if (metrics.mean_confidence != null) {
+        items.push(["Mean confidence", fmtPct(metrics.mean_confidence)]);
+      }
+    } else {
+      if (metrics.n_classes != null) items.push(["Classes in model", String(metrics.n_classes)]);
+      if (metrics.mean_confidence != null) items.push(["Mean confidence", fmtPct(metrics.mean_confidence)]);
+    }
+  } else if (kind === "regression") {
+    if (metrics.has_ground_truth) {
+      items.push(["R²", fmtNum(metrics.r2, 3)]);
+      items.push(["MAE", fmtNum(metrics.mae, 3)]);
+      items.push(["RMSE", fmtNum(metrics.rmse, 3)]);
+      if (metrics.mape != null) items.push(["MAPE", fmtPct(metrics.mape)]);
+    }
+    if (metrics.pred_mean != null) items.push(["Pred. mean", fmtNum(metrics.pred_mean, 3)]);
+    if (metrics.pred_std != null) items.push(["Pred. std", fmtNum(metrics.pred_std, 3)]);
+    if (metrics.pred_min != null) items.push(["Pred. min", fmtNum(metrics.pred_min, 3)]);
+    if (metrics.pred_max != null) items.push(["Pred. max", fmtNum(metrics.pred_max, 3)]);
+  } else if (kind === "anomaly") {
+    items.push(["Anomalies", Number(metrics.n_anomaly || 0).toLocaleString()]);
+    items.push(["Normal", Number(metrics.n_normal || 0).toLocaleString()]);
+    items.push(["Anomaly rate", fmtPct(metrics.anomaly_rate)]);
+    if (metrics.score_mean != null) items.push(["Score mean", fmtNum(metrics.score_mean, 4)]);
+    if (metrics.score_min != null) items.push(["Score min", fmtNum(metrics.score_min, 4)]);
+    if (metrics.score_max != null) items.push(["Score max", fmtNum(metrics.score_max, 4)]);
+  } else if (kind === "clustering") {
+    items.push(["Clusters", String(metrics.n_clusters ?? "—")]);
+    items.push(["Largest cluster", fmtPct(metrics.largest_cluster_share)]);
+    items.push(["Rows", Number(metrics.n_rows || 0).toLocaleString()]);
+  }
+
+  const dist = metrics.class_distribution || metrics.cluster_sizes || null;
+  const confusion = metrics.confusion;
+
+  return (
+    <div className="um-batch-stats">
+      <h3>{title}</h3>
+      {kind !== "anomaly" && metrics.has_ground_truth && metrics.target_column && (
+        <p className="um-hint">
+          Compared with the true column “{metrics.target_column}” on{" "}
+          {Number(metrics.n_evaluated).toLocaleString()} rows
+          {metrics.positive_class ? ` · positive class: ${metrics.positive_class}` : ""}
+          {metrics.average === "macro" ? " · precision / recall / F1 are macro-averaged" : ""}.
+        </p>
+      )}
+      {metrics.hint && <p className="um-hint">{metrics.hint}</p>}
+      {items.length > 0 && (
+        <dl className="um-stat-grid">
+          {items.map(([label, value]) => (
+            <BatchStat key={label} label={label} value={value} />
+          ))}
+        </dl>
+      )}
+      {dist && Object.keys(dist).length > 0 && (
+        <div className="um-stat-dist">
+          <p className="um-stat-dist-title">
+            {kind === "clustering" ? "Cluster sizes" : "Predicted classes"}
+          </p>
+          <ul>
+            {Object.entries(dist).map(([k, v]) => (
+              <li key={k}>
+                <span>{k}</span>
+                <span>{Number(v).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {confusion?.labels?.length > 0 && confusion?.matrix && (
+        <div className="um-stat-dist">
+          <p className="um-stat-dist-title">Confusion matrix (true \ predicted)</p>
+          <table className="um-stat-matrix">
+            <thead>
+              <tr>
+                <th />
+                {confusion.labels.map((lab) => (
+                  <th key={lab}>{lab}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {confusion.matrix.map((row, i) => (
+                <tr key={confusion.labels[i]}>
+                  <th>{confusion.labels[i]}</th>
+                  {row.map((cell, j) => (
+                    <td key={`${i}-${j}`}>{Number(cell).toLocaleString()}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function UseModel() {
@@ -100,8 +254,6 @@ function UseModel() {
   };
 
   const rawColumns = inferenceInfo?.raw_input_columns || [];
-  const appliedActions = inferenceInfo?.applied_actions || [];
-  const pipelineSummary = inferenceInfo?.pipeline_summary || [];
   const targetColumn = inferenceInfo?.target_column || null;
 
   const isClassification = useMemo(() => {
@@ -115,8 +267,31 @@ function UseModel() {
     ) {
       return false;
     }
-    return t.includes("classif") || (!!inferenceInfo?.accuracy_score && !inferenceInfo?.r2_score);
+    if (t.includes("kmeans") || t.includes("cluster") || t.includes("regress") || t.includes("ridge")) {
+      return false;
+    }
+    const n = Number(inferenceInfo?.n_classes);
+    if (Number.isFinite(n) && n >= 2) return true;
+    return (
+      t.includes("classif") ||
+      t.includes("logistic") ||
+      (!!inferenceInfo?.accuracy_score && !inferenceInfo?.r2_score)
+    );
   }, [modelInfo, inferenceInfo]);
+
+  const nClasses = useMemo(() => {
+    if (inferenceInfo?.n_classes != null && Number.isFinite(Number(inferenceInfo.n_classes))) {
+      return Number(inferenceInfo.n_classes);
+    }
+    if (prediction?.n_classes != null) return Number(prediction.n_classes);
+    if (prediction?.probabilities && typeof prediction.probabilities === "object") {
+      return Object.keys(prediction.probabilities).length;
+    }
+    return null;
+  }, [inferenceInfo, prediction]);
+
+  const isBinaryClass =
+    inferenceInfo?.is_binary_classification === true || Number(inferenceInfo?.n_classes) === 2;
 
   const isBinaryProba = useMemo(() => {
     const probs = prediction?.probabilities;
@@ -176,7 +351,8 @@ function UseModel() {
           feature_columns: cols,
           applied_actions: [],
           pipeline_summary: [],
-          target_column: looksAnomaly ? null : null,
+          target_column: looksAnomaly ? null : tgt,
+          dataset_target_column: tgt || null,
           is_anomaly_model: looksAnomaly,
           db_name: dbName,
           model_type: modelType,
@@ -207,16 +383,11 @@ function UseModel() {
 
   const validateInputs = () => {
     const errors = {};
+   
     rawColumns.forEach((col) => {
       const v = inputValues[col];
       if (v === "" || v === null || v === undefined) {
         errors[col] = "Required";
-        return;
-      }
-      const lower = String(col).toLowerCase();
-      if (lower.includes("port")) {
-        const n = Number(v);
-        if (Number.isNaN(n) || n < 0) errors[col] = "Port must be ≥ 0";
       }
     });
     setFieldErrors(errors);
@@ -224,13 +395,13 @@ function UseModel() {
   };
 
   const handleLoadSample = async () => {
-    if (!modelInfo?.id || !modelInfo?.dbName) return;
+    if (!modelInfo?.id) return;
     setLoadingSample(true);
     setError(null);
     try {
-      const bd = String(modelInfo.dbName).replace("_numerized", "");
+      const bd = String(inferenceInfo?.db_name || modelInfo.dbName || "");
       const res = await fetch(
-        `${backendUrl}/api/sample-row?bdName=${encodeURIComponent(bd)}&split=test&random=true&modelId=${modelInfo.id}&limit=10`,
+        `${backendUrl}/api/sample-row?bdName=${encodeURIComponent(bd || "dataset")}&split=test&random=true&modelId=${modelInfo.id}&limit=10`,
         { credentials: "include" }
       );
       if (!res.ok) {
@@ -291,6 +462,7 @@ function UseModel() {
           modelId: modelInfo.id,
           inputData: rawData,
           targetColumn: targetColumn,
+          datasetTargetColumn: inferenceInfo?.dataset_target_column || null,
           expectedFeatures: inferenceInfo?.feature_columns || modelInfo.dbColumns,
           applyPipeline: true,
           decisionThreshold,
@@ -330,8 +502,31 @@ function UseModel() {
     setActiveTab("input");
   };
 
+  const handleBatchFileChange = async (e) => {
+    const selected = e.target.files?.[0] || null;
+    if (!selected) {
+      setBatchFile(null);
+      return;
+    }
+    const problem = await validateBatchCsvFile(selected);
+    if (problem) {
+      setError(problem);
+      setBatchFile(null);
+      e.target.value = "";
+      return;
+    }
+    setError(null);
+    setBatchFile(selected);
+  };
+
   const handleBatchPredict = async () => {
     if (!batchFile || !modelInfo?.id) return;
+    const problem = await validateBatchCsvFile(batchFile);
+    if (problem) {
+      setError(problem);
+      setBatchFile(null);
+      return;
+    }
     setBatchLoading(true);
     setError(null);
     setBatchPage(1);
@@ -495,7 +690,7 @@ function UseModel() {
               <ol>
                 <li>Load an example or enter your own values</li>
                 <li>Click Predict</li>
-                <li>Check the result and how confident the model is</li>
+                <li>Read the result. For a whole file, use the batch tab.</li>
               </ol>
               <button className="help-got-it-btn" onClick={() => setHelpDialogOpen(false)}>
                 Got it
@@ -567,7 +762,7 @@ function UseModel() {
 
       <header className="um-header">
         <div>
-          <p className="um-kicker">Deploy · Predict</p>
+          <p className="um-kicker">Predictions</p>
           <h1>{modelInfo.modelName || "Use Model"}</h1>
           <div className="um-meta-row">
             <span>
@@ -608,14 +803,6 @@ function UseModel() {
         >
           Results
         </button>
-        {appliedActions.length > 0 && (
-          <button
-            className={activeTab === "transformations" ? "tab-active" : "tab"}
-            onClick={() => setActiveTab("transformations")}
-          >
-            Transformations
-          </button>
-        )}
         <button
           className={activeTab === "batch" ? "tab-active" : "tab"}
           onClick={() => setActiveTab("batch")}
@@ -660,6 +847,18 @@ function UseModel() {
             </p>
           )}
 
+          {isAnomaly && inferenceInfo?.ignored_target_column && (
+            <p className="um-hint">
+              “{inferenceInfo.ignored_target_column}” was ignored at training (evaluation label
+              only). It is not a required field.
+            </p>
+          )}
+          {isAnomaly && !inferenceInfo?.ignored_target_column && (
+            <p className="um-hint">
+              No target was used at training. Enter every field below (all columns are features).
+            </p>
+          )}
+
           <div className="input-fields-grid">
             {rawColumns.map((column) => (
               <div key={column} className={`input-group ${fieldErrors[column] ? "has-error" : ""}`}>
@@ -678,7 +877,7 @@ function UseModel() {
             ))}
           </div>
 
-          {isClassification && (
+          {isClassification && isBinaryClass && (
             <div className="um-threshold">
               <label>
                 Detection threshold: <strong>{decisionThreshold.toFixed(2)}</strong>
@@ -836,9 +1035,16 @@ function UseModel() {
                     : `< ${Number(prediction.decision_threshold ?? decisionThreshold).toFixed(2)} → negative class`}
                 </p>
               )}
-              {isClassification && prediction.decision_threshold == null && prediction.probabilities && (
+              {isClassification && nClasses > 2 && prediction.probabilities && (
                 <p className="um-hint" style={{ marginTop: 8 }}>
-                  Detection threshold was not applied (not a binary probability model).
+                  Multiclass model ({nClasses} classes). The predicted class is the one with the
+                  highest probability. A detection threshold is only used for binary models.
+                </p>
+              )}
+              {isClassification && isBinaryClass && prediction.decision_threshold == null && prediction.probabilities && (
+                <p className="um-hint" style={{ marginTop: 8 }}>
+                  The detection threshold was not used. It only applies when the model
+                  is binary and returns a probability for each class.
                 </p>
               )}
 
@@ -876,59 +1082,28 @@ function UseModel() {
         </section>
       )}
 
-      {activeTab === "transformations" && appliedActions.length > 0 && (
-        <section className="content-section um-card">
-          <h2>Pipeline used by the backend</h2>
-          <p className="um-hint">
-            Informative only: transforms are executed server-side in this exact order using
-            parameters fitted on the training set.
-          </p>
-          <ol className="um-pipeline-list">
-            {(pipelineSummary.length ? pipelineSummary : appliedActions).map((step, i) => {
-              const en = formatActionEn(step);
-              return (
-                <li key={i}>
-                  <strong>{en.label}</strong>
-                  {" · "}
-                  {en.column}
-                  {`: ${en.description}`}
-                </li>
-              );
-            })}
-          </ol>
-          {prediction?.transformation_steps?.length > 0 && (
-            <>
-              <h3>Last run steps</h3>
-              <ul className="um-pipeline-list">
-                {prediction.transformation_steps.map((s, i) => {
-                  const en = formatActionEn(s);
-                  return (
-                    <li key={i}>
-                      [{s.status}] {en.label} ({en.column})
-                      {s.message ? `: ${s.message}` : ""}
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-        </section>
-      )}
-
       {activeTab === "batch" && (
         <section className="content-section um-card">
           <h2>Batch prediction</h2>
           <p className="um-hint">
-            Upload a CSV of <strong>raw</strong> rows. The backend applies this model’s pipeline
-            and returns a summary + preview (25 rows per page).
+            Upload a CSV of <strong>raw</strong> rows (CSV only, max 100 MB).
           </p>
           <input
             type="file"
-            accept=".csv"
-            onChange={(e) => setBatchFile(e.target.files?.[0] || null)}
+            accept=".csv,text/csv"
+            onChange={handleBatchFileChange}
           />
+          {batchFile && (
+            <p className="um-hint" style={{ marginTop: 8 }}>
+              Selected: {batchFile.name} (
+              {batchFile.size >= 1024 * 1024
+                ? `${(batchFile.size / (1024 * 1024)).toFixed(2)} MB`
+                : `${(batchFile.size / 1024).toFixed(1)} KB`}
+              )
+            </p>
+          )}
 
-          {isClassification ? (
+          {isClassification && isBinaryClass ? (
             <div className="um-threshold">
               <label>
                 Detection threshold: <strong>{decisionThreshold.toFixed(2)}</strong>
@@ -943,17 +1118,18 @@ function UseModel() {
               />
               <p className="um-hint">
                 Applied row-by-row on binary classifiers with probabilities (same rule as single
-                prediction). Change the slider, then click Run batch again. Multiclass models ignore it.
+                prediction). Change the slider, then click Run batch again.
               </p>
             </div>
           ) : (
-            <p className="um-hint" style={{ marginTop: 12 }}>
-              Detection threshold does not apply to this model type
-              (regression / clustering / anomaly). Predictions use the model output directly.
-              {isAnomaly || batchResult?.is_anomaly_model
-                ? " For anomaly models, any target column in the CSV is display-only and never used as a feature."
-                : ""}
-            </p>
+            !(isClassification && nClasses > 2) && (
+              <p className="um-hint" style={{ marginTop: 12 }}>
+                Detection threshold does not apply to this model type (regression / clustering / anomaly). Predictions use the model output directly.
+                {isAnomaly || batchResult?.is_anomaly_model
+                  ? " For anomaly models, any target column in the CSV is display-only and never used as a feature."
+                  : ""}
+              </p>
+            )
           )}
 
           <div className="button-group" style={{ marginTop: 16 }}>
@@ -998,6 +1174,11 @@ function UseModel() {
             ];
             const isPredCol = (h) => PRED_COLS.includes(h) || h === targetKey;
 
+            const extraCols = (Array.isArray(batchResult.unexpected_columns_ignored)
+              ? batchResult.unexpected_columns_ignored
+              : []
+            ).filter(Boolean);
+
             return (
             <div className="um-batch-summary">
               {batchResult.message && <p className="um-sample-note">{batchResult.message}</p>}
@@ -1009,23 +1190,48 @@ function UseModel() {
                 )}
                 {" · "}
                 <strong>{previewCols.length}</strong> columns shown
-                {isClassification && (
+                {isClassification && batchResult.threshold_applied && (
                   <>
                     {" · "}threshold{" "}
                     <strong>
                       {(batchResult.decision_threshold ?? decisionThreshold).toFixed(2)}
                     </strong>
-                    {batchResult.threshold_applied
-                      ? ` (applied on ${batchResult.threshold_applied_rows ?? "all"} rows)`
-                      : " (not applied: not binary)"}
+                    {` (applied on ${batchResult.threshold_applied_rows ?? "all"} rows)`}
                   </>
                 )}
               </p>
+              {isClassification && !batchResult.threshold_applied && nClasses > 2 && (
+                <p className="um-hint">
+                  {nClasses}-class model: no detection threshold was applied. The predicted class
+                  is the one with the highest probability.
+                </p>
+              )}
+              {isClassification && isBinaryClass && !batchResult.threshold_applied && (
+                <p className="um-hint">
+                  The detection threshold was not used. It only applies when the model
+                  is binary and returns a probability for each class. Predictions here
+                  come directly from the model.
+                </p>
+              )}
+              {extraCols.length > 0 && (
+                <p className="um-hint">
+                  {extraCols.length === 1
+                    ? `The column “${extraCols[0]}” is not a model feature, so it was ignored and did not affect predictions.`
+                    : `These CSV columns are not model features, so they were ignored and did not affect predictions: ${extraCols.join(", ")}.`}
+                </p>
+              )}
               {batchResult.has_target_column && (
                 <p className="um-hint">
                   Target column “{batchResult.target_column}” was kept; prediction columns were added.
                 </p>
               )}
+
+              <BatchScores
+                metrics={batchResult.metrics}
+                isAnomalyModel={
+                  Boolean(isAnomaly || batchResult.is_anomaly_model)
+                }
+              />
 
               <h4>
                 Preview: input data + model output
@@ -1110,21 +1316,8 @@ function UseModel() {
               )}
 
               <details className="debug-details" style={{ marginTop: 16 }}>
-                <summary>Summary · class distribution &amp; skipped rows</summary>
-                <p>
-                  Non-normal outcomes:{" "}
-                  <strong>{batchResult.intrusion_count?.toLocaleString()}</strong> (
-                  {((batchResult.intrusion_rate || 0) * 100).toFixed(2)}%)
-                </p>
-                <h4>Class distribution</h4>
-                <ul>
-                  {Object.entries(batchResult.class_distribution || {}).map(([k, v]) => (
-                    <li key={k}>
-                      {k}: {Number(v).toLocaleString()}
-                    </li>
-                  ))}
-                </ul>
-                {batchResult.skipped?.length > 0 && (
+                <summary>Skipped rows</summary>
+                {batchResult.skipped?.length > 0 ? (
                   <>
                     <h4>Skipped rows ({batchResult.rows_skipped})</h4>
                     <ul className="um-skip-list">
@@ -1135,6 +1328,8 @@ function UseModel() {
                       ))}
                     </ul>
                   </>
+                ) : (
+                  <p className="um-hint">No rows were skipped.</p>
                 )}
               </details>
             </div>

@@ -50,128 +50,55 @@ import ClearIcon from '@mui/icons-material/Clear';
 // ==================== STYLE CONSTANTS ====================
 const COLORS = {
     primary: '#384850',
-    primaryDark: '#003d54',
+    primaryDark: '#2a3942',
     accent: '#DE6B06',
     accentDark: '#c55a05',
-    success: '#28a745',
-    danger: '#dc3545',
+    success: '#384850',
+    danger: '#b42318',
     neutral: '#DDDEDF',
     white: '#ffffff',
-    dark: '#343a40',
-    bgLight: '#f8f9fa',
-    bgSection: '#f4f6f8',
+    dark: '#384850',
+    bgLight: '#f3f4f5',
+    bgSection: '#e8e9ea',
 };
 
 // ==================== HELP DIALOG COMPONENT ====================
 const HelpDialog = ({ open, onClose }) => (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: COLORS.primary, color: 'white' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <HelpOutlineIcon />
-                <Typography variant="h5">User Guide   Advanced Outlier Manager</Typography>
-            </Box>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ className: "outlier-dialog" }}>
+        <DialogTitle>
+            <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>Guide: Outliers (several columns)</Typography>
         </DialogTitle>
         <DialogContent dividers>
-            <Alert severity="info" sx={{ mb: 3 }}>
-                <Typography variant="body2">
-                    <strong>How to use this page in 4 easy steps:</strong> Select columns → Choose a detection method → Click "Detect Outliers" → Review and delete detected outliers.
-                </Typography>
-            </Alert>
-
-            <Typography variant="body1" paragraph>
-                This page helps you detect outliers using advanced machine learning algorithms. 
-                Unlike the basic outlier manager, this tool uses multivariate analysis to find outliers 
-                by considering relationships between multiple numerical columns simultaneously.
+            <Typography variant="body2" paragraph>
+                The other Outlier Manager looks at one column. This one looks at several numeric columns together.
+                A row can look normal in each column and still be odd as a combination (for example age and income that do not match).
+            </Typography>
+            <Typography variant="body2" paragraph>
+                How to run it: tick the columns, pick a method, set the parameters, click Detect Outliers. You can then look at the 2D plot and delete rows.
             </Typography>
 
-            <Typography variant="h6" gutterBottom sx={{ color: COLORS.primary, borderBottom: `2px solid ${COLORS.accent}`, pb: 0.5, mt: 2 }}>
-                What Makes This Different?
+            <Typography variant="subtitle1" sx={{ color: COLORS.primary, fontWeight: 700, mt: 2, mb: 1 }}>
+                Methods
             </Typography>
-            <Alert severity="info" sx={{ mb: 2 }}>
-                <Typography variant="body2">
-                    <strong>Multivariate Outlier Detection:</strong> Traditional outlier detection looks at one column at a time. 
-                    This advanced tool analyzes <strong>multiple numerical columns together</strong> to find outliers that only appear 
-                    when you consider the relationship between variables. A point might be normal in each individual column 
-                    but become an outlier when looking at the combination of columns.
-                    <ul style={{ marginTop: '8px', marginBottom: '4px' }}>
-                        <li><strong>KMeans:</strong> Groups data into clusters   points far from cluster centers are outliers</li>
-                        <li><strong>Isolation Forest:</strong> Isolates anomalies by randomly partitioning the data</li>
-                        <li><strong>DBSCAN:</strong> Finds outliers as points in low-density regions</li>
-                    </ul>
-                </Typography>
-            </Alert>
-
-            <Typography variant="h6" gutterBottom sx={{ color: COLORS.primary, mt: 2, borderBottom: `2px solid ${COLORS.accent}`, pb: 0.5 }}>
-                Step-by-Step Guide
+            <Typography variant="body2" paragraph>
+                KMeans: builds groups. Points far from their group center are outliers. Use when the data has natural clusters. Number of clusters is a parameter.
+            </Typography>
+            <Typography variant="body2" paragraph>
+                Isolation Forest: cuts the space at random. Points that are isolated quickly are outliers. Useful with many columns. Contamination is the share of rows you expect to be outliers.
+            </Typography>
+            <Typography variant="body2" paragraph>
+                DBSCAN: finds dense regions. Points in empty areas are outliers. Neighborhood size (eps) and minPts control what counts as dense.
             </Typography>
 
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-                {[
-                    {
-                        step: '1',
-                        title: 'Select Numerical Columns',
-                        body: 'Choose which numerical columns to use for outlier detection. Multiple columns can be selected to find outliers based on relationships between variables.'
-                    },
-                    {
-                        step: '2',
-                        title: 'Choose a Detection Method',
-                        body: (
-                            <>
-                                <strong>KMeans:</strong> Best for data with natural clusters. Points far from cluster centers are flagged as outliers.<br />
-                                <strong>Isolation Forest:</strong> Excellent for high-dimensional data. Works by isolating anomalies.<br />
-                                <strong>DBSCAN:</strong> Best for discovering clusters of arbitrary shape. Points not belonging to any dense cluster are outliers.
-                            </>
-                        )
-                    },
-                    {
-                        step: '3',
-                        title: 'Configure Parameters',
-                        body: 'Each method has configurable parameters like number of clusters (KMeans), contamination rate (Isolation Forest), or neighborhood size (DBSCAN).'
-                    },
-                    {
-                        step: '4',
-                        title: 'Detect & Delete',
-                        body: (
-                            <>
-                                <strong> Detect:</strong> Run the detection algorithm to find outliers.<br />
-                                <strong> Visualize:</strong> See outliers projected onto 2D space using PCA.<br />
-                                <strong> Delete:</strong> Remove individual outliers or all detected outliers at once.
-                            </>
-                        )
-                    },
-                ].map(({ step, title, body }) => (
-                    <Grid item xs={12} sm={6} key={step}>
-                        <Paper sx={{ p: 2, bgcolor: COLORS.bgSection, borderLeft: `4px solid ${COLORS.accent}`, height: '100%' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                <Box sx={{
-                                    width: 28, height: 28, borderRadius: '50%',
-                                    bgcolor: COLORS.accent, color: COLORS.white,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontWeight: 700, fontSize: '0.85rem', flexShrink: 0,
-                                }}>
-                                    {step}
-                                </Box>
-                                <Typography variant="subtitle1" fontWeight="bold">{title}</Typography>
-                            </Box>
-                            <Typography variant="body2" sx={{ lineHeight: 1.6 }}>{body}</Typography>
-                        </Paper>
-                    </Grid>
-                ))}
-            </Grid>
-
-            <Typography variant="h6" gutterBottom sx={{ color: COLORS.primary, borderBottom: `2px solid ${COLORS.accent}`, pb: 0.5 }}>
-                Standardization & PCA Visualization
+            <Typography variant="subtitle1" sx={{ color: COLORS.primary, fontWeight: 700, mt: 2, mb: 1 }}>
+                Standardization and the plot
             </Typography>
-            <Alert severity="info" sx={{ mb: 2 }}>
-                <Typography variant="body2">
-                    <strong> Standardization:</strong> When enabled, all columns are scaled to have mean=0 and variance=1. 
-                    This is <strong>highly recommended</strong> when your columns have different units or scales (e.g., age in years vs. income in dollars).<br /><br />
-                    <strong> PCA Visualization:</strong> After detection, outliers are visualized using Principal Component Analysis (PCA), 
-                    which reduces high-dimensional data to 2D for easy interpretation. The chart shows normal points in blue and outliers in red.
-                </Typography>
-            </Alert>
-
-         
+            <Typography variant="body2" paragraph>
+                Standardization scales every column to mean 0 and variance 1. Turn it on when columns use different units (years vs dollars).
+            </Typography>
+            <Typography variant="body2">
+                The plot uses PCA: it compresses all selected columns into 2 axes so you can see them. Normal points in one color, outliers in another.
+            </Typography>
         </DialogContent>
         <DialogActions>
             <Button
@@ -180,7 +107,7 @@ const HelpDialog = ({ open, onClose }) => (
               variant="contained"
               fullWidth
               size="large"
-              sx={{ backgroundColor: COLORS.primary, textTransform: 'none', fontWeight: 700, '&:hover': { backgroundColor: '#003c56' } }}
+              sx={{ backgroundColor: COLORS.primary, textTransform: 'none', fontWeight: 700, '&:hover': { backgroundColor: '#2a3942' } }}
             >
               Got it
             </Button>
@@ -1061,11 +988,9 @@ Do you want to continue anyway?`
                 { withCredentials: true }
             );
 
-            navigate("/data_preparation", {
+            navigate("/creat_model", {
                 state: {
-                    bdName: originalBdName || bdName.replace('_numerized', ''),
-                    initialTab: 4,
-                    numerizedBdName: finalBdName,
+                    bdName: finalBdName,
                     originalBdName: originalBdName || bdName.replace('_numerized', '')
                 }
             });
@@ -1352,52 +1277,43 @@ Do you want to continue anyway?`
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2 }} className="button-container">
                     {/* HELP BUTTON */}
-                    <Tooltip title="Open user guide">
-                        <Button
+                    <Button
                             variant="outlined"
-                            startIcon={<HelpOutlineIcon />}
                             onClick={() => setOpenHelpDialog(true)}
                             sx={{
                                 height: 40,
                                 textTransform: 'none',
-                                borderColor: 'rgb(0, 80, 111)',
-                                color: 'rgb(0, 80, 111)',
+                                borderColor: '#384850',
+                                color: '#384850',
                                 fontWeight: 600,
+                                borderRadius: '2px',
                             }}
                         >
                             Help
                         </Button>
-                    </Tooltip>
 
                     {!embedded && (
-                    <Tooltip title="Return to data transformation step">
                         <Button
                             variant="contained"
-                            color="primary"
-                            startIcon={<ArrowBackIos sx={{ fontSize: '16px' }} />}
-                            onClick={() => navigate("/data_preparation", {
+                            onClick={() => navigate("/data_transformation", {
                                 state: {
-                                    bdName: originalBdName || bdName.replace('_numerized', ''),
-                                    initialTab: 3
+                                    bdName: originalBdName || bdName.replace('_numerized', '')
                                 }
                             })}
                             sx={{
                                 minWidth: '220px',
-                                backgroundColor: '#DE6B06',
+                                backgroundColor: '#384850',
                                 fontWeight: '600',
                                 fontSize: '0.9rem',
-
+                                boxShadow: 'none',
+                                borderRadius: '2px',
                                 '&:hover': {
-                                    backgroundColor: '#c55a05',
-                                    transform: 'translateY(-1px)',
-                                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                                    backgroundColor: '#2a3942',
                                 },
-                                transition: 'all 0.2s ease-in-out'
                             }}
                         >
                             Data Transformation
                         </Button>
-                    </Tooltip>
                     )}
                     {!embedded && (
                     <Button
@@ -1408,10 +1324,10 @@ Do you want to continue anyway?`
                         sx={{
                             height: 40,
                             textTransform: 'none',
-                            borderColor: 'rgb(0, 80, 111)',
-                            color: 'rgb(0, 80, 111)',
+                            borderColor: '#384850',
+                            color: '#384850',
                             fontWeight: 600,
-                            transition: 'all 0.2s ease-in-out'
+                            borderRadius: '2px',
                         }}
                     >
                         Save Copy
@@ -1480,6 +1396,7 @@ Do you want to continue anyway?`
                 maxWidth="sm"
                 fullWidth
                 className="save-copy-dialog"
+                PaperProps={{ className: "outlier-dialog" }}
             >
                 <DialogTitle className="dialog-title">
                     <SaveIcon sx={{ mr: 1, verticalAlign: 'middle' }} />

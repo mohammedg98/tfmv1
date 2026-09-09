@@ -66,8 +66,11 @@ def _append_log(job_id: str, message: str):
     job = auto_transform_jobs.get(job_id)
     if not job:
         return
+    text = (message or "").strip()
+    if not text:
+        return
     ts = datetime.now().strftime("%H:%M:%S")
-    job["logs"].append(f"[{ts}] {message}")
+    job["logs"].append(f"[{ts}] {text}")
 
 
 def _empty_expr(col: str) -> str:
@@ -626,16 +629,12 @@ def register_auto_transform_routes(
         }
 
         try:
-            _append_log(job_id, f"Auto Transform started for '{table}'.")
+            _append_log(job_id, f"dataset: {table}")
+            _append_log(job_id, "extract from text first if you need fields from free text")
             _append_log(
                 job_id,
-                "Reminder: run Extract from text BEFORE Auto if you need fields from free text. "
-                "Regex extraction is not part of this automation.",
-            )
-            _append_log(
-                job_id,
-                f"Scaling strategy: {scaling} | Date strategy: {date_strategy}"
-                + (f" (keep '{keep_date_column}')" if keep_date_column else ""),
+                f"scaling: {scaling} | dates: {date_strategy}"
+                + (f" keep {keep_date_column}" if keep_date_column else ""),
             )
 
             # Profile + decide + delete in a short-lived connection, then RELEASE it.
@@ -678,23 +677,21 @@ def register_auto_transform_routes(
                 has_split = bool(cur.fetchone()[0])
                 if not has_split:
                     msg = (
-                        "No split_type column — Standard/MinMax/Frequency will fit on the full table. "
-                        "Prefer running Clean · Split first."
+                        "no split_type: Standard/MinMax/Frequency fit on the full table. "
+                        "Prefer Clean · Split first."
                     )
                     report["warnings"].append(msg)
-                    _append_log(job_id, f"Warning: {msg}")
+                    _append_log(job_id, f"   {msg}")
 
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 1 — Column profiling & role detection")
+                _append_log(job_id, "1. profile")
                 profiles, n_rows, _ = _profile(
                     cur, conn, table, analyze_column_type_backend
                 )
-                _append_log(job_id, f"  Dataset: {n_rows:,} rows × {len(profiles)} columns")
+                _append_log(job_id, f"   {n_rows:,} rows x {len(profiles)} columns")
                 if target_column:
-                    _append_log(job_id, f"  Target: '{target_column}' (model_type={model_type or 'n/a'})")
+                    _append_log(job_id, f"   target: {target_column} ({model_type or 'n/a'})")
 
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 2 — Transformation decisions")
+                _append_log(job_id, "2. decide")
                 decisions = []
                 for p in profiles:
                     d = _decide_column(
@@ -709,13 +706,13 @@ def register_auto_transform_routes(
                     decisions.append(d)
                     conf = int(round(100 * float(d.get("confidence") or 0)))
                     act = d["action"]
-                    method = d.get("method") or "—"
-                    why = "; ".join(d.get("reasons") or [])
+                    method = d.get("method") or "-"
+                    why = "; ".join(d.get("reasons") or []).replace("—", ",").replace("→", "to")
                     _append_log(
                         job_id,
-                        f"  • {d['column']} [{d.get('role')}] → {act}"
+                        f"   {d['column']} [{d.get('role')}] {act}"
                         + (f"/{method}" if act == "transform" else "")
-                        + f"  (confidence {conf}%)",
+                        + f"  score={conf}%",
                     )
                     if why:
                         _append_log(job_id, f"      {why}")
@@ -734,15 +731,14 @@ def register_auto_transform_routes(
                     )
 
                 to_delete = [d["column"] for d in decisions if d["action"] == "delete"]
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 3 — Delete unsafe / useless columns")
+                _append_log(job_id, "3. drop columns")
                 if to_delete:
                     _drop_columns(cur, conn, table, user_id, to_delete)
                     report["deleted_columns"] = to_delete
                     for c in to_delete:
-                        _append_log(job_id, f"  Deleted column '{c}'")
+                        _append_log(job_id, f"   drop {c}")
                 else:
-                    _append_log(job_id, "  Nothing to delete.")
+                    _append_log(job_id, "   nothing to drop")
 
                 for d in decisions:
                     if d["action"] != "transform" or not d.get("method"):
@@ -774,10 +770,9 @@ def register_auto_transform_routes(
 
             # Connection closed here — safe to recreate/drop the table
 
-            _append_log(job_id, "")
-            _append_log(job_id, "STEP 4 — Apply transforms (existing numerisation pipeline)")
+            _append_log(job_id, "4. apply")
             if not configs:
-                _append_log(job_id, "  No encodings/scalings to apply.")
+                _append_log(job_id, "   no encodings to apply")
             else:
                 # ONE call for all columns — process_numerisation rewrites the whole
                 # table (DROP + INSERT). Doing it per-column is extremely slow / looks stuck.
@@ -785,14 +780,14 @@ def register_auto_transform_routes(
                     f"{c['method']}:{c['column']}" for c in configs[:12]
                 )
                 if len(configs) > 12:
-                    preview += "…"
+                    preview += "..."
                 _append_log(
                     job_id,
-                    f"  Applying {len(configs)} transform(s) in one pass: {preview}",
+                    f"   {len(configs)} transform(s) in one pass: {preview}",
                 )
                 _append_log(
                     job_id,
-                    "  (Full table rewrite once — please wait; large datasets can take a few minutes.)",
+                    "   full table rewrite once, wait if the dataset is large",
                 )
                 try:
                     req = NumerisationRequestModel(
@@ -812,20 +807,20 @@ def register_auto_transform_routes(
                                 "ok": True,
                             }
                         )
-                    _append_log(job_id, f"  ✓ Batch applied ({len(configs)} transform(s)).")
+                    _append_log(job_id, f"   batch applied ({len(configs)} transform(s))")
                     for line in applied[:20]:
-                        _append_log(job_id, f"    • {line}")
+                        _append_log(job_id, f"   {line}")
                     if len(applied) > 20:
-                        _append_log(job_id, f"    … +{len(applied) - 20} more")
+                        _append_log(job_id, f"   +{len(applied) - 20} more")
                 except HTTPException as he:
                     msg = he.detail if isinstance(he.detail, str) else str(he.detail)
                     report["warnings"].append(f"Batch transform failed: {msg}")
-                    _append_log(job_id, f"  ✗ Batch failed — {msg}")
-                    _append_log(job_id, "  Falling back to one-column-at-a-time…")
+                    _append_log(job_id, f"   batch failed: {msg}")
+                    _append_log(job_id, "   fallback: one column at a time")
                     for cfg in configs:
                         col = cfg["column"]
                         method = cfg["method"]
-                        _append_log(job_id, f"  Applying {method} on '{col}'…")
+                        _append_log(job_id, f"   {method} on {col}")
                         try:
                             req = NumerisationRequestModel(
                                 bdName=table, configurations=[cfg]
@@ -836,7 +831,7 @@ def register_auto_transform_routes(
                             report["transforms"].append(
                                 {"column": col, "method": method, "ok": True}
                             )
-                            _append_log(job_id, f"    ✓ {method} on '{col}'")
+                            _append_log(job_id, f"   {method} on {col}: ok")
                         except HTTPException as he2:
                             msg2 = (
                                 he2.detail
@@ -852,7 +847,7 @@ def register_auto_transform_routes(
                                 }
                             )
                             report["warnings"].append(f"{col}/{method}: {msg2}")
-                            _append_log(job_id, f"    ✗ failed — {msg2}")
+                            _append_log(job_id, f"   failed: {msg2}")
                         except Exception as e2:
                             msg2 = str(e2)
                             report["transforms"].append(
@@ -864,11 +859,11 @@ def register_auto_transform_routes(
                                 }
                             )
                             report["warnings"].append(f"{col}/{method}: {msg2}")
-                            _append_log(job_id, f"    ✗ failed — {msg2}")
+                            _append_log(job_id, f"   failed: {msg2}")
                 except Exception as e:
                     msg = str(e)
                     report["warnings"].append(f"Batch transform failed: {msg}")
-                    _append_log(job_id, f"  ✗ Batch failed — {msg}")
+                    _append_log(job_id, f"   batch failed: {msg}")
                     for cfg in configs:
                         report["transforms"].append(
                             {
@@ -879,8 +874,7 @@ def register_auto_transform_routes(
                             }
                         )
 
-            _append_log(job_id, "")
-            _append_log(job_id, "STEP 5 — Delete rows with empty values (always)")
+            _append_log(job_id, "5. drop empty rows")
             try:
                 del_req = DeleteRowsRequestModel(bdName=table)
                 del_res = await delete_rows_with_empty_fn(
@@ -890,17 +884,16 @@ def register_auto_transform_routes(
                 if isinstance(del_res, dict):
                     n_del = int(del_res.get("deleted_count") or 0)
                 report["empty_rows_deleted"] = n_del
-                _append_log(job_id, f"  Removed {n_del:,} row(s) with empty values.")
+                _append_log(job_id, f"   drop {n_del:,} empty rows")
             except HTTPException as he:
                 msg = he.detail if isinstance(he.detail, str) else str(he.detail)
                 report["warnings"].append(f"Empty-row cleanup failed: {msg}")
-                _append_log(job_id, f"  Warning: empty-row cleanup failed — {msg}")
+                _append_log(job_id, f"   empty-row cleanup failed: {msg}")
             except Exception as e:
                 report["warnings"].append(f"Empty-row cleanup failed: {e}")
-                _append_log(job_id, f"  Warning: empty-row cleanup failed — {e}")
+                _append_log(job_id, f"   empty-row cleanup failed: {e}")
 
-            _append_log(job_id, "")
-            _append_log(job_id, "Auto Transform completed.")
+            _append_log(job_id, "done.")
             auto_transform_jobs[job_id]["status"] = "done"
             auto_transform_jobs[job_id]["result"] = {
                 "ok": True,
@@ -940,7 +933,6 @@ def register_auto_transform_routes(
             "bdName": table,
             "started_at": datetime.now().isoformat(),
         }
-        _append_log(job_id, "Job queued.")
         t = threading.Thread(
             target=_run_pipeline,
             args=(job_id, table, current_user_id, opts),

@@ -4,25 +4,52 @@ import axios from "axios";
 import {
   Trash2,
   Search,
-  Users,
-  Database,
-  Box,
   Upload,
   Download,
   RefreshCw,
-  Shield,
   CheckSquare,
   Square,
-  LayoutDashboard,
-  BookOpen,
   UserCog,
-  HardDrive,
 } from "lucide-react";
 import "./AdminPanel.css";
 import { backendUrl } from "../config";
 
 const PAGE_SIZE = 50;
 const DATASET_ID_SEP = "::";
+
+function sameOwnerId(a, b) {
+  return String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
+}
+
+function countDatasetsForUser(user, allDatasets) {
+  const uid = String(user?._id ?? user?.id ?? "").trim().toLowerCase();
+  const email = String(user?.email ?? "").trim().toLowerCase();
+  const n = allDatasets.filter((d) => {
+    const oid = String(d.owner_id ?? "").trim().toLowerCase();
+    const dEmail = String(d.owner_email ?? "").trim().toLowerCase();
+    const idMatch = uid && oid && oid === uid;
+    const emailMatch =
+      email &&
+      dEmail &&
+      dEmail === email &&
+      dEmail !== "unknown email";
+    return idMatch || emailMatch;
+  }).length;
+  if (n > 0) return n;
+  return Number(user?.dataset_count) || 0;
+}
+
+function countModelsForUser(user, allModels) {
+  const uid = String(user?._id ?? user?.id ?? "").trim().toLowerCase();
+  const email = String(user?.email ?? "").trim().toLowerCase();
+  const n = allModels.filter((m) => {
+    const mid = String(m.user_id ?? "").trim().toLowerCase();
+    const mEmail = String(m.user_email ?? "").trim().toLowerCase();
+    return (uid && mid === uid) || (email && mEmail && mEmail === email);
+  }).length;
+  if (n > 0) return n;
+  return Number(user?.model_count) || 0;
+}
 
 function formatBytes(bytes) {
   if (bytes == null || Number.isNaN(bytes)) return "N/A";
@@ -497,12 +524,10 @@ function AdminPanel() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return "Unknown date";
-    try {
-      return new Date(dateString).toLocaleDateString("en-US");
-    } catch {
-      return "Invalid date";
-    }
+    if (!dateString) return "—";
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-US");
   };
 
   if (!userInfo) {
@@ -537,7 +562,6 @@ function AdminPanel() {
       <header className="admin-header">
         <div className="admin-header-info">
           <div className="admin-title">
-            <Shield className="admin-icon" size={32} />
             <h1>Administration Panel</h1>
           </div>
           <p className="admin-welcome">Connected as: {userInfo.email}</p>
@@ -547,20 +571,16 @@ function AdminPanel() {
 
           <div className="admin-stats">
             <div className="stat-item">
-              <Users size={16} />
               <span>Users: {users.length}</span>
             </div>
             <div className="stat-item">
-              <Database size={16} />
               <span>Datasets: {datasets.length}</span>
             </div>
             <div className="stat-item">
-              <Box size={16} />
               <span>Models: {models.length}</span>
             </div>
             {platformStats?.saved_models_disk_bytes != null && (
               <div className="stat-item">
-                <HardDrive size={16} />
                 <span>
                   Disk: {formatBytes(platformStats.saved_models_disk_bytes)}
                 </span>
@@ -595,14 +615,12 @@ function AdminPanel() {
             className={`tab-btn ${activeTab === "overview" ? "active" : ""}`}
             onClick={() => setActiveTab("overview")}
           >
-            <LayoutDashboard size={18} />
             Overview
           </button>
           <button
             className={`tab-btn ${activeTab === "users" ? "active" : ""}`}
             onClick={() => setActiveTab("users")}
           >
-            <Users size={18} />
             Users
             <span className="tab-count">{users.length}</span>
           </button>
@@ -610,7 +628,6 @@ function AdminPanel() {
             className={`tab-btn ${activeTab === "datasets" ? "active" : ""}`}
             onClick={() => setActiveTab("datasets")}
           >
-            <Database size={18} />
             Datasets
             <span className="tab-count">{datasets.length}</span>
           </button>
@@ -618,7 +635,6 @@ function AdminPanel() {
             className={`tab-btn ${activeTab === "models" ? "active" : ""}`}
             onClick={() => setActiveTab("models")}
           >
-            <Box size={18} />
             Models
             <span className="tab-count">{models.length}</span>
           </button>
@@ -626,7 +642,6 @@ function AdminPanel() {
             className={`tab-btn ${activeTab === "dataset-info" ? "active" : ""}`}
             onClick={() => setActiveTab("dataset-info")}
           >
-            <BookOpen size={18} />
             Dataset info
           </button>
         </div>
@@ -870,8 +885,8 @@ function AdminPanel() {
                                 {user.is_admin ? "Admin" : "User"}
                               </span>
                             </td>
-                            <td>{user.dataset_count ?? 0}</td>
-                            <td>{user.model_count ?? 0}</td>
+                            <td className="col-num">{countDatasetsForUser(user, datasets)}</td>
+                            <td className="col-num">{countModelsForUser(user, models)}</td>
                             <td className="user-date">
                               {formatDate(user.created_at || user.createdAt)}
                             </td>
@@ -907,7 +922,6 @@ function AdminPanel() {
                     </table>
                     {filteredUsers.length === 0 && (
                       <div className="no-data">
-                        <Users size={48} />
                         <p>No users found</p>
                       </div>
                     )}
@@ -986,7 +1000,6 @@ function AdminPanel() {
                                   className="role-btn"
                                   title="Edit pedagogical info"
                                 >
-                                  <BookOpen size={14} />
                                   Info
                                 </button>
                                 <button
@@ -1010,7 +1023,6 @@ function AdminPanel() {
                     </table>
                     {filteredDatasets.length === 0 && (
                       <div className="no-data">
-                        <Database size={48} />
                         <p>No datasets found</p>
                       </div>
                     )}
@@ -1111,7 +1123,6 @@ function AdminPanel() {
                     </table>
                     {filteredModels.length === 0 && (
                       <div className="no-data">
-                        <Box size={48} />
                         <p>No models found</p>
                       </div>
                     )}

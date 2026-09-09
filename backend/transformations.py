@@ -19,6 +19,37 @@ import pandas as pd
 SKIP_COLUMNS = {"split_type", "id"}
 
 
+def _norm_col_name(name: Any) -> str:
+    return str(name).strip().lower() if name is not None else ""
+
+
+def is_skip_column(name: Any, target_column: Optional[str] = None) -> bool:
+    n = _norm_col_name(name)
+    if not n or n in SKIP_COLUMNS:
+        return True
+    if target_column and n == _norm_col_name(target_column):
+        return True
+    return False
+
+
+def align_record_keys(
+    record: Dict[str, Any],
+    wanted: Sequence[str],
+) -> Dict[str, Any]:
+    """Copy values onto the exact feature names the model expects (case-insensitive)."""
+    if not record:
+        return {}
+    lookup = {_norm_col_name(k): k for k in record.keys()}
+    out = dict(record)
+    for c in wanted:
+        if not c or c in out:
+            continue
+        src = lookup.get(_norm_col_name(c))
+        if src is not None:
+            out[c] = record[src]
+    return out
+
+
 def _action_type(action: Any) -> str:
     if isinstance(action, str):
         return action.split(":")[0].strip().lower()
@@ -82,11 +113,21 @@ def infer_raw_input_columns(
     Columns the user must fill with RAW values before the pipeline runs.
     Removes columns created by transforms; adds their source columns.
     """
-    cols = set(c for c in feature_columns if c)
-    exclude = set(SKIP_COLUMNS)
+    colset = set(c for c in feature_columns if c)
+
+    def _drop(name: Any) -> None:
+        if not name:
+            return
+        nl = _norm_col_name(name)
+        for c in list(colset):
+            if _norm_col_name(c) == nl:
+                colset.discard(c)
+
+    def _excluded(name: Any) -> bool:
+        return is_skip_column(name, target_column)
+
     if target_column:
-        exclude.add(target_column)
-        cols.discard(target_column)
+        _drop(target_column)
 
     for action in applied_actions or []:
         atype = normalize_action_name(_action_type(action))
@@ -94,13 +135,12 @@ def infer_raw_input_columns(
         params = _params(action)
 
         if atype in ("column_deletion", "delete"):
-            if src:
-                cols.discard(src)
+            _drop(src)
         elif atype == "onehot_encoding":
             for c in params.get("new_columns") or []:
-                cols.discard(c)
+                _drop(c)
             if src:
-                cols.add(src)
+                colset.add(src)
         elif atype == "regex_extraction":
             outs = params.get("output_column") or (
                 action.get("output_column") if isinstance(action, dict) else None
@@ -108,11 +148,23 @@ def infer_raw_input_columns(
             if isinstance(outs, str):
                 outs = [outs]
             for c in outs or []:
-                cols.discard(c)
+                _drop(c)
             if src:
-                cols.add(src)
+                colset.add(src)
 
-    return sorted(c for c in cols if c and c not in exclude)
+    # Keep training feature order — do not sort alphabetically (that swapped
+    # iris sepal/petal columns and systematically shifted classes).
+    ordered: List[str] = []
+    seen = set()
+    for c in list(feature_columns) + list(colset):
+        if not c or c not in colset or _excluded(c):
+            continue
+        key = _norm_col_name(c)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(c)
+    return ordered
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -145,17 +197,19 @@ def _apply_one_row_action(
         step["message"] = "Empty action"
         return row, step
 
-    if src and target_column and src == target_column:
+    if src and target_column and _norm_col_name(src) == _norm_col_name(target_column):
         step["status"] = "skipped"
         step["message"] = f"Skipped target column '{target_column}'"
         return row, step
 
-    if src in SKIP_COLUMNS:
+    if src and _norm_col_name(src) in SKIP_COLUMNS:
         step["status"] = "skipped"
         step["message"] = f"Skipped system column '{src}'"
         return row, step
 
     data = row
+    if src:
+        data = align_record_keys(data, [src])
 
     try:
         if atype in ("column_deletion", "delete"):
@@ -439,14 +493,15 @@ def build_feature_matrix(
     target_column: Optional[str] = None,
 ) -> np.ndarray:
     """Build numeric matrix in exact feature order expected by the model."""
-    cols = [c for c in feature_columns if c and c != target_column and c not in SKIP_COLUMNS]
+    cols = [c for c in feature_columns if c and not is_skip_column(c, target_column)]
     rows = []
     for rec in transformed_records:
+        aligned = align_record_keys(rec, cols)
         vals = []
         for c in cols:
-            if c not in rec:
+            if c not in aligned:
                 raise ValueError(f"Missing feature '{c}' after transformations")
-            vals.append(_to_float(rec[c], 0.0))
+            vals.append(_to_float(aligned[c], 0.0))
         rows.append(vals)
     return np.asarray(rows, dtype=float)
 
@@ -475,22 +530,46 @@ def extract_target_label_maps(
     """
     reverse: Dict[str, str] = {}
     forward: Dict[str, Any] = {}
+    matched: List[Tuple[Dict[str, Any], List[Any]]] = []
+    other: List[Tuple[Dict[str, Any], List[Any]]] = []
+    tgt = str(target_column).strip().lower() if target_column else None
+
     for action in applied_actions or []:
         if not isinstance(action, dict):
             continue
         if normalize_action_name(_action_type(action)) != "label_encoding":
             continue
         src = _source_column(action)
-        if target_column and src and src != target_column:
-            continue
-        mapping = _params(action).get("mapping") or {}
-        for label, enc in mapping.items():
-            forward[str(label)] = enc
-            for key in _encoding_key_variants(enc):
-                reverse[key] = str(label)
-        # If target_column matched, stop; else keep last label_encoding found
-        if target_column and src == target_column:
-            break
+        params = _params(action)
+        mapping = params.get("mapping") or {}
+        categories = params.get("categories") or []
+        src_l = str(src).strip().lower() if src else ""
+        entry = (mapping, categories)
+        if tgt and src_l == tgt:
+            matched.append(entry)
+        else:
+            other.append(entry)
+
+    chosen = None
+    if matched:
+        chosen = matched[-1]
+    elif not tgt and len(other) == 1:
+        chosen = other[0]
+    elif not tgt and other:
+        chosen = other[-1]
+
+    if not chosen:
+        return reverse, forward
+
+    mapping, categories = chosen
+    if not mapping and categories:
+        mapping = {str(c): i for i, c in enumerate(categories)}
+    for label, enc in (mapping or {}).items():
+        lab = str(label)
+        forward[lab] = enc
+        forward[lab.strip().lower()] = enc
+        for key in _encoding_key_variants(enc):
+            reverse[key] = lab
     return reverse, forward
 
 

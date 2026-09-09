@@ -96,24 +96,22 @@
 
 /* Style spécial pour le bouton Admin Panel */
 .admin-panel-btn {
-  background: rgba(222, 107, 6, 0.1); /* Fond légèrement orangé */
-  border: 1px solid rgba(222, 107, 6, 0.3);
+  background: transparent;
+  border: 1px solid #DE6B06;
+  color: #DE6B06;
   font-weight: 600;
 }
 
 .admin-panel-btn:hover {
-  background: rgba(222, 107, 6, 0.2); /* Fond plus visible au hover */
-  border-color: rgba(222, 107, 6, 0.5);
+  background: #DE6B06;
+  color: #fff;
+  border-color: #DE6B06;
 }
 
-/* Indicateur visuel pour l'admin */
-.admin-panel-btn::before {
-  content: '⚡';
-  margin-right: 6px;
-  font-size: 0.9em;
+.admin-panel-btn::after {
+  display: none;
 }
 
-/* Version responsive */
 @media (max-width: 768px) {
   .navbar {
     padding: 1rem;
@@ -138,31 +136,8 @@
   
   /* Ajustement pour les petits écrans */
   .admin-panel-btn {
-    order: -1; /* Met le bouton admin en premier sur mobile */
-    background: rgba(222, 107, 6, 0.2);
+    order: -1;
   }
-}
-
-/* Animation pour le bouton admin */
-@keyframes adminPulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(222, 107, 6, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(222, 107, 6, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(222, 107, 6, 0);
-  }
-}
-
-.admin-panel-btn {
-  animation: adminPulse 2s infinite;
-}
-
-/* Désactiver l'animation au hover pour éviter les distractions */
-.admin-panel-btn:hover {
-  animation: none;
 }
 
 

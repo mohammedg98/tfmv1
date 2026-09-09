@@ -44,20 +44,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import {
-  HelpOutline,
-  Refresh,
   Close,
   Delete,
   Save,
-  NavigateNext,
-  NavigateBefore,
-  AutoFixNormal,
-  FilterList,
   Warning,
-  PlayArrow,
-  CheckCircle,
-  Visibility,
-  AutoFixHigh,
 } from "@mui/icons-material";
 
 import { backendUrl } from "../config";
@@ -1185,7 +1175,7 @@ const handleApplySplit = async () => {
     showSnackbar(
       summary?.train_ratio
         ? `Split done: Train ${(summary.train_ratio * 100).toFixed(0)}% / Test ${(summary.test_ratio * 100).toFixed(0)}%. Refreshing table…`
-        : "Dataset split completed successfully! Refreshing the table…",
+        : "Split done. Refreshing the table.",
       "success"
     );
 
@@ -1326,34 +1316,25 @@ const handlePreviewImputation = async (method) => {
 
   const getImputationTooltip = (method) => {
     const status = splitColumnStatus;
-    
+
     if (checkingSplitStatus) {
-      return "Checking dataset split status...";
+      return "Checking split...";
     }
-    
-    if (!status.exists) {
-      return "Dataset must be split first - no split_type column found";
+
+    if (!status.exists || !status.hasValues || status.trainCount === 0) {
+      return "Split the dataset first";
     }
-    
-    if (!status.hasValues) {
-      return "Dataset must be split first - split_type column is empty";
-    }
-    
-    if (status.trainCount === 0) {
-      return "Dataset must be split first - no training data found";
-    }
-    
+
     if (emptyRowsCount === 0) {
-      return "No missing values to impute - dataset is already complete";
+      return "No missing values to fill";
     }
-    
-    const methodNames = {
-      "mean": "Mean Imputation",
-      "median": "Median Imputation",
-      "mode": "Mode Imputation"
+
+    const names = {
+      mean: "Fill missing numbers with the mean",
+      median: "Fill missing numbers with the median",
+      mode: "Fill missing values with the most frequent value",
     };
-    
-    return `${methodNames[method]} - Fill missing values using ${method} method (${status.trainCount} train rows available)`;
+    return names[method] || "Fill missing values";
   };
 
   // ==================== COMPOSANT IMPUTATION DIALOG ====================
@@ -1406,19 +1387,16 @@ const handlePreviewImputation = async (method) => {
     };
 
     return (
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-        <DialogTitle sx={{ backgroundColor: 'rgb(0, 80, 111)', color: 'white' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Visibility />
-            <Typography variant="h6">
-              {method.toUpperCase()} Imputation
-            </Typography>
-          </Box>
+      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ className: "clean-dialog" }}>
+        <DialogTitle>
+          <Typography variant="h6">
+            Fill missing ({method})
+          </Typography>
         </DialogTitle>
         
         <DialogContent sx={{ p: 3 }}>
-          <Card sx={{ p: 2, mb: 3, backgroundColor: '#f0f8ff' }}>
-            <Typography variant="h6" gutterBottom sx={{ color: 'rgb(0, 80, 111)' }}>
+          <Card sx={{ p: 2, mb: 3, backgroundColor: '#e8e9ea', boxShadow: 'none', borderRadius: '2px' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
               Imputation Summary
             </Typography>
             <Grid container spacing={2}>
@@ -1434,11 +1412,7 @@ const handlePreviewImputation = async (method) => {
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="body2">
-                  <strong>Note:</strong> Statistics are computed on the <strong>entire training set</strong> in the database
-                  (not only the rows currently displayed on the page).
-                  {method === 'mean' && ignoreOutliersForMean && (
-                    <> Extreme outliers (|z| &gt; 3) are ignored when computing the mean (not deleted).</>
-                  )}
+                  Fill values come from train only, then are applied to train and test.
                 </Typography>
               </Grid>
               {method === 'mean' && (
@@ -1474,10 +1448,10 @@ const handlePreviewImputation = async (method) => {
                             setCheckingSplitStatus(false);
                           }
                         }}
-                        sx={{ color: 'rgb(0, 80, 111)' }}
+                        sx={{ color: '#384850' }}
                       />
                     }
-                    label="Ignore extreme outliers when computing the mean (Recommended)"
+                    label="Ignore extreme outliers when computing the mean"
                   />
                 </Grid>
               )}
@@ -1487,7 +1461,7 @@ const handlePreviewImputation = async (method) => {
         
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: 'rgb(0, 80, 111)' }}>
+            <Typography variant="h6" sx={{ color: '#384850' }}>
               Column Selection
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1528,9 +1502,9 @@ const handlePreviewImputation = async (method) => {
                         onChange={() => handleColumnToggle(col.column_name, col.compatible_with_method)}
                         disabled={!col.compatible_with_method}
                         sx={{ 
-                          color: 'rgb(0, 80, 111)',
+                          color: '#384850',
                           '&.Mui-checked': {
-                            color: 'rgb(0, 80, 111)',
+                            color: '#384850',
                           },
                         }}
                       />
@@ -1545,7 +1519,7 @@ const handlePreviewImputation = async (method) => {
                         label={col.data_type} 
                         size="small" 
                         color={col.data_type.includes('char') ? 'primary' : 'secondary'}
-                        sx={{ backgroundColor: 'rgb(0, 80, 111)' }}
+                        sx={{ backgroundColor: '#384850' }}
                       />
                     </TableCell>
                     <TableCell>
@@ -1575,11 +1549,7 @@ const handlePreviewImputation = async (method) => {
                       ) : '-'}
                     </TableCell>
                     <TableCell>
-                      {col.compatible_with_method ? (
-                        <CheckCircle color="success" />
-                      ) : (
-                        <Close color="error" />
-                      )}
+                      {col.compatible_with_method ? "Yes" : "No"}
                     </TableCell>
                     <TableCell>
                       {col.suggested_imputation_value !== null && col.suggested_imputation_value !== undefined ? (
@@ -1587,7 +1557,7 @@ const handlePreviewImputation = async (method) => {
                           label={col.suggested_imputation_value} 
                           size="small" 
                           sx={{ 
-                            backgroundColor: 'rgb(0, 80, 111)',
+                            backgroundColor: '#384850',
                             color: 'white'
                           }}
                           variant="outlined"
@@ -1604,20 +1574,12 @@ const handlePreviewImputation = async (method) => {
             </Table>
           </TableContainer>
 
-          <Alert severity="info" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>Important:</strong> The {method.toUpperCase()} imputation will be calculated using 
-              only the <strong>training data</strong> and then applied to both training and test sets 
-              to prevent data leakage.
-            </Typography>
-          </Alert>
-
           {localSelectedColumns.length > 0 && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                <strong>Selected {localSelectedColumns.length} columns:</strong> {localSelectedColumns.join(', ')}
+            <Box sx={{ mt: 2, p: 1.5, backgroundColor: '#e8e9ea', border: '1px solid #c8c9ca', borderRadius: '2px' }}>
+              <Typography variant="body2" sx={{ color: '#384850' }}>
+                Selected {localSelectedColumns.length} columns: {localSelectedColumns.join(', ')}
               </Typography>
-            </Alert>
+            </Box>
           )}
         </DialogContent>
         
@@ -1629,10 +1591,10 @@ const handlePreviewImputation = async (method) => {
             onClick={handleApply} 
             variant="contained"
             disabled={applyingImputation || localSelectedColumns.length === 0}
-            startIcon={applyingImputation ? <CircularProgress size={20} /> : <PlayArrow />}
-            sx={{ backgroundColor: 'rgb(0, 80, 111)' }}
+            startIcon={applyingImputation ? <CircularProgress size={20} /> : undefined}
+            sx={{ backgroundColor: '#384850' }}
           >
-            {applyingImputation ? "Applying..." : "Apply Imputation"}
+            {applyingImputation ? "Applying..." : "Apply"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1683,10 +1645,9 @@ const handlePreviewImputation = async (method) => {
         throw new Error("Failed to create reset copy");
       }
 
-      navigate("/data_preparation", { 
+      navigate("/outlier_manager", { 
       state: { 
         bdName,
-        initialTab: 3,
         processedData: rows,
         columns: data ? data.columns : [],
         splitConfig: splitConfig,
@@ -1719,10 +1680,9 @@ const handlePreviewImputation = async (method) => {
   }, [handleSaveChanges, handleNextStep]);
 
   const handlePreviousStep = useCallback(() => {
-    navigate("/data_preparation", { 
+    navigate("/group_optimizer", { 
       state: { 
         bdName,
-        initialTab: 1,
         processedData: rows,
         columns: data?.columns,
         rows: rows
@@ -1891,10 +1851,10 @@ const handlePreviewImputation = async (method) => {
             disabled={!hasUnsavedChanges || cellEditInProgress}
             startIcon={
               cellEditInProgress 
-                ? <Warning /> 
+                ? undefined 
                 : hasUnsavedChanges 
                   ? <Save /> 
-                  : <CheckCircle />
+                  : undefined
             }
             size="small"
             sx={{
@@ -2201,11 +2161,10 @@ const handlePreviewImputation = async (method) => {
         onClose={onClose}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2 } }}
+        PaperProps={{ className: "clean-dialog" }}
       >
-        <DialogTitle sx={{ backgroundColor: '#384850', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6" sx={{ color: 'white', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
-            <HelpOutline />
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
             Guide: Clean · Split · Impute
           </Typography>
           <IconButton onClick={onClose} sx={{ color: 'white' }}>
@@ -2214,32 +2173,14 @@ const handlePreviewImputation = async (method) => {
         </DialogTitle>
 
         <DialogContent sx={{ p: 3 }}>
-          <Typography variant="body1" paragraph>
-            Clean rows, create a train/test split, then impute missing values. Keep this order to avoid leaking test data into fill values.
-          </Typography>
-
-          <Typography variant="h6" gutterBottom sx={{ color: '#384850', fontWeight: 700, mt: 1 }}>
-            Order
+          <Typography variant="body2" paragraph>
+            Clean empty rows and duplicates, then split into train and test, then fill missing values.
+            Fill values are taken from train and applied to both train and test.
           </Typography>
           <Typography variant="body2" paragraph>
-            <strong>1. Clean:</strong> remove duplicates / empty rows, fix cells.<br />
-            <strong>2. Split:</strong> random or stratified train/test (stratified for classification).<br />
-            <strong>3. Impute:</strong> mean / median / mode fitted on train, then applied to train and test.<br />
-            Auto Clean &amp; Split can run a safe default path for you.
+            Auto Clean &amp; Split runs that sequence for you. You cannot delete the target column or split_type.
+            Reset puts this step back to its start.
           </Typography>
-
-          <Typography variant="h6" gutterBottom sx={{ color: '#384850', fontWeight: 700 }}>
-            Tips
-          </Typography>
-          <Typography variant="body2" paragraph>
-            • Delete a column removes unused features (target and split_type are protected).<br />
-            • Reset restores this stage checkpoint.<br />
-            • Split before imputation.
-          </Typography>
-
-          <Alert severity="info" sx={{ mt: 1 }}>
-            Stats and imputation use the full training data in the database, not only the rows on screen.
-          </Alert>
         </DialogContent>
 
         <DialogActions sx={{ p: 2 }}>
@@ -2252,7 +2193,7 @@ const handlePreviewImputation = async (method) => {
               backgroundColor: '#384850',
               textTransform: 'none',
               fontWeight: 700,
-              '&:hover': { backgroundColor: '#2c383f' },
+              '&:hover': { backgroundColor: '#2a3942' },
             }}
           >
             Got it
@@ -2296,8 +2237,8 @@ const handlePreviewImputation = async (method) => {
         }}
       >
         <CircularProgress sx={{ color: "#DE6B06" }} size={48} />
-        <Typography variant="h6" sx={{ color: "rgb(0, 80, 111)", fontWeight: 600 }}>
-          Loading dataset… Please wait
+        <Typography variant="h6" sx={{ color: "#384850", fontWeight: 600 }}>
+          Loading dataset
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Large datasets can take a moment. Do not click other actions yet.
@@ -2325,11 +2266,12 @@ const handlePreviewImputation = async (method) => {
           }}
         >
           <Paper
-            elevation={6}
+            elevation={0}
             sx={{
               px: 4,
               py: 3,
-              borderRadius: 2,
+              borderRadius: "2px",
+              border: "1px solid #c8c9ca",
               display: "flex",
               alignItems: "center",
               gap: 2,
@@ -2338,7 +2280,7 @@ const handlePreviewImputation = async (method) => {
           >
             <CircularProgress sx={{ color: "#DE6B06" }} />
             <Box>
-              <Typography sx={{ fontWeight: 700, color: "rgb(0, 80, 111)" }}>
+              <Typography sx={{ fontWeight: 700, color: "#384850" }}>
                 {pageBusyLabel}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -2358,9 +2300,8 @@ const handlePreviewImputation = async (method) => {
           {splitCompleted && (
             <Chip 
               label="Dataset Split" 
-              color="success"
               size="small"
-              variant="filled" 
+              sx={{ backgroundColor: '#384850', color: '#fff', borderRadius: '2px' }}
             />
           )}
         </Box>
@@ -2368,20 +2309,21 @@ const handlePreviewImputation = async (method) => {
         <Box className="header-actions dp-tab-toolbar-actions">
           <Button
             variant="contained"
-            startIcon={<AutoFixHigh />}
             onClick={() => setOpenAutoCleanSplit(true)}
             sx={{
               height: 40,
               backgroundColor: '#DE6B06',
               textTransform: 'none',
-              fontWeight: 700,
+              fontWeight: 600,
+              borderRadius: '2px',
+              boxShadow: 'none',
               '&:hover': { backgroundColor: '#c55a05' },
             }}
           >
             Auto Clean &amp; Split
           </Button>
 
-          <Tooltip title="Help Guide">
+          <Tooltip title="Help">
             <Button
               variant="outlined"
               sx={{
@@ -2392,7 +2334,6 @@ const handlePreviewImputation = async (method) => {
                 fontWeight: 600,
               }}
               className="help-button"
-              startIcon={<HelpOutline />}
               onClick={() => {
                 setAutoHelpOpened(true);
                 setOpenHelpDialog(true);
@@ -2418,21 +2359,22 @@ const handlePreviewImputation = async (method) => {
           <Button
             variant="outlined"
             onClick={handlePreviousStep}
-            startIcon={<NavigateBefore />}
             size="small"
             sx={{
               minWidth: '190px',
               height: '40px',
-              backgroundColor: '#DE6B06',
+              backgroundColor: '#384850',
               fontWeight: '600',
               fontSize: '0.9rem',
               color:'white',
+              textTransform: 'none',
+              borderRadius: '2px',
+              boxShadow: 'none',
+              borderColor: '#384850',
               '&:hover': {
-                backgroundColor: '#c55a05',
-                transform: 'translateY(-1px)',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                backgroundColor: '#2a3942',
+                borderColor: '#2a3942',
               },
-              transition: 'all 0.2s ease-in-out'
             }}
           >
             Group Optimizer
@@ -2441,133 +2383,72 @@ const handlePreviewImputation = async (method) => {
         </Box>
       </Box>
 
-      {/* Workflow Progress Indicator */}
-      <Paper className="workflow-progress" sx={{ p: 2, mb: 3, backgroundColor: '#f5f5f5' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-          <Typography variant="h6" sx={{ color: 'rgb(0, 80, 111)', fontWeight: 'bold', m: 0 }}>
-            Workflow Steps (Follow This Order):
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+      <Paper className="workflow-progress" sx={{ p: 2, mb: 2, backgroundColor: '#fff', border: '1px solid #c8c9ca', borderRadius: '2px', boxShadow: 'none' }}>
+        <Typography variant="body2" sx={{ color: '#384850', mb: 1 }}>
+          Clean &gt; split &gt; fill missing values.
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
             <Chip 
-              label="1. Clean Data" 
+              label="Clean" 
               color={currentWorkflowStep >= 1 ? "primary" : "default"}
               variant={currentWorkflowStep === 1 ? "filled" : "outlined"}
               sx={{ 
+                borderRadius: '2px',
                 backgroundColor: currentWorkflowStep === 1 ? '#DE6B06' : undefined,
-                color: currentWorkflowStep === 1 ? 'white' : undefined
+                color: currentWorkflowStep === 1 ? 'white' : '#384850'
               }}
             />
-            <NavigateNext sx={{ mx: 1, color: 'text.secondary' }} />
+            <Typography sx={{ mx: 1, color: '#6a757c' }}>&gt;</Typography>
             <Chip 
-              label="2. Split Dataset" 
+              label="Split" 
               color={currentWorkflowStep >= 2 ? "primary" : "default"}
               variant={currentWorkflowStep === 2 ? "filled" : "outlined"}
               sx={{ 
+                borderRadius: '2px',
                 backgroundColor: currentWorkflowStep === 2 ? '#DE6B06' : undefined,
-                color: currentWorkflowStep === 2 ? 'white' : undefined
+                color: currentWorkflowStep === 2 ? 'white' : '#384850'
               }}
             />
-            <NavigateNext sx={{ mx: 1, color: 'text.secondary' }} />
+            <Typography sx={{ mx: 1, color: '#6a757c' }}>&gt;</Typography>
             <Chip 
-              label="3. Impute Missing Values" 
+              label="Fill missing" 
               color={currentWorkflowStep >= 3 ? "primary" : "default"}
               variant={currentWorkflowStep === 3 ? "filled" : "outlined"}
               sx={{ 
+                borderRadius: '2px',
                 backgroundColor: currentWorkflowStep === 3 ? '#DE6B06' : undefined,
-                color: currentWorkflowStep === 3 ? 'white' : undefined
+                color: currentWorkflowStep === 3 ? 'white' : '#384850'
               }}
             />
-          </Box>
-          {!splitCompleted && (
-            <Alert severity="warning" sx={{ fontSize: '0.8rem', py: 0 }}>
-              Split dataset before using imputation methods
-            </Alert>
-          )}
         </Box>
       </Paper>
 
-      {/* Stats Overview Cards */}
-      <Grid container spacing={2} className="stats-grid">
-        <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card total-rows-card">
-            <CardContent className="stat-card-content">
-              <Typography className="stat-label" gutterBottom>
-                Total Rows
-              </Typography>
-              <Typography variant="h4" component="div" className="stat-value total-stat-value">
-                {stats.totalRows}
-              </Typography>
-              <Box className="stat-spacer" />
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card total-columns-card">
-            <CardContent className="stat-card-content">
-              <Typography className="stat-label" gutterBottom>
-                Total Columns
-              </Typography>
-              <Typography variant="h4" component="div" className="stat-value total-stat-value">
-                {stats.totalColumns}
-              </Typography>
-              <Box className="stat-spacer" />
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card empty-stat-card">
-            <CardContent className="stat-card-content">
-              <Typography className="stat-label" gutterBottom>
-                Empty Values
-              </Typography>
-              <Typography variant="h4" component="div" className="stat-value empty-stat-value">
-                {emptyRowsCount}
-              </Typography>
-              <Typography variant="body2" className="stat-percentage">
-                {stats.totalRows > 0 ? ((emptyRowsCount / stats.totalRows * 100).toFixed(1) + '%') : '0%'} of rows
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card duplicated-stat-card">
-            <CardContent className="stat-card-content">
-              <Typography className="stat-label" gutterBottom>
-                Duplicated Rows
-              </Typography>
-              <Typography variant="h4" component="div" className="stat-value duplicated-stat-value">
-                {duplicatedRowsCount}
-              </Typography>
-              <Typography variant="body2" className="stat-percentage">
-                {stats.totalRows > 0 ? ((duplicatedRowsCount / stats.totalRows * 100).toFixed(1) + '%') : '0%'} of rows
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Paper sx={{ p: 1.5, mb: 2, backgroundColor: '#fff', border: '1px solid #c8c9ca', borderRadius: '2px', boxShadow: 'none' }}>
+        <Typography variant="body1" sx={{ color: '#384850', fontWeight: 700, fontSize: '1.05rem' }}>
+          {stats.totalRows.toLocaleString()} rows, {stats.totalColumns} columns
+          {emptyRowsCount > 0
+            ? ` · ${emptyRowsCount} empty rows (${stats.totalRows > 0 ? ((emptyRowsCount / stats.totalRows) * 100).toFixed(1) : "0"}%)`
+            : " · no empty rows"}
+          {duplicatedRowsCount > 0
+            ? ` · ${duplicatedRowsCount} duplicates (${stats.totalRows > 0 ? ((duplicatedRowsCount / stats.totalRows) * 100).toFixed(1) : "0"}%)`
+            : " · no duplicates"}
+        </Typography>
+      </Paper>
 
       {emptyLikeFindings.length > 0 && (
-        <Alert severity="warning" variant="outlined" sx={{ mb: 3 }} icon={<Warning />}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75 }}>
-            Values treated as empty / missing
+        <Alert severity="warning" variant="outlined" sx={{ mb: 3 }} icon={false} className="clean-alert">
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75, color: '#384850' }}>
+            Values treated as empty
           </Typography>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            On this page, these tokens are detected as empty:{" "}
+          <Typography variant="body2" sx={{ mb: 1, color: '#384850' }}>
+            These tokens count as empty:{" "}
             <strong>
               {(emptyLikeTokens.length
                 ? emptyLikeTokens
                 : ["none", "null", "na", "n/a", "nan", "nat", "missing", "unknown", "-", "--", "?"]
               ).join(", ")}
             </strong>
-            . That is intentional for cleaning and imputation: but if a token is a real
-            category in your data (for example <em>Unknown</em> as an attack source),
-            rename it in the <strong>Groups</strong> step before you delete empty rows or
-            run Auto Clean &amp; Split.
+            . If one of them is a real category (for example Unknown), rename it in Groups before you delete empty rows or run Auto Clean &amp; Split.
           </Typography>
           <Box component="ul" sx={{ m: 0, pl: 2.5, mb: 1.25 }}>
             {emptyLikeFindings.slice(0, 8).map((f) => (
@@ -2600,32 +2481,24 @@ const handlePreviewImputation = async (method) => {
 
       {/* Dataset Split & Imputation Section */}
       <Paper className="split-imputation-section" sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
-        <Typography variant="h6" gutterBottom sx={{ color: 'rgb(0, 80, 111)', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-          <PlayArrow sx={{ mr: 1 }} /> Dataset Split & Imputation
+        <Typography variant="h6" gutterBottom sx={{ color: '#384850', fontWeight: 'bold' }}>
+          Split and fill missing
         </Typography>
         
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-          <Tooltip title={
-            <Box>
-              <Typography variant="body2" gutterBottom>
-                <strong>Recommended order:</strong>
-              </Typography>
-              <Typography variant="caption">
-                1. Remove duplicates and empty rows first<br/>
-                2. Then split dataset<br/>
-                3. Finally apply imputation methods
-              </Typography>
-            </Box>
-          }>
+          <Tooltip title={splitCompleted ? "Split already done" : "Split into train and test"}>
             <Button
               variant={splitCompleted ? "outlined" : "contained"}
-              color={splitCompleted ? "success" : "primary"}
               onClick={handleOpenSplitDialog}
-              startIcon={splitCompleted ? <CheckCircle /> : <PlayArrow />}
               size="medium"
               sx={{ 
-                backgroundColor: splitCompleted ? undefined : 'rgb(0, 80, 111)',
-                borderColor: splitCompleted ? undefined : 'rgb(0, 80, 111)'
+                backgroundColor: splitCompleted ? undefined : '#384850',
+                borderColor: splitCompleted ? '#384850' : '#384850',
+                color: splitCompleted ? '#384850' : '#fff',
+                textTransform: 'none',
+                borderRadius: '2px',
+                boxShadow: 'none',
+                '&:hover': { backgroundColor: splitCompleted ? 'rgba(56,72,80,0.08)' : '#2a3942' },
               }}
             >
               {splitCompleted ? "Split Completed" : "Split Dataset"}
@@ -2633,34 +2506,24 @@ const handlePreviewImputation = async (method) => {
           </Tooltip>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-              {splitCompleted 
-                ? "✓ Dataset split completed. You can now use imputation methods."
-                : "Split dataset first to enable imputation methods"}
-            </Typography>
-            
 {splitCompleted && splitColumnStatus && splitColumnStatus.totalRows > 0 && (
   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-      <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'rgb(0, 80, 111)' }}>
+      <Typography variant="body2" sx={{ fontWeight: 'medium', color: '#384850' }}>
         Training: {splitColumnStatus.trainCount} rows (
         {Math.round((splitColumnStatus.trainCount / splitColumnStatus.totalRows) * 100)}%)
       </Typography>
-      <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'rgb(0, 80, 111)' }}>
+      <Typography variant="body2" sx={{ fontWeight: 'medium', color: '#384850' }}>
         Test: {splitColumnStatus.testCount} rows (
         {Math.round((splitColumnStatus.testCount / splitColumnStatus.totalRows) * 100)}%)
       </Typography>
       {splitColumnStatus.validationCount > 0 && (
-        <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'rgb(0, 80, 111)' }}>
+        <Typography variant="body2" sx={{ fontWeight: 'medium', color: '#384850' }}>
           Validation: {splitColumnStatus.validationCount} rows (
           {Math.round((splitColumnStatus.validationCount / splitColumnStatus.totalRows) * 100)}%)
         </Typography>
       )}
     </Box>
-    {/* Afficher aussi le total pour vérification */}
-    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-      Total dataset: {splitColumnStatus.totalRows} rows
-    </Typography>
   </Box>
 )}
           </Box>
@@ -2675,8 +2538,8 @@ const handlePreviewImputation = async (method) => {
                   size="small"
                   sx={{
                     opacity: (hasValidSplit && !checkingSplitStatus) ? 1 : 0.6,
-                    borderColor: (hasValidSplit && !checkingSplitStatus) ? 'rgb(0, 80, 111)' : 'grey.400',
-                    color: (hasValidSplit && !checkingSplitStatus) ? 'rgb(0, 80, 111)' : 'grey.400'
+                    borderColor: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400',
+                    color: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400'
                   }}
                 >
                   {checkingSplitStatus ? "Checking..." : "Mean Imputation"}
@@ -2693,8 +2556,8 @@ const handlePreviewImputation = async (method) => {
                   size="small"
                   sx={{
                     opacity: (hasValidSplit && !checkingSplitStatus) ? 1 : 0.6,
-                    borderColor: (hasValidSplit && !checkingSplitStatus) ? 'rgb(0, 80, 111)' : 'grey.400',
-                    color: (hasValidSplit && !checkingSplitStatus) ? 'rgb(0, 80, 111)' : 'grey.400'
+                    borderColor: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400',
+                    color: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400'
                   }}
                 >
                   Median Imputation
@@ -2711,8 +2574,8 @@ const handlePreviewImputation = async (method) => {
                   size="small"
                   sx={{
                     opacity: (hasValidSplit && !checkingSplitStatus) ? 1 : 0.6,
-                    borderColor: (hasValidSplit && !checkingSplitStatus) ? 'rgb(0, 80, 111)' : 'grey.400',
-                    color: (hasValidSplit && !checkingSplitStatus) ? 'rgb(0, 80, 111)' : 'grey.400'
+                    borderColor: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400',
+                    color: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400'
                   }}
                 >
                   Mode Imputation
@@ -2722,14 +2585,6 @@ const handlePreviewImputation = async (method) => {
           </Box>
         </Box>
 
-        {emptyRowsCount > 0 && splitCompleted && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              Your dataset contains {emptyRowsCount} missing values. 
-              Use the imputation methods above to fill them appropriately.
-            </Typography>
-          </Alert>
-        )}
       </Paper>
 
       {/* Dialogue d'imputation */}
@@ -2743,8 +2598,8 @@ const handlePreviewImputation = async (method) => {
 
       {/* Data Quality Actions */}
       <Box className="data-quality-section">
-        <Typography variant="h6" className="data-quality-title" sx={{ color: 'rgb(0, 80, 111)' }}>
-          <FilterList className="quality-icon" /> Data Quality Actions
+        <Typography variant="h6" className="data-quality-title" sx={{ color: '#384850' }}>
+          Data Quality Actions
         </Typography>
         
         <Box className="quality-actions">
@@ -2864,6 +2719,7 @@ const handlePreviewImputation = async (method) => {
       <Dialog
         open={deleteColumnDialogOpen}
         onClose={() => !isDeletingColumn && setDeleteColumnDialogOpen(false)}
+        PaperProps={{ className: "clean-dialog" }}
       >
         <DialogTitle>Delete a column</DialogTitle>
         <DialogContent>
@@ -2912,23 +2768,19 @@ const handlePreviewImputation = async (method) => {
         maxWidth="lg"
         fullWidth
         className="split-config-dialog"
+        PaperProps={{ className: "clean-dialog" }}
       >
         <DialogTitle sx={{ 
-          backgroundColor: 'rgb(0, 80, 111)', 
-          color: 'white',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PlayArrow />
-            <Typography variant="h6">Dataset Split Configuration</Typography>
-          </Box>
+          <Typography variant="h6">Dataset Split Configuration</Typography>
           {splitCompleted && (
             <Chip 
               label="Split Applied" 
-              color="success" 
-              size="small" 
+              size="small"
+              sx={{ backgroundColor: '#e8e9ea', color: '#384850' }}
             />
           )}
         </DialogTitle>
@@ -2936,7 +2788,7 @@ const handlePreviewImputation = async (method) => {
         <DialogContent sx={{ p: 3 }}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom sx={{ color: 'rgb(0, 80, 111)', fontWeight: 'bold' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: '#384850', fontWeight: 'bold' }}>
                 Split configuration
               </Typography>
 
@@ -2955,14 +2807,14 @@ const handlePreviewImputation = async (method) => {
                   sx={{ 
                     width: '90%', 
                     mt: 2,
-                    color: 'rgb(0, 80, 111)'
+                    color: '#384850'
                   }}
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgb(0, 80, 111)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#384850' }}>
                     Training: {splitConfig.trainSize}%
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgb(0, 80, 111)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#384850' }}>
                     Test: {100 - splitConfig.trainSize}%
                   </Typography>
                 </Box>
@@ -2992,34 +2844,30 @@ const handlePreviewImputation = async (method) => {
                 </FormControl>
                 
                 {splitConfig.splitMethod === "stratified" && (!isSupervised || !datasetInfo?.target_column) && (
-                  <Alert severity="warning" sx={{ mt: 1 }}>
+                  <Alert severity="warning" icon={false} className="clean-alert" sx={{ mt: 1 }}>
                     {!isSupervised 
-                      ? "This dataset doesn't have a target column. Stratified split is not available." 
-                      : "Target column not found. Please check your dataset configuration."}
+                      ? "No target column, so stratified split is not available." 
+                      : "Target column not found."}
                   </Alert>
                 )}
               </Box>
 
               {isSupervised && datasetInfo?.target_column && (
-                <Box sx={{ mb: 3, p: 2, backgroundColor: 'success.light', borderRadius: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'success.dark', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CheckCircle fontSize="small" />
-                    Target Column Detected
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    <strong>Target:</strong> {datasetInfo.target_column}
+                <Box sx={{ mb: 3, p: 2, backgroundColor: '#e8e9ea', borderRadius: '2px' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#384850' }}>
+                    Target column: {datasetInfo.target_column}
                   </Typography>
                   {splitConfig.splitMethod === "stratified" && (
-                    <Typography variant="caption" sx={{ color: 'success.dark', fontStyle: 'italic' }}>
-                      Stratified split will maintain class distribution based on this column
+                    <Typography variant="caption" sx={{ color: '#384850' }}>
+                      Stratified split keeps class shares close to the original column.
                     </Typography>
                   )}
                 </Box>
               )}
 
               {!isSupervised && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  This dataset doesn't have a target column. Only random split is available.
+                <Alert severity="info" icon={false} className="clean-alert" sx={{ mb: 2 }}>
+                  No target column. Only random split is available.
                 </Alert>
               )}
 
@@ -3029,7 +2877,7 @@ const handlePreviewImputation = async (method) => {
                     <Checkbox
                       checked={splitConfig.useSeed}
                       onChange={(e) => setSplitConfig(prev => ({ ...prev, useSeed: e.target.checked }))}
-                      sx={{ color: 'rgb(0, 80, 111)' }}
+                      sx={{ color: '#384850' }}
                     />
                   }
                   label={
@@ -3060,7 +2908,7 @@ const handlePreviewImputation = async (method) => {
                       <Checkbox
                         checked={splitConfig.balanceClasses}
                         onChange={(e) => setSplitConfig(prev => ({ ...prev, balanceClasses: e.target.checked }))}
-                        sx={{ color: 'rgb(0, 80, 111)' }}
+                        sx={{ color: '#384850' }}
                       />
                     }
                     label="Balance classes in training set only"
@@ -3076,9 +2924,8 @@ const handlePreviewImputation = async (method) => {
                           <MenuItem value="undersampling">Undersampling (Majority Class)</MenuItem>
                         </Select>
                       </FormControl>
-                      <Alert severity="info" sx={{ mt: 1 }}>
-                        Balancing is applied <strong>after</strong> the split, on the <strong>training set only</strong>.
-                        The test set stays untouched to avoid data leakage.
+                      <Alert severity="info" icon={false} className="clean-alert" sx={{ mt: 1 }}>
+                        Applied after the split, on the training set only. The test set stays as it is.
                       </Alert>
                     </>
                   )}
@@ -3086,155 +2933,77 @@ const handlePreviewImputation = async (method) => {
               )}
 
               {splitConfig.splitMethod === "stratified" && isSupervised && datasetInfo?.target_column && (
-                <Alert severity="info" sx={{ mb: 2 }}>
+                <Alert severity="info" icon={false} className="clean-alert" sx={{ mb: 2 }}>
                   <Typography variant="body2">
-                    <strong>Stratified Split:</strong> Automatically maintains class distribution <br />
-                    in both train and test sets based on the target column "{datasetInfo.target_column}".
-                    You can still enable class balancing on the training set above.
+                    Stratified split keeps the same class mix in train and test, using "{datasetInfo.target_column}".
+                    You can still balance the training set above.
                   </Typography>
                 </Alert>
               )}
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom sx={{ color: 'rgb(0, 80, 111)', fontWeight: 'bold' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: '#384850', fontWeight: 'bold' }}>
                 Dataset overview
               </Typography>
 
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={6}>
-                  <Card sx={{ 
-                    textAlign: 'center', 
-                    p: 1.5, 
-                    border: '2px solid', 
-                    borderColor: 'rgb(0, 80, 111)',
-                    backgroundColor: 'rgba(0, 80, 111, 0.05)'
-                  }}>
-                    <Typography variant="h4" color="rgb(0, 80, 111)" fontWeight="bold">
-                      {stats.totalRows}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" fontWeight="500">
-                      Total Rows
-                    </Typography>
-                  </Card>
-                </Grid>
-                <Grid item xs={6}>
-                  <Card sx={{ 
-                    textAlign: 'center', 
-                    p: 1.5, 
-                    border: '2px solid', 
-                    borderColor: 'rgb(0, 80, 111)',
-                    backgroundColor: 'rgba(0, 80, 111, 0.05)'
-                  }}>
-                    <Typography variant="h4" color="rgb(0, 80, 111)" fontWeight="bold">
-                      {stats.totalColumns}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" fontWeight="500">
-                      Total Columns
-                    </Typography>
-                  </Card>
-                </Grid>
-              </Grid>
+              <Typography variant="body2" sx={{ mb: 2, color: '#384850' }}>
+                {stats.totalRows.toLocaleString()} rows, {stats.totalColumns} columns
+                {emptyRowsCount > 0 ? ` · ${emptyRowsCount} empty values` : ""}
+              </Typography>
 
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: '600' }}>
-                  Split Distribution
+                  Split
                 </Typography>
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
-                    <Card sx={{ 
-                      p: 2, 
-                      textAlign: 'center', 
-                      bgcolor: 'rgb(0, 80, 111)',
-                      color: 'white',
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}>
-                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', bgcolor: 'rgb(0, 60, 90)' }} />
-                      <Typography variant="h5" fontWeight="bold">
-                        {splitConfig.trainSize}%
-                      </Typography>
-                      <Typography variant="body2">
-                        Training Set
-                      </Typography>
-                      <Typography variant="caption">
-                        ~{Math.round(stats.totalRows * splitConfig.trainSize / 100)} rows
-                      </Typography>
-                    </Card>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Card sx={{ 
-                      p: 2, 
-                      textAlign: 'center', 
-                      bgcolor: 'rgb(0, 80, 111)',
-                      color: 'white',
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}>
-                      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', bgcolor: 'rgb(0, 60, 90)' }} />
-                      <Typography variant="h5" fontWeight="bold">
-                        {100 - splitConfig.trainSize}%
-                      </Typography>
-                      <Typography variant="body2">
-                        Test Set
-                      </Typography>
-                      <Typography variant="caption">
-                        ~{Math.round(stats.totalRows * (100 - splitConfig.trainSize) / 100)} rows
-                      </Typography>
-                    </Card>
-                  </Grid>
-                </Grid>
+                <Typography variant="body2" sx={{ color: '#384850' }}>
+                  Training {splitConfig.trainSize}% (~{Math.round(stats.totalRows * splitConfig.trainSize / 100)} rows)
+                  {" · "}
+                  Test {100 - splitConfig.trainSize}% (~{Math.round(stats.totalRows * (100 - splitConfig.trainSize) / 100)} rows)
+                </Typography>
               </Box>
 
               <Card sx={{ 
                 p: 2, 
-                bgcolor: 'rgba(0, 80, 111, 0.05)',
-                border: '1px solid',
-                borderColor: 'rgb(0, 80, 111)',
+                bgcolor: '#e8e9ea',
+                border: '1px solid #c8c9ca',
+                boxShadow: 'none',
+                borderRadius: '2px',
                 mb: 2
               }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'rgb(0, 80, 111)' }}>
-                  📋 Split Summary
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: '#384850' }}>
+                  Summary
                 </Typography>
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Typography variant="body2">
-                    • <strong>Method:</strong> {splitConfig.splitMethod === 'stratified' ? 'Stratified' : 'Random'}
+                    Method: {splitConfig.splitMethod === 'stratified' ? 'Stratified' : 'Random'}
                   </Typography>
                   
                   {isSupervised && datasetInfo?.target_column && (
                     <Typography variant="body2">
-                      • <strong>Target:</strong> {datasetInfo.target_column}
+                      Target: {datasetInfo.target_column}
                     </Typography>
                   )}
-                  
-                  <Typography variant="body2">
-                    • <strong>Training:</strong> {splitConfig.trainSize}% ({Math.round(stats.totalRows * splitConfig.trainSize / 100)} rows)
-                  </Typography>
-                  
-                  <Typography variant="body2">
-                    • <strong>Test:</strong> {100 - splitConfig.trainSize}% ({Math.round(stats.totalRows * (100 - splitConfig.trainSize) / 100)} rows)
-                  </Typography>
 
                   {splitConfig.useSeed && (
                     <Typography variant="body2">
-                      • <strong>Seed:</strong> {splitConfig.seedValue}
+                      Seed: {splitConfig.seedValue}
                     </Typography>
                   )}
 
                   {splitConfig.balanceClasses && (
                     <Typography variant="body2">
-                      • <strong>Balancing:</strong> {splitConfig.balanceMethod === 'oversampling' ? 'Oversampling' : 'Undersampling'}
+                      Balancing: {splitConfig.balanceMethod === 'oversampling' ? 'Oversampling' : 'Undersampling'}
                     </Typography>
                   )}
                 </Box>
               </Card>
 
               {emptyRowsCount > 0 && (
-                <Alert severity="warning" sx={{ mt: 2 }}>
+                <Alert severity="warning" icon={false} className="clean-alert" sx={{ mt: 2 }}>
                   <Typography variant="body2">
-                    <strong>Note:</strong> Your dataset contains {emptyRowsCount} empty values. 
-                    Consider cleaning data before splitting for optimal model performance.
+                    {emptyRowsCount} empty values. You can still split, then fill them after.
                   </Typography>
                 </Alert>
               )}
@@ -3265,9 +3034,9 @@ const handlePreviewImputation = async (method) => {
           {isSupervised && datasetInfo?.target_column && (
             <Chip 
               label={`Target: ${datasetInfo.target_column}`} 
-              color="success" 
               size="small" 
               variant="outlined"
+              sx={{ borderColor: '#384850', color: '#384850' }}
             />
           )}
           
@@ -3275,10 +3044,10 @@ const handlePreviewImputation = async (method) => {
             onClick={handleApplySplit} 
             variant="contained" 
             disabled={isSplitting || (splitConfig.splitMethod === "stratified" && (!isSupervised || !datasetInfo?.target_column))}
-            startIcon={isSplitting ? <CircularProgress size={20} /> : <PlayArrow />}
+            startIcon={isSplitting ? <CircularProgress size={20} /> : undefined}
             sx={{ 
               minWidth: 140,
-              backgroundColor: 'rgb(0, 80, 111)'
+              backgroundColor: '#384850'
             }}
           >
             {isSplitting ? "Applying Split..." : "Apply Split"}
@@ -3291,9 +3060,9 @@ const handlePreviewImputation = async (method) => {
         open={openDeleteWarningDialog}
         onClose={() => setOpenDeleteWarningDialog(false)}
         aria-labelledby="delete-warning-dialog-title"
+        PaperProps={{ className: "clean-dialog" }}
       >
-        <DialogTitle id="delete-warning-dialog-title" sx={{ backgroundColor: 'rgb(0, 80, 111)', color: 'white' }}>
-          <Warning sx={{ mr: 1 }} />
+        <DialogTitle id="delete-warning-dialog-title">
           Dataset Already Split
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -3303,12 +3072,10 @@ const handlePreviewImputation = async (method) => {
           <Typography variant="body2" paragraph>
             Deleting rows at this stage may cause imbalance between your training and test datasets, which could affect model performance.
           </Typography>
-          <Alert severity="warning" sx={{ mb: 2 }}>
+          <Alert severity="warning" icon={false} className="clean-alert" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>Current workflow step:</strong> {currentWorkflowStep === 2 ? "Split Dataset" : "Impute Missing Values"}<br/>
-              <strong>Recommended approach:</strong><br/>
-              • Use imputation methods instead of deletion to preserve dataset structure<br/>
-              • Or reset the dataset and apply cleaning before splitting
+              Prefer filling missing values instead of deleting rows after a split.
+              Or reset this step and clean before splitting.
             </Typography>
           </Alert>
           <Typography variant="body2" color="text.secondary">
@@ -3346,8 +3113,9 @@ const handlePreviewImputation = async (method) => {
   maxWidth="lg"
   fullWidth
   className="confirm-dialog"
+  PaperProps={{ className: "clean-dialog" }}
 >
-  <DialogTitle id="alert-dialog-title" className="dialog-title" sx={{ backgroundColor: 'rgb(0, 80, 111)', color: 'white' }}>
+  <DialogTitle id="alert-dialog-title">
     {dialogConfig.title}
   </DialogTitle>
   <DialogContent className="dialog-content" sx={{ p: 3 }}>
@@ -3425,7 +3193,7 @@ const handlePreviewImputation = async (method) => {
       onClick={handleConfirmAction} 
       variant="contained"
       autoFocus
-      sx={{ backgroundColor: 'rgb(0, 80, 111)' }}
+      sx={{ backgroundColor: '#384850' }}
     >
       Confirm ({dialogConfig.affectedRows} rows)
     </Button>
@@ -3438,8 +3206,9 @@ const handlePreviewImputation = async (method) => {
         onClose={() => setOpenSaveConfirmDialog(false)}
         aria-labelledby="save-confirm-dialog-title"
         className="save-confirm-dialog"
+        PaperProps={{ className: "clean-dialog" }}
       >
-        <DialogTitle id="save-confirm-dialog-title" className="dialog-title" sx={{ backgroundColor: '#DE6B06', color: 'white' }}>
+        <DialogTitle id="save-confirm-dialog-title">
           Unsaved Changes
         </DialogTitle>
         <DialogContent className="dialog-content">
@@ -3466,8 +3235,9 @@ const handlePreviewImputation = async (method) => {
         onClose={() => setOpenEmptyValuesDialog(false)}
         aria-labelledby="empty-values-dialog-title"
         className="empty-values-dialog"
+        PaperProps={{ className: "clean-dialog" }}
       >
-        <DialogTitle id="empty-values-dialog-title" className="dialog-title" sx={{ backgroundColor: 'rgb(0, 80, 111)', color: 'white' }}>
+        <DialogTitle id="empty-values-dialog-title">
           Empty Values Detected
         </DialogTitle>
         <DialogContent className="dialog-content">
@@ -3477,7 +3247,7 @@ const handlePreviewImputation = async (method) => {
           </Typography>
         </DialogContent>
         <DialogActions className="dialog-actions">
-          <Button onClick={() => setOpenEmptyValuesDialog(false)} className="confirm-button" sx={{ backgroundColor: 'rgb(0, 80, 111)' }}>
+          <Button onClick={() => setOpenEmptyValuesDialog(false)} className="confirm-button" sx={{ backgroundColor: '#384850' }}>
             OK
           </Button>
         </DialogActions>
@@ -3492,7 +3262,8 @@ const handlePreviewImputation = async (method) => {
       >
         <Alert 
           onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity} 
+          severity={snackbar.severity}
+          icon={false}
           className="snackbar-alert"
         >
           {snackbar.message}
@@ -3511,9 +3282,9 @@ const handlePreviewImputation = async (method) => {
         maxWidth="sm"
         fullWidth
         className="save-copy-dialog"
+        PaperProps={{ className: "clean-dialog" }}
       >
-        <DialogTitle className="dialog-title">
-          <SaveIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+        <DialogTitle>
           Save Dataset Copy
         </DialogTitle>
         <DialogContent dividers className="dialog-content">

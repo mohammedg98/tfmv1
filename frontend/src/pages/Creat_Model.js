@@ -74,7 +74,6 @@ import {
   DialogContentText,
   DialogActions,
   IconButton,
-  Tooltip as MuiTooltip,
   // ... vos autres imports existants ...
 } from '@mui/material';
 
@@ -333,10 +332,10 @@ const renderMlpValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 {isHoldout ? 'Hold-Out' : isCV ? 'Cross-Validation' : 'Bootstrap'} Validation Details (MLP)
+          {isHoldout ? 'Hold-Out' : isCV ? 'Cross-Validation' : 'Bootstrap'} Validation Details (MLP)
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>{isHoldout ? 'Repetitions' : isCV ? 'Folds' : 'Samples'}:</strong> {details.length}<br/>
@@ -409,7 +408,7 @@ const renderMlpValidationDetails = () => {
 
         {/* Tableau des résultats individuels - SANS Best Epoch et Unique Samples */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Validation Results
+          Individual Validation Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -479,7 +478,7 @@ const renderMlpValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -559,7 +558,7 @@ const renderMlpValidationDetails = () => {
           {/* Informations spécifiques MLP */}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
             <Typography variant="subtitle2" gutterBottom>
-              🔧 MLP Parameters Used
+              MLP Parameters Used
             </Typography>
             <Typography variant="body2">
               <strong>Layers:</strong> {result.metrics?.layers_used?.join(', ') || mlpParams.layers.join(', ')} | 
@@ -604,10 +603,10 @@ const renderCUsedInfo = () => {
   if (!bestC && !CUsed) return null;
   
   return (
-    <Card sx={{ mt: 2, backgroundColor: '#e8f5e8' }}>
+    <Card sx={{ mt: 2, backgroundColor: '#e8e9ea', borderRadius: '2px', boxShadow: 'none' }}>
       <CardContent>
-        <Typography variant="h6" gutterBottom color="success.main">
-          ⚙️ Regularization Parameter (C) Used
+        <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
+          Regularization Parameter (C) Used
         </Typography>
         <Typography variant="body1">
           <strong>Optimal C found:</strong> {bestC || CUsed}
@@ -674,78 +673,46 @@ const renderModelSelectionButtons = () => {
   ];
 
   return (
-    <Box className="cm-algo-grid" sx={{ mb: 3 }}>
-      <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#384850', fontWeight: 700, letterSpacing: 0.3 }}>
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#384850', fontWeight: 700 }}>
         Choose algorithm
       </Typography>
       {!problemType && (
-        <Alert severity="info" sx={{ mb: 1.5 }}>
+        <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 1.5 }}>
           Loading problem type… the first matching algorithm will be selected automatically
           (Ridge / Logistic / K-Means).
         </Alert>
       )}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 1.5,
-          opacity: problemType ? 1 : 0.55,
-          pointerEvents: problemType ? 'auto' : 'none',
-        }}
-      >
-        {models.map((m) => {
-          const enabled = getButtonState(m.id);
-          const selected = !!problemType && modelType === m.id;
-          return (
-            <MuiTooltip key={m.id} title={getButtonTitle(m.id) || m.sub} arrow>
-              <span>
-                <Button
-                  fullWidth
-                  disabled={!enabled}
-                  onClick={() => handleModelTypeChange(m.id)}
-                  className={`cm-algo-card ${selected ? 'selected' : ''}`}
-                  sx={{
-                    m: 0,
-                    py: 1.75,
-                    px: 1.5,
-                    minHeight: 88,
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    textAlign: 'left',
-                    textTransform: 'none',
-                    borderRadius: 2,
-                    border: selected ? '2px solid #DE6B06' : '1px solid #cfd4d8',
-                    background: selected
-                      ? 'linear-gradient(145deg, #fff8f2 0%, #ffffff 100%)'
-                      : '#fff',
-                    color: '#384850',
-                    boxShadow: selected ? '0 6px 18px rgba(222,107,6,0.18)' : 'none',
-                    opacity: enabled ? 1 : 0.45,
-                    transition: 'border-color 0.2s, box-shadow 0.2s, transform 0.15s',
-                    '&:hover': enabled
-                      ? {
-                          borderColor: '#DE6B06',
-                          transform: 'translateY(-1px)',
-                          background: '#fff',
-                        }
-                      : {},
-                  }}
-                >
-                  <Typography variant="caption" sx={{ color: selected ? '#DE6B06' : '#7a858c', fontWeight: 700 }}>
-                    {m.tag}
+      <FormControl fullWidth disabled={!problemType} sx={{ maxWidth: 560 }}>
+        <InputLabel id="choose-algorithm-label">Algorithm</InputLabel>
+        <Select
+          labelId="choose-algorithm-label"
+          label="Algorithm"
+          value={modelType}
+          onChange={(e) => handleModelTypeChange(e.target.value)}
+          renderValue={(selected) => {
+            const m = models.find((x) => x.id === selected);
+            return m ? `${m.label} (${m.sub})` : selected;
+          }}
+        >
+          {models.map((m) => {
+            const enabled = getButtonState(m.id);
+            const reason = getButtonTitle(m.id);
+            return (
+              <MenuItem key={m.id} value={m.id} disabled={!enabled} sx={{ whiteSpace: 'normal', py: 1.25 }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#384850' }}>
+                    {m.label} ({m.tag})
                   </Typography>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, mt: 0.25 }}>
-                    {m.label}
+                  <Typography variant="caption" sx={{ color: '#7a858c', display: 'block' }}>
+                    {reason || m.sub}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.25 }}>
-                    {m.sub}
-                  </Typography>
-                </Button>
-              </span>
-            </MuiTooltip>
-          );
-        })}
-      </Box>
+                </Box>
+              </MenuItem>
+            );
+          })}
+        </Select>
+      </FormControl>
     </Box>
   );
 };
@@ -767,8 +734,9 @@ useEffect(() => {
         // 2. Detect Problem Type
         await detectProblemType();
         
-        // 3. Fetch Target Type for Random Forest
-        await fetchTargetType();
+        if (modelType !== 'isolation_forest' && modelType !== 'one_class_svm') {
+          await fetchTargetType();
+        }
         
         // 4. Detect Date Column
         const detectedCol = await detectDateColumn();
@@ -794,14 +762,14 @@ const detectProblemType = async () => {
     return;
   }
   
-  console.log("[DEBUG] 🔍 Starting problem type detection for:", state.bdName);
+  console.log("[DEBUG]  Starting problem type detection for:", state.bdName);
   
   try {
     const originalBdName = state.bdName.replace('_numerized', '');
     console.log("[DEBUG] Original dataset name:", originalBdName);
     
     // Utiliser le nouveau endpoint de détection
-    console.log("[DEBUG] 📋 Calling new detection API...");
+    console.log("[DEBUG]  Calling new detection API...");
     const response = await axios.get(
       `${backendUrl}/api/detect-problem-type?bdName=${originalBdName}`,
       { withCredentials: true, timeout: 45000 }
@@ -828,8 +796,8 @@ const detectProblemType = async () => {
     }
     
     console.log(`[DEBUG]   FINAL DECISION: ${pt.toUpperCase()}`);
-    console.log("[DEBUG] 📊 Detection metrics:", detectionResult.detection_metrics);
-    console.log("[DEBUG] 📝 Reason:", detectionResult.reason);
+    console.log("[DEBUG]  Detection metrics:", detectionResult.detection_metrics);
+    console.log("[DEBUG]  Reason:", detectionResult.reason);
     
   } catch (error) {
     console.error("[DEBUG] ❌ Error in problem type detection:", error);
@@ -870,7 +838,7 @@ const fallbackTargetDetection = async (originalBdName) => {
     );
     
     const splitInfo = response.data;
-    console.log("[DEBUG] 📋 Fallback split info:", splitInfo);
+    console.log("[DEBUG]  Fallback split info:", splitInfo);
     
     // Logique de fallback basée sur le nom de la target column
     const targetColumn = splitInfo.target_column;
@@ -1459,7 +1427,7 @@ const renderModelInfoDialog = () => {
       },
       'kmeans': {
         name: 'K-Means Clustering',
-        description: 'An unsupervised learning algorithm that partitions data into K distinct clusters based on similarity. It tries to group similar data points together and discover underlying patterns.',
+        description: 'Groups similar rows into K clusters.',
         useCases: [
           'Customer segmentation',
           'Document clustering',
@@ -1529,8 +1497,132 @@ const renderModelInfoDialog = () => {
           'Evaluate using silhouette score and other metrics',
           'K-means works best with spherical clusters'
         ]
+      },
+
+
+
+      'isolation_forest': {
+        name: 'Isolation Forest',
+        description: 'Finds rare or unusual rows. Useful for spotting attacks or odd cases.',
+        useCases: [
+          'Intrusion / attack detection in network traffic',
+          'Rare-event screening (fraud, malware, outliers)',
+          'Works on datasets with or without labels',
+          'Fast, scales well to large datasets'
+        ],
+        parameters: [
+          {
+            name: 'Trees (n_estimators)',
+            type: 'number',
+            description: 'How many isolation trees to build in the ensemble.',
+            values: 'More trees = more stable results, slower training',
+            range: '10 to 1000'
+          },
+          {
+            name: 'Expected anomaly rate (contamination)',
+            type: 'number',
+            description: 'The proportion of the train set you expect to be anomalous. Sets the decision threshold.',
+            values: 'e.g. 0.05 ≈ 5% of train rows expected anomalous',
+            range: '0.01 to 0.5'
+          },
+          {
+            name: 'Max samples',
+            type: 'selection',
+            description: 'How many rows each tree is built from.',
+            options: [
+              'Auto (recommended): min(256, number of train rows)',
+              'Custom: a fraction (0–1) or an exact number of rows'
+            ]
+          },
+          {
+            name: 'Max features',
+            type: 'number',
+            description: 'Fraction of feature columns considered per tree.',
+            values: '1.0 = use all features (default, recommended for most cases)',
+            range: '0 (exclusive) to 1'
+          },
+          {
+            name: 'Bootstrap samples',
+            type: 'checkbox',
+            description: 'Whether to sample rows with replacement when building each tree.',
+            checked: 'Adds randomness — can help with noisy data',
+            unchecked: 'Default — each tree sees distinct rows'
+          },
+          {
+            name: 'Scale features',
+            type: 'checkbox',
+            description: 'Standardize features before training.',
+            checked: 'Optional for this method',
+            unchecked: 'Leave as is if you prefer'
+          }
+        ],
+        tips: [
+          'Works with or without a target column',
+          'Useful when unusual rows are rare',
+          'Compare how many rare rows appear in train and in test'
+        ]
+      },
+      'one_class_svm': {
+        name: 'One-Class SVM',
+        description: 'Learns what normal rows look like, then flags points that fall outside that pattern.',
+        useCases: [
+          'Novelty / intrusion detection when "normal" behavior is well defined',
+          'Cyber datasets with or without labels',
+          'Semi-supervised refinement when some labels are available (optional)'
+        ],
+        parameters: [
+          {
+            name: 'Kernel',
+            type: 'selection',
+            description: 'The function used to measure similarity between points.',
+            options: [
+              'RBF (recommended): flexible, handles non-linear boundaries',
+              'Linear: simple, fast, for linearly separable data',
+              'Polynomial: curved boundaries, more parameters to tune',
+              'Sigmoid: rarely optimal, included for completeness'
+            ]
+          },
+          {
+            name: 'Nu (upper bound on anomaly fraction)',
+            type: 'number',
+            description: 'Similar role to contamination in Isolation Forest — controls the expected proportion of anomalies / margin errors.',
+            range: '0.01 to 1'
+          },
+          {
+            name: 'Gamma',
+            type: 'text',
+            description: 'Kernel coefficient for RBF/poly/sigmoid — controls how far the influence of a single point reaches.',
+            values: "'scale' (recommended default), 'auto', or a positive number"
+          },
+          {
+            name: 'Degree (poly kernel only)',
+            type: 'number',
+            description: 'Degree of the polynomial kernel function. Only used when Kernel = Polynomial.',
+            range: '1 to 10'
+          },
+          {
+            name: 'Train on normal/benign rows only',
+            type: 'checkbox',
+            description: 'Requires a target column. Filters the training rows to keep only those labeled "normal", improving the learned boundary.',
+            checked: 'Semi-supervised mode — target labels DO affect training in this mode',
+            unchecked: 'Fully unsupervised — target (if any) never affects training'
+          },
+          {
+            name: 'Scale features',
+            type: 'checkbox',
+            description: 'Standardize features before training.',
+            checked: 'Recommended — RBF/kernel methods are sensitive to feature scale',
+            unchecked: 'Not recommended for this algorithm'
+          }
+        ],
+        tips: [
+          'Scaling is usually helpful for this method',
+          'You can optionally train only on normal rows if you have labels',
+          'A train/test split is still needed'
+        ]
       }
     };
+
 
     return modelDescriptions[modelType] || {
       name: modelType,
@@ -1661,33 +1753,26 @@ const renderModelInfoDialog = () => {
       maxWidth="md"
       fullWidth
       scroll="paper"
+      PaperProps={{ className: "train-dialog" }}
     >
-      <DialogTitle sx={{ 
-        backgroundColor: 'primary.main', 
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1
-      }}>
-        <Typography variant="h5" component="div">
-          ℹ️ {modelInfo.name}
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h6" component="div" sx={{ color: '#fff', fontWeight: 700 }}>
+          {modelInfo.name}
         </Typography>
       </DialogTitle>
       
       <DialogContent sx={{ mt: 2 }}>
-        {/* Description */}
-        <Card sx={{ mb: 3, p: 2, backgroundColor: 'background.default' }}>
-          <Typography variant="h6" gutterBottom>
-            📝 Description
+        <Card variant="outlined" sx={{ mb: 3, p: 2, borderRadius: '2px', boxShadow: 'none' }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
+            Description
           </Typography>
           <Typography variant="body1">
             {modelInfo.description}
           </Typography>
         </Card>
 
-        {/* Use Cases */}
-        <Card sx={{ mb: 3, p: 2 }}>
-          <Typography variant="h6" gutterBottom color="primary">
+        <Card variant="outlined" sx={{ mb: 3, p: 2, borderRadius: '2px', boxShadow: 'none' }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
               Best Use Cases
           </Typography>
           <ul style={{ paddingLeft: '20px', margin: 0 }}>
@@ -1699,10 +1784,9 @@ const renderModelInfoDialog = () => {
           </ul>
         </Card>
 
-        {/* Parameters Explanation */}
-        <Card sx={{ mb: 3, p: 2 }}>
-          <Typography variant="h6" gutterBottom color="primary">
-            ⚙️ Parameters Explained
+        <Card variant="outlined" sx={{ mb: 3, p: 2, borderRadius: '2px', boxShadow: 'none' }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
+            Parameters Explained
           </Typography>
           {modelInfo.parameters.map((param, index) => (
             <Box key={index}>
@@ -1712,11 +1796,10 @@ const renderModelInfoDialog = () => {
           ))}
         </Card>
 
-        {/* Tips */}
         {modelInfo.tips.length > 0 && (
-          <Card sx={{ mb: 2, p: 2, backgroundColor: '#e8f5e8' }}>
-            <Typography variant="h6" gutterBottom color="success.main">
-              💡 Practical Tips
+          <Card variant="outlined" sx={{ mb: 2, p: 2, backgroundColor: '#e8e9ea', borderRadius: '2px', boxShadow: 'none' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
+              Practical Tips
             </Typography>
             <ul style={{ paddingLeft: '20px', margin: 0 }}>
               {modelInfo.tips.map((tip, index) => (
@@ -1734,8 +1817,8 @@ const renderModelInfoDialog = () => {
       <DialogActions sx={{ p: 2 }}>
         <Button 
           onClick={() => setModelInfoDialogOpen(false)} 
-          color="primary"
           variant="contained"
+          sx={{ backgroundColor: '#384850', '&:hover': { backgroundColor: '#2a3942' }, textTransform: 'none' }}
         >
           Close
         </Button>
@@ -1753,9 +1836,10 @@ const renderInfoDialog = () => {
 
       maxWidth="md"
       fullWidth
+      PaperProps={{ className: "train-dialog" }}
     >
       <DialogTitle>
-        ℹ️ Validation Methods Explained
+        Validation Methods Explained
       </DialogTitle>
       <DialogContent>
         <DialogContentText sx={{ mb: 3 }}>
@@ -1773,7 +1857,7 @@ const renderInfoDialog = () => {
 
           {/* Hold-out */}
           <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
+            <Typography variant="subtitle1" sx={{ color: '#384850' }} gutterBottom>
                 Hold-out (Train/Test Split)
             </Typography>
             <Typography variant="body2" paragraph>
@@ -1792,8 +1876,8 @@ const renderInfoDialog = () => {
 
           {/* K-Fold Cross-Validation */}
           <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              🔄 Cross-Validation: KFold
+            <Typography variant="subtitle1" sx={{ color: '#384850' }} gutterBottom>
+              Cross-Validation: KFold
             </Typography>
             <Typography variant="body2" paragraph>
               <strong>How it works:</strong> Data is divided into K equal folds. Model is trained on K-1 folds and tested on the remaining fold. This process repeats K times.
@@ -1811,8 +1895,8 @@ const renderInfoDialog = () => {
 
           {/* Repeated K-Fold */}
           <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              🔁 Cross-Validation: Repeated KFold
+            <Typography variant="subtitle1" sx={{ color: '#384850' }} gutterBottom>
+              Cross-Validation: Repeated KFold
             </Typography>
             <Typography variant="body2" paragraph>
               <strong>How it works:</strong> Performs K-Fold cross-validation multiple times with different random splits.
@@ -1830,8 +1914,8 @@ const renderInfoDialog = () => {
 
           {/* Shuffle Split */}
           <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              🎲 Cross-Validation: Shuffle Split
+            <Typography variant="subtitle1" sx={{ color: '#384850' }} gutterBottom>
+              Cross-Validation: Shuffle Split
             </Typography>
             <Typography variant="body2" paragraph>
               <strong>How it works:</strong> Creates multiple random train/test splits. Each split randomly selects samples without folding.
@@ -1849,8 +1933,8 @@ const renderInfoDialog = () => {
 
           {/* Bootstrap */}
           <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              📊 Bootstrap
+            <Typography variant="subtitle1" sx={{ color: '#384850' }} gutterBottom>
+              Bootstrap
             </Typography>
             <Typography variant="body2" paragraph>
               <strong>How it works:</strong> Creates multiple bootstrap samples (random sampling with replacement) and tests on out-of-bag samples.
@@ -1866,7 +1950,7 @@ const renderInfoDialog = () => {
             </Typography>
           </Card>
 
-          <Alert severity="info" sx={{ mt: 2 }}>
+          <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 2 }}>
             <Typography variant="body2">
               <strong>Recommendation:</strong> Start with Hold-out for quick testing, use K-Fold for reliable results, 
               and Bootstrap for small datasets or when you need confidence intervals.
@@ -1875,9 +1959,9 @@ const renderInfoDialog = () => {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setValidationInfoDialogOpen(false)} color="primary">
+        <Button onClick={() => setValidationInfoDialogOpen(false)} sx={{ color: '#384850', textTransform: 'none' }}>
 
-          Got it!
+          Got it
         </Button>
       </DialogActions>
     </Dialog>
@@ -1888,7 +1972,7 @@ const renderValidationParams = () => {
   // Wait until problem type is known and a valid algorithm is selected
   if (!problemType) {
     return (
-      <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
+      <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 2, mb: 2 }}>
         Detecting problem type… validation options will appear once an algorithm is ready.
       </Alert>
     );
@@ -1902,14 +1986,13 @@ const renderValidationParams = () => {
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" gutterBottom>
-              🔍 Validation Method
+              Validation Method
             </Typography>
             <Button
               variant="outlined"
               size="small"
-              startIcon={<Typography>ℹ️</Typography>}
               onClick={() => setValidationInfoDialogOpen(true)}
-              sx={{ ml: 1 }}
+              sx={{ ml: 1, textTransform: 'none', borderColor: '#384850', color: '#384850', borderRadius: '2px' }}
             >
               Learn about methods
             </Button>
@@ -1945,7 +2028,7 @@ const renderValidationParams = () => {
               
               {/* ✅ AJOUT : Message explicatif si TimeSeriesSplit désactivé */}
               {validationMethod === 'cv_timeseries' && !dateColumnDetected && (
-                <Alert severity="warning" sx={{ mt: 1 }}>
+                <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 1 }}>
                   <Typography variant="body2">
                     TimeSeriesSplit requires a date column in your dataset. 
                     No date column was detected.
@@ -1955,7 +2038,7 @@ const renderValidationParams = () => {
               
               {/* ✅ AJOUT : Message quand TimeSeriesSplit est sélectionné */}
               {validationMethod === 'cv_timeseries' && dateColumnDetected && (
-                <Alert severity="success" sx={{ mt: 1 }}>
+                <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 1 }}>
                   <Typography variant="body2">
                     <strong>Date column for chronological splitting:</strong> "{dateColumn}"
                     {" "}(excluded from model features). Other validation methods ignore date columns.
@@ -1995,16 +2078,16 @@ const renderValidationParams = () => {
 
           {/* Le reste du code pour les autres méthodes de validation */}
           {validationMethod.startsWith('cv_') && cvParams.shuffle === false && (
-            <Alert severity="warning" sx={{ mt: 1, mb: 1 }}>
+            <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 1, mb: 1 }}>
               When shuffle is disabled, random state has no effect and will be ignored.
             </Alert>
           )}
           
           {/* ✅ AJOUT : Paramètres pour TimeSeriesSplit */}
           {validationMethod === 'cv_timeseries' && dateColumnDetected && (
-            <Box sx={{ mt: 2, p: 2, border: '1px solid', borderColor: '#2196f3', borderRadius: 1, width: '100%', bgcolor: '#f5f9ff' }}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-                ⏱️ Time Series Split Parameters
+            <Box sx={{ mt: 2, p: 2, border: '1px solid #c8c9ca', borderRadius: '2px', width: '100%', bgcolor: '#e8e9ea' }}>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: '#384850' }}>
+                Time Series Split Parameters
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
@@ -2044,7 +2127,7 @@ const renderValidationParams = () => {
                 </Grid>
               </Grid>
               
-              <Alert severity="info" sx={{ mt: 2 }}>
+              <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
                 <Typography variant="body2">
                   <strong>How it works:</strong> Data is split chronologically using the column <strong>"{dateColumn}"</strong>. 
                   Training sets always come before test sets, preserving temporal order.
@@ -2057,7 +2140,7 @@ const renderValidationParams = () => {
           {validationMethod.startsWith('cv_') && validationMethod !== 'cv_timeseries' && (
             <Box sx={{ mt: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, width: '100%' }}>
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                ⚙️ Cross-Validation Parameters
+                Cross-Validation Parameters
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
@@ -2119,7 +2202,7 @@ const renderValidationParams = () => {
           {validationMethod === 'bootstrap' && (
             <Box sx={{ mt: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, width: '100%' }}>
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                ⚙️ Bootstrap Parameters
+                Bootstrap Parameters
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
@@ -2158,7 +2241,7 @@ const renderValidationParams = () => {
           {/* Informations sur les méthodes */}
           <Box sx={{ mt: 2, p: 2, backgroundColor: 'background.default', borderRadius: 1, width: '100%' }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-              📝 Quick Guide:
+              Quick Guide:
             </Typography>
             <Typography variant="body2" color="text.secondary">
               • <strong>Hold-out</strong>: Simple train/test split<br/>
@@ -2489,27 +2572,25 @@ const isAnomalyAlgo = (mt = modelType) =>
 
 
 const HelpDialog = ({ open, onClose }) => (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: '#384850', color: 'white' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="h5">Train Model guide</Typography>
-            </Box>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ className: "train-dialog" }}>
+        <DialogTitle>
+            <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>Train Model guide</Typography>
         </DialogTitle>
         <DialogContent dividers>
-            <Alert severity="info" sx={{ mb: 3 }}>
+            <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 3 }}>
                 <Typography variant="body2">
                     <strong>Steps:</strong> choose a model, set parameters, pick a validation method, then start training.
                     Your data should already be prepared (Target, Clean/Split, Transform).
                 </Typography>
             </Alert>
 
-            <Typography variant="h6" gutterBottom sx={{ color: '#384850', borderBottom: '2px solid #DE6B06', pb: 0.5, mt: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#384850', borderBottom: '1px solid #c8c9ca', pb: 0.5, mt: 2 }}>
                 Models
             </Typography>
 
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6}>
-                    <Paper sx={{ p: 2, bgcolor: '#f4f6f8', borderLeft: '4px solid #DE6B06', height: '100%' }}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', height: '100%', borderRadius: '2px', boxShadow: 'none' }}>
                         <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Regression</Typography>
                         <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
                             <strong>Ridge:</strong> linear baseline.<br/>
@@ -2519,7 +2600,7 @@ const HelpDialog = ({ open, onClose }) => (
                     </Paper>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <Paper sx={{ p: 2, bgcolor: '#f4f6f8', borderLeft: '4px solid #DE6B06', height: '100%' }}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', height: '100%', borderRadius: '2px', boxShadow: 'none' }}>
                         <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Classification</Typography>
                         <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
                             <strong>Logistic, Random Forest, SVM, KNN, LightGBM, MLP.</strong><br/>
@@ -2528,7 +2609,7 @@ const HelpDialog = ({ open, onClose }) => (
                     </Paper>
                 </Grid>
                 <Grid item xs={12}>
-                    <Paper sx={{ p: 2, bgcolor: '#f4f6f8', borderLeft: '4px solid #DE6B06' }}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', borderRadius: '2px', boxShadow: 'none' }}>
                         <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Other</Typography>
                         <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
                             <strong>K-Means:</strong> clustering (no target).<br/>
@@ -2538,10 +2619,10 @@ const HelpDialog = ({ open, onClose }) => (
                 </Grid>
             </Grid>
 
-            <Typography variant="h6" gutterBottom sx={{ color: '#384850', mt: 2, borderBottom: '2px solid #DE6B06', pb: 0.5 }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#384850', mt: 2, borderBottom: '1px solid #c8c9ca', pb: 0.5 }}>
                 Validation
             </Typography>
-            <Alert severity="info" sx={{ mb: 2 }}>
+            <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 2 }}>
                 <Typography variant="body2">
                     Estimates how the model behaves on unseen data.
                     <ul style={{ marginTop: '8px', marginBottom: '4px' }}>
@@ -2554,12 +2635,12 @@ const HelpDialog = ({ open, onClose }) => (
                 </Typography>
             </Alert>
 
-            <Typography variant="body2" sx={{ mt: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
+            <Typography variant="body2" sx={{ mt: 2, p: 2, bgcolor: '#e8e9ea', borderRadius: '2px' }}>
                 After training, save the model if you want to use it later on the Use Model page.
             </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', p: 2 }}>
-            <Button onClick={onClose} variant="contained" sx={{ bgcolor: '#384850', px: 4, '&:hover': { bgcolor: '#003d54' } }}>
+            <Button onClick={onClose} variant="contained" sx={{ bgcolor: '#384850', px: 4, textTransform: 'none', '&:hover': { bgcolor: '#2a3942' } }}>
                 Got it
             </Button>
         </DialogActions>
@@ -2695,15 +2776,16 @@ const SaveModelDialog = ({
       disableEscapeKeyDown={isLoading} // ✅ Empêcher la fermeture pendant le chargement
       maxWidth="sm"
       fullWidth
+      PaperProps={{ className: "train-dialog" }}
     >
       <DialogTitle>
-        💾 Save Trained Model
+        Save Trained Model
       </DialogTitle>
       
       <DialogContent>
         {/* ✅ AFFICHER LES ERREURS DE SAUVEGARDE */}
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" icon={false} className="train-alert" sx={{ mb: 2 }}>
             <Typography variant="body2">
               {error}
             </Typography>
@@ -2729,7 +2811,7 @@ const SaveModelDialog = ({
           placeholder="e.g., my_awesome_model_v1"
         />
         
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Naming rules:</strong>
             <br/>• Must start with a letter
@@ -2740,7 +2822,7 @@ const SaveModelDialog = ({
           </Typography>
         </Alert>
 
-        <Alert severity={saveWindowExpired ? "error" : "warning"} sx={{ mt: 2 }}>
+        <Alert severity={saveWindowExpired ? "error" : "warning"} icon={false} className="train-alert" sx={{ mt: 2 }}>
           <Typography variant="body2">
             {saveWindowExpired ? (
               <>
@@ -2907,10 +2989,9 @@ const renderAnomalyParams = () => {
   if (modelType === 'isolation_forest') {
     return (
       <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <Alert severity="info">
+         <Grid item xs={12}>
+          <Alert icon={false} className="train-alert" severity="info">
             Isolation Forest flags rare / suspicious rows (useful for intrusion screening).
-            Fit uses <strong>train only</strong>: no test leakage. Target (if any) is excluded from features.
           </Alert>
         </Grid>
         <Grid item xs={12} md={6}>
@@ -2918,14 +2999,16 @@ const renderAnomalyParams = () => {
             type="number"
             label="Trees (n_estimators)"
             value={isolationForestParams.n_estimators}
-            onChange={(e) =>
+            onChange={(e) => {
+              const raw = parseInt(e.target.value, 10);
+              const clamped = Number.isFinite(raw) ? Math.min(1000, Math.max(10, raw)) : 100;
               setIsolationForestParams({
                 ...isolationForestParams,
-                n_estimators: parseInt(e.target.value, 10) || 100,
-              })
-            }
+                n_estimators: clamped,
+              });
+            }}
             fullWidth
-            inputProps={{ min: 10, max: 1000 }}
+            inputProps={{ min: 10, max: 1000, step: 10 }}
             helperText="More trees ⇒ more stable, slower"
           />
         </Grid>
@@ -2934,12 +3017,14 @@ const renderAnomalyParams = () => {
             type="number"
             label="Expected anomaly rate (contamination)"
             value={isolationForestParams.contamination}
-            onChange={(e) =>
+            onChange={(e) => {
+              const raw = parseFloat(e.target.value);
+              const clamped = Number.isFinite(raw) ? Math.min(0.5, Math.max(0.01, raw)) : 0.05;
               setIsolationForestParams({
                 ...isolationForestParams,
-                contamination: parseFloat(e.target.value) || 0.05,
-              })
-            }
+                contamination: clamped,
+              });
+            }}
             fullWidth
             inputProps={{ min: 0.01, max: 0.5, step: 0.01 }}
             helperText="e.g. 0.05 ≈ 5% of train rows expected anomalous"
@@ -2947,65 +3032,68 @@ const renderAnomalyParams = () => {
         </Grid>
         <Grid item xs={12} md={6}>
           <TextField
+            select
             label="Max samples"
-            value={isolationForestParams.max_samples}
-            onChange={(e) =>
-              setIsolationForestParams({
-                ...isolationForestParams,
-                max_samples: e.target.value,
-              })
-            }
+            value={isolationForestParams.max_samples === 'auto' ? 'auto' : 'custom'}
+            onChange={(e) => {
+              if (e.target.value === 'auto') {
+                setIsolationForestParams({ ...isolationForestParams, max_samples: 'auto' });
+              } else {
+                // Bascule vers une valeur numérique par défaut sûre (fraction 0.5)
+                setIsolationForestParams({ ...isolationForestParams, max_samples: 0.5 });
+              }
+            }}
             fullWidth
-            helperText="'auto' or a fraction (0–1) / integer subsample size"
-          />
+            helperText="'Auto' = min(256, train rows). Otherwise specify a fraction or exact row count."
+          >
+            <MenuItem value="auto">Auto (recommended)</MenuItem>
+            <MenuItem value="custom">Custom value</MenuItem>
+          </TextField>
         </Grid>
+        {isolationForestParams.max_samples !== 'auto' && (
+          <Grid item xs={12} md={6}>
+            <TextField
+              type="number"
+              label="Max samples  custom value"
+              value={isolationForestParams.max_samples}
+              onChange={(e) => {
+                const raw = parseFloat(e.target.value);
+                setIsolationForestParams({
+                  ...isolationForestParams,
+                  max_samples: Number.isFinite(raw) && raw > 0 ? raw : 0.5,
+                });
+              }}
+              fullWidth
+              inputProps={{ min: 0.01, step: 0.05 }}
+              helperText="Fraction (e.g. 0.5) or exact row count (e.g. 256)"
+            />
+          </Grid>
+        )}
         <Grid item xs={12} md={6}>
           <TextField
             type="number"
             label="Max features (fraction)"
             value={isolationForestParams.max_features}
-            onChange={(e) =>
+            onChange={(e) => {
+              const raw = parseFloat(e.target.value);
+              // Doit être dans ]0, 1] — sinon le backend rejette (422).
+              // On corrige/borne immédiatement côté UI pour un retour clair.
+              const clamped = Number.isFinite(raw)
+                ? Math.min(1, Math.max(0.05, raw))
+                : 1;
               setIsolationForestParams({
                 ...isolationForestParams,
-                max_features: parseFloat(e.target.value) || 1,
-              })
-            }
+                max_features: clamped,
+              });
+            }}
             fullWidth
-            inputProps={{ min: 0.1, max: 1, step: 0.05 }}
+            inputProps={{ min: 0.05, max: 1, step: 0.05 }}
+            helperText="Fraction of columns used per tree — between 0 (exclusive) and 1"
+                        error={isolationForestParams.max_features <= 0 || isolationForestParams.max_features > 1}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={isolationForestParams.bootstrap}
-                onChange={(e) =>
-                  setIsolationForestParams({
-                    ...isolationForestParams,
-                    bootstrap: e.target.checked,
-                  })
-                }
-              />
-            }
-            label="Bootstrap samples"
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={isolationForestParams.use_scaling}
-                onChange={(e) =>
-                  setIsolationForestParams({
-                    ...isolationForestParams,
-                    use_scaling: e.target.checked,
-                  })
-                }
-              />
-            }
-            label="Scale features (StandardScaler on train)"
-          />
-        </Grid>
+       
+        
       </Grid>
     );
   }
@@ -3014,9 +3102,8 @@ const renderAnomalyParams = () => {
     return (
       <Grid container spacing={2}>
         <Grid item xs={12}>
-          <Alert severity="info">
-            One-Class SVM learns a boundary around “normal” traffic. Fit on <strong>train only</strong>.
-            For cyber datasets with labels, optionally train on normal rows only (semi-supervised).
+          <Alert icon={false} className="train-alert" severity="info">
+            One-Class SVM learns a boundary around normal rows. Useful for spotting unusual cases.
           </Alert>
         </Grid>
         <Grid item xs={12} md={6}>
@@ -3040,12 +3127,14 @@ const renderAnomalyParams = () => {
             type="number"
             label="Nu (upper bound on anomaly fraction)"
             value={oneClassSvmParams.nu}
-            onChange={(e) =>
+            onChange={(e) => {
+              const raw = parseFloat(e.target.value);
+              const clamped = Number.isFinite(raw) ? Math.min(1, Math.max(0.01, raw)) : 0.05;
               setOneClassSvmParams({
                 ...oneClassSvmParams,
-                nu: parseFloat(e.target.value) || 0.05,
-              })
-            }
+                nu: clamped,
+              });
+            }}
             fullWidth
             inputProps={{ min: 0.01, max: 1, step: 0.01 }}
             helperText="Similar role to contamination"
@@ -3053,63 +3142,67 @@ const renderAnomalyParams = () => {
         </Grid>
         <Grid item xs={12} md={6}>
           <TextField
+            select
             label="Gamma"
-            value={oneClassSvmParams.gamma}
-            onChange={(e) =>
-              setOneClassSvmParams({ ...oneClassSvmParams, gamma: e.target.value })
+            value={
+              oneClassSvmParams.gamma === 'scale' || oneClassSvmParams.gamma === 'auto'
+                ? oneClassSvmParams.gamma
+                : 'custom'
             }
+            onChange={(e) => {
+              if (e.target.value === 'custom') {
+                setOneClassSvmParams({ ...oneClassSvmParams, gamma: 0.1 });
+              } else {
+                setOneClassSvmParams({ ...oneClassSvmParams, gamma: e.target.value });
+              }
+            }}
             fullWidth
-            helperText="'scale', 'auto', or a positive float"
-          />
+            helperText="Kernel coefficient — 'Scale' recommended for most datasets"
+          >
+            <MenuItem value="scale">Scale (recommended)</MenuItem>
+            <MenuItem value="auto">Auto</MenuItem>
+            <MenuItem value="custom">Custom value</MenuItem>
+          </TextField>
         </Grid>
-        <Grid item xs={12} md={6}>
+        {oneClassSvmParams.gamma !== 'scale' && oneClassSvmParams.gamma !== 'auto' && (
+          <Grid item xs={12} md={6}>
+            <TextField
+              type="number"
+              label="Gamma — custom value"
+              value={oneClassSvmParams.gamma}
+              onChange={(e) => {
+                const raw = parseFloat(e.target.value);
+                setOneClassSvmParams({
+                  ...oneClassSvmParams,
+                  gamma: Number.isFinite(raw) && raw > 0 ? raw : 0.1,
+                });
+              }}
+              fullWidth
+              inputProps={{ min: 0.0001, step: 0.01 }}
+              helperText="Must be a positive number"
+            />
+          </Grid>
+        )}
+         <Grid item xs={12} md={6}>
           <TextField
             type="number"
             label="Degree (poly kernel)"
             value={oneClassSvmParams.degree}
-            onChange={(e) =>
+            onChange={(e) => {
+              const raw = parseInt(e.target.value, 10);
+              const clamped = Number.isFinite(raw) ? Math.min(10, Math.max(1, raw)) : 3;
               setOneClassSvmParams({
                 ...oneClassSvmParams,
-                degree: parseInt(e.target.value, 10) || 3,
-              })
-            }
+                degree: clamped,
+              });
+            }}
             fullWidth
+            inputProps={{ min: 1, max: 10, step: 1 }}
             disabled={oneClassSvmParams.kernel !== 'poly'}
           />
         </Grid>
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={oneClassSvmParams.train_on_normals_only}
-                onChange={(e) =>
-                  setOneClassSvmParams({
-                    ...oneClassSvmParams,
-                    train_on_normals_only: e.target.checked,
-                  })
-                }
-                disabled={!hasTargetColumn}
-              />
-            }
-            label="Train on normal/benign rows only (needs target: cyber recommended)"
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={oneClassSvmParams.use_scaling}
-                onChange={(e) =>
-                  setOneClassSvmParams({
-                    ...oneClassSvmParams,
-                    use_scaling: e.target.checked,
-                  })
-                }
-              />
-            }
-            label="Scale features (StandardScaler on train): recommended"
-          />
-        </Grid>
+        
+        
       </Grid>
     );
   }
@@ -3131,11 +3224,11 @@ const renderAnomalyResults = () => {
           <Typography variant="h6" gutterBottom>
             Anomaly detection results
           </Typography>
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {m.anti_leakage?.labels_fit_note || 'Fitted on train features only (anti-leakage).'}
+          <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
+            Trained on the training rows.
           </Alert>
           {m.cyber_hint && (
-            <Alert severity="info" sx={{ mb: 2 }}>
+            <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
               {m.cyber_hint}
             </Alert>
           )}
@@ -3353,7 +3446,7 @@ const renderKmeansResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            ℹ️ KMeans Model Information
+            KMeans Model Information
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -3375,7 +3468,7 @@ const renderKmeansResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            📊 Clustering Metrics
+            Clustering Metrics
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} md={4}>
@@ -3410,7 +3503,7 @@ const renderKmeansResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            📏 Cluster Sizes
+            Cluster Sizes
           </Typography>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart
@@ -3437,7 +3530,7 @@ const renderKmeansResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            📍 2D Cluster Visualization (PCA)
+            2D Cluster Visualization (PCA)
           </Typography>
           <Typography variant="body2" paragraph>
             Explained variance: {result.metrics?.visualization_data?.['2d']?.explained_variance?.map(v => (v * 100).toFixed(1)).join('%, ')}%
@@ -3494,7 +3587,7 @@ const renderKmeansResults = () => {
         <CardContent>
           <Accordion defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6">🏆 Cluster Centers Information</Typography>
+              <Typography variant="h6">Cluster Centers Information</Typography>
             </AccordionSummary>
             <AccordionDetails>
               <TableContainer component={Paper}>
@@ -3783,25 +3876,25 @@ const renderMlpParams = () => {
 
       {/* Alertes informatives */}
       {mlpParams.layers.length > 3 && (
-        <Alert severity="info" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 3 }}>
           Deep network with {mlpParams.layers.length} layers - may require more training time
         </Alert>
       )}
       
       {mlpParams.dropout_rate > 0.5 && (
-        <Alert severity="warning" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 3 }}>
           High dropout rate ({mlpParams.dropout_rate}) - may cause underfitting
         </Alert>
       )}
 
       {mlpParams.learning_rate < 0.001 && (
-        <Alert severity="info" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 3 }}>
           Low learning rate ({mlpParams.learning_rate}) - training may be slower but more stable
         </Alert>
       )}
 
       {mlpParams.learning_rate > 0.01 && (
-        <Alert severity="warning" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 3 }}>
           High learning rate ({mlpParams.learning_rate}) - may cause training instability
         </Alert>
       )}
@@ -3834,7 +3927,7 @@ const renderMlpResults = () => {
      {/*  <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            🏗️ Model Architecture
+            Model Architecture
           </Typography>
           {result.metrics?.model_architecture?.length > 0 && (
             <TableContainer component={Paper}>
@@ -3875,7 +3968,7 @@ const renderMlpResults = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              📉 Training History
+              Training History
             </Typography>
             <Typography variant="body2" gutterBottom>
               Best epoch: {result.metrics?.best_epoch} (stopped early: {result.metrics?.best_epoch < mlpParams.epochs ? 'Yes' : 'No'})
@@ -3950,9 +4043,9 @@ const renderMlpResults = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              🔍 Validation Results
+              Validation Results
             </Typography>
-            <Alert severity="info">
+            <Alert icon={false} className="train-alert" severity="info">
               <Typography variant="body2">
                 <strong>Method:</strong> {result.metrics.validation_results.method}<br/>
                 <strong>Model Source:</strong> {result.training_info?.final_model_source || 'Standard training'}
@@ -3999,7 +4092,7 @@ const SvmParamAlert = ({ isClassification, paramName }) => {
   };
 
   return (
-    <Alert 
+    <Alert icon={false} className="train-alert" 
       severity={isClassification ? "success" : "warning"} 
       sx={{ mt: 1, mb: 1 }}
     >
@@ -4272,28 +4365,27 @@ const renderSvmParams = () => {
 
       {/* Avertissements de compatibilité */}
       {svmParams.kernel === 'poly' && svmParams.degree > 5 && (
-        <Alert severity="warning" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 3 }}>
           High polynomial degree ({svmParams.degree}) may cause overfitting and high computation time
         </Alert>
       )}
       
       {svmParams.kernel === 'sigmoid' && (
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           Sigmoid kernel is equivalent to a two-layer perceptron and may not perform well in all cases
         </Alert>
       )}
       
       {svmParams.C > 100 && (
-        <Alert severity="warning" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 2 }}>
           High C value ({svmParams.C}) means less regularization - risk of overfitting
         </Alert>
       )}
 
       {isAutoOptimization && (
-        <Alert severity="info" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 3 }}>
           <Typography variant="body2">
-            <strong>Auto-optimization Mode:</strong> Some parameters will be optimized automatically during training.
-            Manual settings serve as initial values or constraints.
+            <strong>Auto settings:</strong> some values are chosen during training. Your fields are starting points.
           </Typography>
         </Alert>
       )}
@@ -4376,7 +4468,7 @@ const renderSvmSpecificVisualizations = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              🔍 Support Vectors Visualization (PCA)
+              Support Vectors Visualization (PCA)
             </Typography>
             {result.metrics.pca_explained_variance && (
               <Typography variant="body2" paragraph>
@@ -4412,7 +4504,7 @@ const renderSvmSpecificVisualizations = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              📉 Learning Curve
+              Learning Curve
             </Typography>
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={result.metrics.learning_curve.train_sizes.map((size, i) => ({
@@ -4502,10 +4594,10 @@ const renderKnnValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 KNN Validation Details
+          KNN Validation Details
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Samples/Folds/Repetitions:</strong> {details.length}<br/>
@@ -4573,7 +4665,7 @@ const renderKnnValidationDetails = () => {
 
         {/* Tableau des résultats individuels */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Validation Results
+          Individual Validation Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -4642,7 +4734,7 @@ const renderKnnValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -4739,10 +4831,10 @@ const renderSvmDetailedMetrics = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          ℹ️ SVM Model Information
+          SVM Model Information
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Validation Method:</strong> {validationMethod}<br/>
             <strong>Model Type:</strong> {isClassification ? 'SVC (Classification)' : 'SVR (Regression)'}<br/>
@@ -5045,7 +5137,7 @@ const renderKnnParams = () => {
 
       {/* Alertes informatives */}
       {knnParams.weights === 'distance' && (
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Distance-weighted:</strong> Closer neighbors have more influence on the prediction
           </Typography>
@@ -5053,7 +5145,7 @@ const renderKnnParams = () => {
       )}
 
       {knnParams.algorithm === 'brute' && (
-        <Alert severity="warning" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Brute Force:</strong> Computationally expensive for large datasets
           </Typography>
@@ -5061,7 +5153,7 @@ const renderKnnParams = () => {
       )}
 
       {knnParams.metric === 'manhattan' && (
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Manhattan distance:</strong> Better for high-dimensional data
           </Typography>
@@ -5069,7 +5161,7 @@ const renderKnnParams = () => {
       )}
 
       {fieldErrors.n_neighbors && (
-        <Alert severity="error" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="error" sx={{ mt: 2 }}>
           <Typography variant="body2">
             {fieldErrors.n_neighbors}
           </Typography>
@@ -5077,7 +5169,7 @@ const renderKnnParams = () => {
       )}
 
       {fieldErrors.leaf_size && (
-        <Alert severity="error" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="error" sx={{ mt: 2 }}>
           <Typography variant="body2">
             {fieldErrors.leaf_size}
           </Typography>
@@ -5085,7 +5177,7 @@ const renderKnnParams = () => {
       )}
 
       {fieldErrors.p && (
-        <Alert severity="error" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="error" sx={{ mt: 2 }}>
           <Typography variant="body2">
             {fieldErrors.p}
           </Typography>
@@ -5143,7 +5235,7 @@ const renderKnnResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            ℹ️ KNN Model Information
+            KNN Model Information
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -5174,7 +5266,7 @@ const renderKnnResults = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              📏 Neighbor Distances Distribution
+              Neighbor Distances Distribution
             </Typography>
             <Typography variant="body2" paragraph>
               Average distance to {knnParams.n_neighbors} nearest neighbors for test samples
@@ -5239,7 +5331,7 @@ const renderKnnResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            ✅ Prediction vs Real
+            Prediction vs Real
           </Typography>
           {total > MAX_SCATTER_POINTS && (
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
@@ -5272,7 +5364,7 @@ const renderKnnResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            ✅ Error distribution
+            Error distribution
           </Typography>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={errorData}>
@@ -5313,7 +5405,7 @@ const renderKnnResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            🔄 Learning Curve (Validation)
+            Learning Curve (Validation)
           </Typography>
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={validData}>
@@ -5349,7 +5441,7 @@ const renderKnnResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            🔄 Learning Curve (Validation)
+            Learning Curve (Validation)
           </Typography>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={validData}>
@@ -5382,7 +5474,7 @@ const renderKnnResults = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            🔄 Learning Curve
+            Learning Curve
           </Typography>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={curveData}>
@@ -5422,7 +5514,7 @@ const renderKnnResults = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          📊 MSE vs Alpha (Regularization performance)
+          MSE vs Alpha (Regularization performance)
         </Typography>
         <Typography variant="body2" paragraph>
           This chart shows how the error (MSE) varies with different values of the regularization parameter α.
@@ -5496,9 +5588,9 @@ const renderFeatureImportanceChart = () => {
   
   if (!featureImportanceData) {
     return (
-      <Alert severity="warning">
+      <Alert icon={false} className="train-alert" severity="warning">
         <Typography variant="body2">
-          📊 No feature importance data available from model.
+          No feature importance data available from model.
         </Typography>
       </Alert>
     );
@@ -5536,9 +5628,9 @@ const renderFeatureImportanceChart = () => {
     
     if (sortedFeatures.length === 0) {
       return (
-        <Alert severity="info">
+        <Alert icon={false} className="train-alert" severity="info">
           <Typography variant="body2">
-            🔍 All feature importances are very close to zero. This can happen with strong regularization.
+            All feature importances are very close to zero. This can happen with strong regularization.
           </Typography>
         </Alert>
       );
@@ -5553,7 +5645,7 @@ const renderFeatureImportanceChart = () => {
     return (
       <Box sx={{ mt: 2 }}>
         <Typography variant="subtitle1" gutterBottom>
-          📊 Top 10 Feature Importance (small coefficients shown)
+          Top 10 Feature Importance (small coefficients shown)
         </Typography>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={data} layout="vertical">
@@ -5591,7 +5683,7 @@ const renderFeatureImportanceChart = () => {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Note:</strong> Ridge regression coefficients can be very small. 
             Even small values indicate feature importance.
@@ -5615,7 +5707,7 @@ const renderFeatureImportanceChart = () => {
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="subtitle1" gutterBottom>
-        📊 Top {Math.min(10, nonZeroFeatures.length)} Most Important Features
+        Top {Math.min(10, nonZeroFeatures.length)} Most Important Features
       </Typography>
       <ResponsiveContainer width="100%" height={400}>
         <BarChart data={data} layout="vertical">
@@ -5879,7 +5971,7 @@ const renderTreeVisualization = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            🌳 Random Forest Metadata
+            Random Forest Metadata
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -5917,10 +6009,10 @@ const renderTreeVisualization = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              🔍 Validation Process Details
+              Validation Process Details
             </Typography>
             
-            <Alert severity="info" sx={{ mb: 2 }}>
+            <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2">
                 <strong>Method:</strong> {validationData.method}<br/>
                 {validationData.mean_score !== undefined && (
@@ -5963,7 +6055,7 @@ const renderTreeVisualization = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              ⚙️ Parameters Used
+              Parameters Used
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={6} md={3}>
@@ -6088,10 +6180,10 @@ const renderSvmValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 SVM Validation Details
+          SVM Validation Details
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Samples/Folds/Repetitions:</strong> {details.length}<br/>
@@ -6159,7 +6251,7 @@ const renderSvmValidationDetails = () => {
 
         {/* Tableau des résultats individuels */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Validation Results
+          Individual Validation Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -6229,7 +6321,7 @@ const renderSvmValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -6303,7 +6395,7 @@ const renderSvmValidationDetails = () => {
           {/* Informations spécifiques SVM */}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
             <Typography variant="subtitle2" gutterBottom>
-              🔧 SVM Parameters Used
+              SVM Parameters Used
             </Typography>
             <Typography variant="body2">
               <strong>Kernel:</strong> {result.metrics?.kernel_used || 'rbf'} | 
@@ -6376,10 +6468,10 @@ const renderSvmTimeseriesValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 Time Series Split Validation Details (SVM - {isClassification ? 'Classification' : 'Regression'})
+          Time Series Split Validation Details (SVM - {isClassification ? 'Classification' : 'Regression'})
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Valid Folds:</strong> {foldDetails.length}<br/>
@@ -6452,7 +6544,7 @@ const renderSvmTimeseriesValidationDetails = () => {
 
         {/* Tableau des détails par fold */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Fold Results
+          Individual Fold Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -6504,7 +6596,7 @@ const renderSvmTimeseriesValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -6531,8 +6623,8 @@ const renderSvmTimeseriesValidationDetails = () => {
           
           {/* Informations spécifiques selon le type */}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
-            <Typography variant="body2" color="success.main">
-              ✅ TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
+            <Typography variant="body2" sx={{ color: '#384850' }}>
+              TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               <strong>Features used:</strong> {validationData.features_used?.join(', ') || 'All numeric columns'}
@@ -6543,7 +6635,7 @@ const renderSvmTimeseriesValidationDetails = () => {
           </Box>
         </Box>
 
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Note:</strong> These validation scores were computed during the training phase 
             using chronological splits. The date column was used ONLY for ordering and was excluded 
@@ -6579,7 +6671,7 @@ const renderRandomForestValidationDetails = () => {
     methodLabel = 'Time Series Fold';
     scoreProperty = 'val_score';  // ✅ Le backend utilise 'val_score'
     
-    console.log("[RANDOM FOREST] 📊 TimeSeriesSplit validation details:", {
+    console.log("[RANDOM FOREST]  TimeSeriesSplit validation details:", {
       n_folds: details.length,
       method: validationData.method,
       mean_score: validationData.mean_score,
@@ -6684,7 +6776,7 @@ const renderRandomForestValidationDetails = () => {
           <Typography variant="h6" gutterBottom color="error">
             Time Series Split: temporary fold scores
           </Typography>
-          <Alert severity="warning">
+          <Alert icon={false} className="train-alert" severity="warning">
             <Typography variant="body2">
               <strong>Les scores de validation sont actuellement bas</strong> (moyenne: {meanScore.toFixed(4)})
               <br/>• This can happen when temporal patterns are hard to learn
@@ -6709,10 +6801,10 @@ const renderRandomForestValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 {isTimeSeries ? 'Time Series' : ''} Validation Process Details
+          {isTimeSeries ? 'Time Series' : ''} Validation Process Details
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Valid Folds/Samples:</strong> {chartData.length}<br/>
@@ -6789,7 +6881,7 @@ const renderRandomForestValidationDetails = () => {
 
         {/* Tableau des résultats individuels */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Validation Results
+          Individual Validation Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -6837,7 +6929,7 @@ const renderRandomForestValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -6873,8 +6965,8 @@ const renderRandomForestValidationDetails = () => {
           {/* Informations TimeSeries */}
           {isTimeSeries && validationData.n_splits && (
             <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
-              <Typography variant="body2" color="success.main">
-                ✅ TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
+              <Typography variant="body2" sx={{ color: '#384850' }}>
+                TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
               </Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>
                 <strong>Features used:</strong> {validationData.features_used?.join(', ') || 'All numeric columns'}
@@ -6900,7 +6992,7 @@ const renderSupportVectors = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 Support Vectors
+          Support Vectors
         </Typography>
         <Typography variant="body2" paragraph>
           Number of support vectors: {result.metrics.n_support_vectors}
@@ -6943,10 +7035,10 @@ const renderOptimizationResults = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 Hyperparameter Optimization Results
+          Hyperparameter Optimization Results
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validation.method}<br/>
             {validation.optimized_params && (
@@ -7397,7 +7489,7 @@ const renderLightGBMParams = () => {
       
       {/* Alertes d'erreur globales */}
       {Object.keys(fieldErrors).length > 0 && (
-        <Alert severity="error" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="error" sx={{ mt: 3 }}>
           <Typography variant="subtitle2">Please fix the following errors:</Typography>
           {Object.values(fieldErrors).map((error, index) => (
             <Typography key={index} variant="body2">• {error}</Typography>
@@ -7407,25 +7499,25 @@ const renderLightGBMParams = () => {
 
       {/* Information alerts */}
       {lightgbmParams.boosting_type === 'goss' && (
-        <Alert severity="info" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 3 }}>
           GOSS: Faster training but higher memory usage
         </Alert>
       )}
       
       {lightgbmParams.boosting_type === 'dart' && (
-        <Alert severity="info" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 3 }}>
           DART: Better accuracy but may need more trees
         </Alert>
       )}
       
       {lightgbmParams.num_leaves > 64 && (
-        <Alert severity="warning" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 3 }}>
           Large number of leaves ({lightgbmParams.num_leaves}) may cause overfitting
         </Alert>
       )}
 
       {lightgbmParams.learning_rate < 0.01 && (
-        <Alert severity="info" sx={{ mt: 3 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 3 }}>
           Low learning rate ({lightgbmParams.learning_rate}) - training may be slower but more stable
         </Alert>
       )}
@@ -7469,7 +7561,7 @@ const renderRidgeValidationDetails = () => {
     methodLabel = 'Time Series Fold';
     scoreProperty = 'validation_r2';
     
-    console.log("[RIDGE] 📊 TimeSeriesSplit validation details:", {
+    console.log("[RIDGE]  TimeSeriesSplit validation details:", {
       n_folds: details.length,
       method: validationData.method,
       date_column: validationData.date_column,
@@ -7517,10 +7609,10 @@ const renderRidgeValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔧 Alpha Optimization Details
+          Alpha Optimization Details
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Best Alpha:</strong> {validationData.best_alpha}<br/>
@@ -7593,7 +7685,7 @@ const renderRidgeValidationDetails = () => {
         {hasDetails && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="h6" gutterBottom>
-              📋 Alpha Search Details
+              Alpha Search Details
             </Typography>
             <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
               <Table size="small" stickyHeader>
@@ -7670,7 +7762,7 @@ const renderRidgeValidationDetails = () => {
         {chartData.length > 0 && (
           <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
             <Typography variant="subtitle2" gutterBottom>
-              📊 Summary Statistics
+              Summary Statistics
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={6} md={3}>
@@ -7701,8 +7793,8 @@ const renderRidgeValidationDetails = () => {
             {/* Informations spécifiques TimeSeries */}
             {isTimeSeries && (
               <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
-                <Typography variant="body2" color="success.main">
-                  ✅ TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
+                <Typography variant="body2" sx={{ color: '#384850' }}>
+                  TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                   <strong>Features used:</strong> {validationData.features_used?.join(', ') || 'All numeric columns'}
@@ -7712,7 +7804,7 @@ const renderRidgeValidationDetails = () => {
           </Box>
         )}
 
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Note:</strong> These metrics were computed during alpha optimization. 
             Final model performance on unseen test data is shown in the "Final Performance" section above.
@@ -7799,10 +7891,10 @@ const renderMlpTimeseriesValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 Time Series Split Validation Details (MLP - {isClassification ? 'Classification' : 'Regression'})
+          Time Series Split Validation Details (MLP - {isClassification ? 'Classification' : 'Regression'})
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Valid Folds:</strong> {foldDetails.length}<br/>
@@ -7875,7 +7967,7 @@ const renderMlpTimeseriesValidationDetails = () => {
 
         {/* Tableau des détails par fold - SANS Best Epoch */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Fold Results
+          Individual Fold Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -7927,7 +8019,7 @@ const renderMlpTimeseriesValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -7954,8 +8046,8 @@ const renderMlpTimeseriesValidationDetails = () => {
           
           {/* Informations spécifiques selon le type */}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
-            <Typography variant="body2" color="success.main">
-              ✅ TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
+            <Typography variant="body2" sx={{ color: '#384850' }}>
+              TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               <strong>Features used:</strong> {validationData.features_used?.join(', ') || 'All numeric columns'}
@@ -7969,7 +8061,7 @@ const renderMlpTimeseriesValidationDetails = () => {
           </Box>
         </Box>
 
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Note:</strong> These validation scores were computed during the training phase 
             using chronological splits. The date column was used ONLY for ordering and was excluded 
@@ -8051,10 +8143,10 @@ const renderLightGBMValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 LightGBM Validation Details
+          LightGBM Validation Details
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Samples/Folds/Repetitions:</strong> {details.length}<br/>
@@ -8127,7 +8219,7 @@ const renderLightGBMValidationDetails = () => {
 
         {/* Tableau des résultats individuels - SANS colonne Best Iteration */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Validation Results
+          Individual Validation Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -8198,7 +8290,7 @@ const renderLightGBMValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -8275,7 +8367,7 @@ const renderLightGBMValidationDetails = () => {
           {/* Informations spécifiques LightGBM */}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
             <Typography variant="subtitle2" gutterBottom>
-              🔧 LightGBM Parameters Used
+              LightGBM Parameters Used
             </Typography>
             <Typography variant="body2">
               <strong>Boosting:</strong> {result.metrics?.boosting_type_used || 'gbdt'} | 
@@ -8600,16 +8692,16 @@ const handleTrain = async () => {
       // ========== CONFIGURATION VALIDATION POUR RIDGE ==========
       if (validationMethod === 'holdout') {
         requestData.n_repetitions = nRepetitions;
-        console.log(`[RIDGE] 📊 Hold-Out validation with ${nRepetitions} repetitions`);
+        console.log(`[RIDGE]  Hold-Out validation with ${nRepetitions} repetitions`);
       } else if (validationMethod === 'cv_timeseries') {
         // ✅ TimeSeriesSplit pour Ridge
         requestData.time_series_column = dateColumn;
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
         
-        console.log(`[RIDGE] ⏱️ TimeSeriesSplit validation enabled`);
+        console.log(`[RIDGE]  TimeSeriesSplit validation enabled`);
         console.log(`[RIDGE] 📅 Date column: ${dateColumn}`);
-        console.log(`[RIDGE] 🔧 Parameters:`, timeSeriesParams);
+        console.log(`[RIDGE]  Parameters:`, timeSeriesParams);
         console.log(`[RIDGE] ⚠️ NOTE: Date column will ONLY be used for chronological splitting`);
         console.log(`[RIDGE] ⚠️ Date column will NOT be used as a feature in training`);
       } else if (validationMethod.startsWith('cv_')) {
@@ -8686,9 +8778,9 @@ const handleTrain = async () => {
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
         
-        console.log(`[RANDOM FOREST] ⏱️ TimeSeriesSplit validation enabled`);
+        console.log(`[RANDOM FOREST]  TimeSeriesSplit validation enabled`);
         console.log(`[RANDOM FOREST] 📅 Date column: ${dateColumn}`);
-        console.log(`[RANDOM FOREST] 🔧 Parameters:`, timeSeriesParams);
+        console.log(`[RANDOM FOREST]  Parameters:`, timeSeriesParams);
       } else if (validationMethod.startsWith('cv_')) {
         requestData.cv_params = cvParams;
       } else if (validationMethod === 'bootstrap') {
@@ -8825,7 +8917,6 @@ const handleTrain = async () => {
       requestData.contamination = isolationForestParams.contamination;
       requestData.max_samples = isolationForestParams.max_samples;
       requestData.max_features = isolationForestParams.max_features;
-      requestData.bootstrap = isolationForestParams.bootstrap;
       requestData.random_state = isolationForestParams.random_state;
       requestData.use_scaling = isolationForestParams.use_scaling;
     } else if (modelType === 'one_class_svm') {
@@ -8836,8 +8927,8 @@ const handleTrain = async () => {
       requestData.degree = oneClassSvmParams.degree;
       requestData.coef0 = oneClassSvmParams.coef0;
       requestData.random_state = oneClassSvmParams.random_state;
-      requestData.use_scaling = oneClassSvmParams.use_scaling;
-      requestData.train_on_normals_only = oneClassSvmParams.train_on_normals_only;
+      requestData.use_scaling = true; 
+      requestData.train_on_normals_only = false;
     }
 
     // ========== VALIDATION SUPPLÉMENTAIRE POUR TIMESERIESSPLIT ==========
@@ -8939,7 +9030,7 @@ const handleTrain = async () => {
   } catch (err) {
     // ✅ TIMEOUT = NORMAL, C'EST LE MODE ASYNCHRONE (polling déjà démarré)
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-      console.log("⏱️ Training started in background (timeout) with ID:", trainingId);
+      console.log(" Training started in background (timeout) with ID:", trainingId);
       
       // ✅ S'assurer que isTraining est toujours true
       setIsTraining(true);
@@ -8986,7 +9077,7 @@ const handleTrain = async () => {
 };
 
 const pollTrainingStatus = (trainingId) => {
-  console.log("🔄 Polling started for:", trainingId);
+  console.log(" Polling started for:", trainingId);
   
   // ✅ NETTOYER L'ANCIEN INTERVALLE
   if (trainingInterval) {
@@ -9237,7 +9328,7 @@ const cleanupCompletedTrainings = () => {
   // 1. Nettoyer les intervals orphelins
   if (window.pollingIntervals) {
     const intervalIds = Object.keys(window.pollingIntervals);
-    console.log(`📊 Found ${intervalIds.length} active polling intervals`);
+    console.log(` Found ${intervalIds.length} active polling intervals`);
     
     intervalIds.forEach(id => {
       // Vérifier si ce training est toujours dans localStorage
@@ -9314,7 +9405,7 @@ const renderLogisticResults = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              🏷️ Class Information
+              Class Information
             </Typography>
             <Typography variant="body2">
               Classes: {result.metrics.classes.map(c => String(c)).join(', ')} 
@@ -9329,7 +9420,7 @@ const renderLogisticResults = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              📊 Model Coefficients
+              Model Coefficients
             </Typography>
             <Typography variant="body2" paragraph>
               The most important features for the logistic regression model (positive coefficients increase probability, negative decrease)
@@ -9370,7 +9461,7 @@ const renderLogisticValidationResults = () => {
   if (isTimeSeries) {
     foldDetails = validationData.fold_details || [];
     scoreProperty = 'validation_accuracy';
-    console.log("[LOGISTIC] 📊 TimeSeriesSplit validation details:", {
+    console.log("[LOGISTIC]  TimeSeriesSplit validation details:", {
       n_folds: foldDetails.length,
       method: validationData.method,
       best_C: validationData.best_C,
@@ -9416,10 +9507,10 @@ const renderLogisticValidationResults = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔧 {isTimeSeries ? 'Time Series' : 'C Parameter'} Optimization Details
+          {isTimeSeries ? 'Time Series' : 'C Parameter'} Optimization Details
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Best C:</strong> {validationData.best_C}<br/>
@@ -9487,7 +9578,7 @@ const renderLogisticValidationResults = () => {
         {hasFoldDetails && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="h6" gutterBottom>
-              📋 C Search Details
+              C Search Details
             </Typography>
             <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
               <Table size="small" stickyHeader>
@@ -9548,7 +9639,7 @@ const renderLogisticValidationResults = () => {
         {chartData.length > 0 && (
           <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
             <Typography variant="subtitle2" gutterBottom>
-              📊 Summary Statistics
+              Summary Statistics
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={6} md={3}>
@@ -9576,8 +9667,8 @@ const renderLogisticValidationResults = () => {
             {/* Informations spécifiques TimeSeries */}
             {isTimeSeries && validationData.date_column_excluded && (
               <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
-                <Typography variant="body2" color="success.main">
-                  ✅ TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
+                <Typography variant="body2" sx={{ color: '#384850' }}>
+                  TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                   <strong>Features used:</strong> {validationData.features_used?.join(', ') || 'All numeric columns'}
@@ -9587,7 +9678,7 @@ const renderLogisticValidationResults = () => {
           </Box>
         )}
 
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Note:</strong> These metrics were computed during C optimization. 
             Final model performance on unseen test data is shown in the "Final Performance" section above.
@@ -9616,7 +9707,7 @@ const renderCPerformance = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          📊 Accuracy vs C (Regularization performance)
+          Accuracy vs C (Regularization performance)
         </Typography>
         <Typography variant="body2" paragraph>
           This chart shows how the accuracy varies with different values of the regularization parameter C.
@@ -9757,7 +9848,7 @@ const renderRocPrCurves = () => {
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>ROC / Precision-Recall</Typography>
-            <Alert severity="info">
+            <Alert icon={false} className="train-alert" severity="info">
               Enable SVM “probability” to compute ROC and Precision-Recall curves.
             </Alert>
           </CardContent>
@@ -9768,7 +9859,7 @@ const renderRocPrCurves = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>ROC / Precision-Recall</Typography>
-          <Alert severity="info">
+          <Alert icon={false} className="train-alert" severity="info">
             Probabilities were not returned for this run, so ROC/PR cannot be drawn.
           </Alert>
         </CardContent>
@@ -9789,7 +9880,7 @@ const renderRocPrCurves = () => {
       return (
         <Card sx={{ mt: 2 }}>
           <CardContent>
-            <Alert severity="warning">Could not build ROC/PR (need both classes in the plotted sample).</Alert>
+            <Alert icon={false} className="train-alert" severity="warning">Could not build ROC/PR (need both classes in the plotted sample).</Alert>
           </CardContent>
         </Card>
       );
@@ -9845,7 +9936,7 @@ const renderRocPrCurves = () => {
     return (
       <Card sx={{ mt: 2 }}>
         <CardContent>
-          <Alert severity="warning">Could not build multiclass ROC/PR curves from available predictions.</Alert>
+          <Alert icon={false} className="train-alert" severity="warning">Could not build multiclass ROC/PR curves from available predictions.</Alert>
         </CardContent>
       </Card>
     );
@@ -9892,7 +9983,7 @@ const renderRocPrCurves = () => {
             ))}
           </LineChart>
         </ResponsiveContainer>
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           Multiclass ROC uses one-vs-rest (each class vs the rest). For Precision-Recall details, prefer binary problems or the classification report.
         </Alert>
       </CardContent>
@@ -9962,7 +10053,7 @@ const renderConfusionMatrix = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          📊 Confusion Matrix
+          Confusion Matrix
         </Typography>
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
@@ -10078,7 +10169,7 @@ const renderConfusionMatrix = () => {
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            📝 Classification report
+            Classification report
           </Typography>
           <TableContainer component={Paper}>
             <Table size="small">
@@ -10168,10 +10259,10 @@ const renderLightGBMTimeseriesValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 Time Series Split Validation Details (LightGBM - {isClassification ? 'Classification' : 'Regression'})
+          Time Series Split Validation Details (LightGBM - {isClassification ? 'Classification' : 'Regression'})
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Valid Folds:</strong> {foldDetails.length}<br/>
@@ -10248,7 +10339,7 @@ const renderLightGBMTimeseriesValidationDetails = () => {
 
         {/* Tableau des détails par fold - SANS la colonne Best Iteration */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Fold Results
+          Individual Fold Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -10300,7 +10391,7 @@ const renderLightGBMTimeseriesValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -10327,8 +10418,8 @@ const renderLightGBMTimeseriesValidationDetails = () => {
           
           {/* Informations spécifiques selon le type */}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
-            <Typography variant="body2" color="success.main">
-              ✅ TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
+            <Typography variant="body2" sx={{ color: '#384850' }}>
+              TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               <strong>Features used:</strong> {validationData.features_used?.join(', ') || 'All numeric columns'}
@@ -10343,7 +10434,7 @@ const renderLightGBMTimeseriesValidationDetails = () => {
           </Box>
         </Box>
 
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Note:</strong> These validation scores were computed during the training phase 
             using chronological splits. The date column was used ONLY for ordering and was excluded 
@@ -10414,7 +10505,7 @@ const renderLogisticParams = () => {
       {/* ALERTES D'ERREUR */}
       {logisticValidationErrors.length > 0 && (
         <Grid item xs={12}>
-          <Alert severity="error">
+          <Alert icon={false} className="train-alert" severity="error">
             <Typography variant="subtitle2">Configuration Errors:</Typography>
             {logisticValidationErrors.map((error, idx) => (
               <Typography key={idx} variant="body2">• {error}</Typography>
@@ -10587,7 +10678,7 @@ const renderLogisticParams = () => {
 
       {/* Guide des combinaisons valides */}
       <Grid item xs={12}>
-        <Alert severity="info">
+        <Alert icon={false} className="train-alert" severity="info">
           <Typography variant="body2">
             <strong>Valid combinations:</strong><br/>
             • L2 → LBFGS, Newton-CG, SAG, SAGA<br/>
@@ -10643,7 +10734,7 @@ const renderRandomForestConfusionMatrix = () => {
       
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          📊 Confusion Matrix (Random Forest)
+          Confusion Matrix (Random Forest)
         </Typography>
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
@@ -10780,7 +10871,7 @@ const renderRandomForestClassificationReport = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          📝 Classification Report (Random Forest)
+          Classification Report (Random Forest)
         </Typography>
         
         {/* Accuracy globale */}
@@ -10956,10 +11047,10 @@ const renderKnnTimeseriesValidationDetails = () => {
     <Card sx={{ mt: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          🔍 Time Series Split Validation Details (KNN - {isClassification ? 'Classification' : 'Regression'})
+          Time Series Split Validation Details (KNN - {isClassification ? 'Classification' : 'Regression'})
         </Typography>
         
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Method:</strong> {validationData.method}<br/>
             <strong>Valid Folds:</strong> {foldDetails.length}<br/>
@@ -11032,7 +11123,7 @@ const renderKnnTimeseriesValidationDetails = () => {
 
         {/* Tableau des détails par fold */}
         <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          📋 Individual Fold Results
+          Individual Fold Results
         </Typography>
         <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 2 }}>
           <Table size="small" stickyHeader>
@@ -11084,7 +11175,7 @@ const renderKnnTimeseriesValidationDetails = () => {
         {/* Résumé statistique */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            📊 Statistical Summary
+            Statistical Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
@@ -11111,8 +11202,8 @@ const renderKnnTimeseriesValidationDetails = () => {
           
           {/* Informations spécifiques selon le type */}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #ddd' }}>
-            <Typography variant="body2" color="success.main">
-              ✅ TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
+            <Typography variant="body2" sx={{ color: '#384850' }}>
+              TimeSeriesSplit: Date column "{validationData.date_column}" used ONLY for chronological ordering
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               <strong>Features used:</strong> {validationData.features_used?.join(', ') || 'All numeric columns'}
@@ -11126,7 +11217,7 @@ const renderKnnTimeseriesValidationDetails = () => {
           </Box>
         </Box>
 
-        <Alert severity="info" sx={{ mt: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
             <strong>Note:</strong> These validation scores were computed during the training phase 
             using chronological splits. The date column was used ONLY for ordering and was excluded 
@@ -11331,7 +11422,7 @@ const renderValidationWalkthrough = () => {
 
       <Grid container spacing={1.5}>
         <Grid item xs={12} md={6}>
-          <Card sx={{ ...cardSx, borderTop: '3px solid #384850' }}>
+          <Card sx={cardSx}>
             <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75, color: '#384850' }}>
                 Validation Strategy
@@ -11348,7 +11439,7 @@ const renderValidationWalkthrough = () => {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card sx={{ ...cardSx, borderTop: '3px solid #DE6B06' }}>
+          <Card sx={cardSx}>
             <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75, color: '#384850' }}>
                 Training Process
@@ -11366,7 +11457,7 @@ const renderValidationWalkthrough = () => {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card sx={{ ...cardSx, borderTop: '3px solid #2e7d32' }}>
+          <Card sx={cardSx}>
             <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75, color: '#384850' }}>
                 Data Leakage Protection
@@ -11376,11 +11467,11 @@ const renderValidationWalkthrough = () => {
                 'Validation folds kept inside Train only',
                 'Final performance measured on unseen Test',
               ].map((t) => (
-                <Typography key={t} variant="caption" display="block" sx={{ mb: 0.5, color: '#2e7d32' }}>
-                  ✓ {t}
+                <Typography key={t} variant="caption" display="block" sx={{ mb: 0.5, color: '#384850' }}>
+                  {t}
                 </Typography>
               ))}
-              <Alert severity="success" sx={{ mt: 1, py: 0 }}>
+              <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 1, py: 0 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700 }}>
                   Data leakage checks passed
                 </Typography>
@@ -11393,7 +11484,7 @@ const renderValidationWalkthrough = () => {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card sx={{ ...cardSx, borderTop: '3px solid #5c6bc0' }}>
+          <Card sx={cardSx}>
             <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75, color: '#384850' }}>
                 Validation Results
@@ -11567,7 +11658,7 @@ const renderResultDialogBody = (id) => {
         <Card className="model-card">
           <CardContent>
             {modelType === 'knn' && (
-              <Alert severity="info" sx={{ mb: 2 }}>
+              <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
                 KNN has no built-in feature importance. This chart shows feature variance in the training set only.
               </Alert>
             )}
@@ -11642,28 +11733,26 @@ const renderResultsGallery = () => {
           gap: 1.5,
         }}
       >
-        {items.map(({ id, title, Icon }) => (
+        {items.map(({ id, title }) => (
           <Button
             key={id}
             onClick={() => setResultDialog({ id, title })}
             sx={{
-              py: 2.5,
+              py: 1.5,
               px: 1.5,
-              minHeight: 120,
-              flexDirection: 'column',
-              gap: 1,
+              minHeight: 56,
               textTransform: 'none',
-              borderRadius: 2,
-              border: '1px solid #d5dde2',
+              borderRadius: '2px',
+              border: '1px solid #c8c9ca',
               background: '#fff',
               color: '#384850',
+              boxShadow: 'none',
               '&:hover': {
-                borderColor: '#DE6B06',
-                background: '#fff8f2',
+                borderColor: '#384850',
+                background: '#f3f4f5',
               },
             }}
           >
-            <Icon sx={{ fontSize: 40, color: '#384850' }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, textAlign: 'center' }}>
               {title}
             </Typography>
@@ -11676,15 +11765,13 @@ const renderResultsGallery = () => {
         onClose={() => setResultDialog(null)}
         maxWidth="lg"
         fullWidth
-        PaperProps={{ sx: { maxHeight: '90vh' } }}
+        PaperProps={{ className: "train-dialog", sx: { maxHeight: '90vh' } }}
       >
         <DialogTitle
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: '#384850',
-            color: '#fff',
             py: 1.5,
           }}
         >
@@ -11695,7 +11782,7 @@ const renderResultsGallery = () => {
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers sx={{ bgcolor: '#f7f9fa' }}>
+        <DialogContent dividers sx={{ bgcolor: '#f3f4f5' }}>
           {resultDialog && renderResultDialogBody(resultDialog.id)}
         </DialogContent>
       </Dialog>
@@ -11706,7 +11793,7 @@ const renderResultsGallery = () => {
 const renderMetrics = () => {
   if (!result?.metrics) {
     return (
-      <Alert severity="warning">
+      <Alert icon={false} className="train-alert" severity="warning">
         No metrics available. Training may have been stopped or failed before metrics were computed.
       </Alert>
     );
@@ -11718,7 +11805,7 @@ const renderMetrics = () => {
   const hasRegScore = (result.metrics.r2 ?? result.metrics.final_test?.r2) != null;
   if (!hasClfScore && !hasRegScore && isClassification == null) {
     return (
-      <Alert severity="info">
+      <Alert icon={false} className="train-alert" severity="info">
         Metrics object is present but headline scores are missing for this run.
       </Alert>
     );
@@ -11735,12 +11822,12 @@ const renderMetrics = () => {
   return (
     <>
       {/* ========== FINAL TEST PERFORMANCE (MOST IMPORTANT) ========== */}
-      <Card sx={{ mt: 2, mb: 3, border: '2px solid #1976d2', background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
+      <Card sx={{ mt: 2, mb: 3, border: '1px solid #c8c9ca', borderRadius: '2px', boxShadow: 'none', background: '#f3f4f5' }}>
         <CardContent>
-          <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 'bold' }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: '#384850' }}>
               Final Performance (Unseen Test Data)
           </Typography>
-          <Alert severity="info" sx={{ mb: 3 }}>
+          <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 3 }}>
             <Typography variant="body2">
               <strong>Real-world performance:</strong> These metrics show how well your model performs on completely new data.
             </Typography>
@@ -11814,7 +11901,7 @@ const renderMetrics = () => {
                     {r2 !== undefined && r2 !== null ? r2.toFixed(4) : 'N/A'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    📊 R² Score
+                    R² Score
                   </Typography>
                   <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                     0-1, higher is better
@@ -11829,7 +11916,7 @@ const renderMetrics = () => {
                     {mse !== undefined && mse !== null ? mse.toFixed(4) : 'N/A'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    📉 MSE
+                    MSE
                   </Typography>
                   <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                     Mean Squared Error, lower is better
@@ -11844,7 +11931,7 @@ const renderMetrics = () => {
                     {mae !== undefined && mae !== null ? mae.toFixed(4) : 'N/A'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    📏 MAE
+                    MAE
                   </Typography>
                   <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                     Mean Absolute Error, lower is better
@@ -11861,9 +11948,9 @@ const renderMetrics = () => {
   <Card sx={{ mt: 2, mb: 2 }}>
     <CardContent>
       <Typography variant="h6" gutterBottom>
-        🔍 Training Validation
+        Training Validation
       </Typography>
-      <Alert severity="warning" sx={{ mb: 2 }}>
+      <Alert icon={false} className="train-alert" severity="warning" sx={{ mb: 2 }}>
         <Typography variant="body2">
           <strong>For comparison only:</strong> These scores were used during training to tune parameters.
         </Typography>
@@ -12051,7 +12138,7 @@ const renderMetrics = () => {
                   borderColor: train_r2 - r2 > 0.1 ? '#f44336' : '#ff9800' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              📊 Training vs Test Comparison
+              Training vs Test Comparison
             </Typography>
             
             <Grid container spacing={2}>
@@ -12141,26 +12228,26 @@ const renderMetrics = () => {
             </Grid>
 
             {train_r2 - r2 > 0.1 && (
-              <Alert severity="error" sx={{ mt: 2 }}>
+              <Alert icon={false} className="train-alert" severity="error" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>⚠️ Overfitting detected!</strong> Your model performs much better on training data than test data.
+                  <strong>Overfitting detected!</strong> Your model performs much better on training data than test data.
                   Try: Reduce model complexity or add regularization.
                 </Typography>
               </Alert>
             )}
 
             {train_r2 - r2 > 0.05 && train_r2 - r2 <= 0.1 && (
-              <Alert severity="warning" sx={{ mt: 2 }}>
+              <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>⚠️ Minor overfitting.</strong> Small difference between training and test performance.
+                  <strong>Minor overfitting.</strong> Small difference between training and test performance.
                 </Typography>
               </Alert>
             )}
 
             {train_r2 - r2 <= 0.05 && (
-              <Alert severity="success" sx={{ mt: 2 }}>
+              <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>✅ Good generalization!</strong> Model performs similarly on training and test data.
+                  <strong>Good generalization!</strong> Model performs similarly on training and test data.
                 </Typography>
               </Alert>
             )}
@@ -12173,7 +12260,7 @@ const renderMetrics = () => {
   <Card sx={{ mt: 2, background: '#f5f5f5' }}>
     <CardContent>
       <Typography variant="subtitle1" gutterBottom>
-        📝 Quick Guide (Regression)
+        Quick Guide (Regression)
       </Typography>
       <Grid container spacing={1}>
         <Grid item xs={12} md={6}>
@@ -12238,12 +12325,12 @@ return (
             backgroundColor: '#c55a05',
             fontWeight: '600',
             fontSize: '0.9rem',
+            borderRadius: '2px',
+            textTransform: 'none',
+            boxShadow: 'none',
             '&:hover': {
               backgroundColor: '#DE6B06',
-              transform: 'translateY(-1px)',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
             },
-            transition: 'all 0.2s ease-in-out'
           }}
         >
           Back to Data Prep
@@ -12258,11 +12345,13 @@ return (
             onClick={() => setOpenHelpDialog(true)}
             sx={{
               minWidth: '100px',
-              borderColor: '#DE6B06',
-              color: '#DE6B06',
+              textTransform: 'none',
+              borderRadius: '2px',
+              borderColor: '#384850',
+              color: '#384850',
               '&:hover': {
-                borderColor: '#c55a05',
-                backgroundColor: 'rgba(222, 107, 6, 0.08)'
+                borderColor: '#2a3942',
+                backgroundColor: '#e8e9ea'
               }
             }}
           >
@@ -12277,7 +12366,7 @@ return (
         className="model-training-header"
         sx={{ fontWeight: 600, mr: embedded ? 0 : 2, mb: embedded ? 0 : undefined }}
       >
-        🧠 Model training
+        Model training
       </Typography>
     </Box>
 
@@ -12310,7 +12399,7 @@ return (
           <strong>Problem type:</strong> {
             problemType === 'classification' ? '  Classification' :
             problemType === 'regression' ? ' Regression' :
-            '🔍 Unsupervised Learning'
+            'Unsupervised Learning'
           }
         </Typography>
         
@@ -12330,9 +12419,8 @@ return (
       <Button
         variant="outlined"
         size="small"
-        startIcon={<Typography>ℹ️</Typography>}
         onClick={() => setModelInfoDialogOpen(true)}
-        sx={{ ml: 1 }}
+        sx={{ ml: 1, textTransform: 'none', borderColor: '#384850', color: '#384850', borderRadius: '2px' }}
       >
         Model Info
       </Button>
@@ -12343,17 +12431,15 @@ return (
     {/* Params only after problem type is known (default algo is then selected) */}
     {!problemType ? null : modelType === 'ridge' ? (
       <>
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
             {randomSearchEnabled ? (
               <>
-                <strong>Random Search:</strong> Alpha is sampled across trials.
-                The internal multi-alpha grid is disabled for this run.
+                <strong>Random Search:</strong> tries several settings and keeps the best.
               </>
             ) : (
               <>
-                <strong>Advanced Alpha Optimization:</strong> Regularization strength is automatically
-                optimized.
+                <strong>Ridge:</strong> chooses a good penalty strength for you.
               </>
             )}
           </Typography>
@@ -12426,12 +12512,11 @@ return (
         />
         {randomSearchEligible ? (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Available because train rows = {trainRowCount?.toLocaleString()} (&lt; 10,000).
-            When enabled, algorithm options above are locked and sampled automatically.
-            Internal auto grids (Ridge alpha / Logistic C) are turned off.
+            Available because train rows = {trainRowCount?.toLocaleString()} (under 10,000).
+            When enabled, it tries several settings and keeps the best.
           </Typography>
         ) : (
-          <Alert severity="info" sx={{ mb: 1 }}>
+          <Alert icon={false} className="train-alert" severity="info" sx={{ mb: 1 }}>
             {trainRowCount == null
               ? 'Checking train size… Random Search is only enabled for training sets with fewer than 10,000 rows.'
               : trainRowCount <= 0
@@ -12460,7 +12545,7 @@ return (
     )}
   </CardContent>
 </Card>
-      {result && (
+{result && !['isolation_forest', 'one_class_svm', 'kmeans'].includes(modelType) && (
             <Typography variant="subtitle1" sx={{ mb: 2 }}>
               mode: 
               <Box component="span" className={`model-mode-indicator ${modelType === 'logistic' || result.metrics?.is_classification ? 'classification-mode' : 'regression-mode'}`}>
@@ -12473,7 +12558,7 @@ return (
 
       {/* Retrain on train+test: only for algorithms that implement Phase 3 */}
       {!problemType ? null : ['random_forest', 'knn', 'svm', 'lightgbm'].includes(modelType) ? (
-        <Alert severity={finalTrainingOnAllData ? "warning" : "info"} sx={{ mt: 2, maxWidth: 720, mx: "auto" }}>
+        <Alert icon={false} className="train-alert" severity={finalTrainingOnAllData ? "warning" : "info"} sx={{ mt: 2, maxWidth: 720, mx: "auto" }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -12494,7 +12579,7 @@ return (
           </Typography>
         </Alert>
       ) : modelType !== 'kmeans' && !isAnomalyAlgo() ? (
-        <Alert severity="info" sx={{ mt: 2, maxWidth: 720, mx: "auto" }}>
+        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2, maxWidth: 720, mx: "auto" }}>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             Retrain on train+test
           </Typography>
@@ -12507,7 +12592,7 @@ return (
       ) : null}
 
       {trainingParamErrors.length > 0 && (
-        <Alert severity="warning" sx={{ mt: 2, maxWidth: 720, mx: "auto" }}>
+        <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 2, maxWidth: 720, mx: "auto" }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
             Fix these parameters before training
           </Typography>
@@ -12550,7 +12635,7 @@ return (
           ) : stopCooldown ? (
             `Please wait ${stopCooldownSecondsLeft || 10}s…`
           ) : (
-            `🚀 Start training (${modelType === 'ridge' ? 'Ridge' : 
+            `Start training (${modelType === 'ridge' ? 'Ridge' : 
               modelType === 'logistic' ? 'Logistic' : 
               modelType === 'random_forest' ? 'Random Forest' : 
               modelType === 'svm' ? 'SVM' :
@@ -12569,54 +12654,21 @@ return (
     sx={{ 
       mt: 3, 
       width: '100%',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      borderRadius: 2,
-      boxShadow: '0 10px 40px -10px rgba(102,126,234,0.4)',
-      position: 'relative',
-      overflow: 'hidden',
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
-        animation: 'shine 2s infinite'
-      },
-      '@keyframes shine': {
-        '0%': { transform: 'translateX(-100%)' },
-        '100%': { transform: 'translateX(100%)' }
-      }
+      background: '#384850',
+      borderRadius: '2px',
+      boxShadow: 'none',
+      border: '1px solid #c8c9ca',
     }}
   >
     <CardContent>
       <Grid container spacing={3} alignItems="center">
         
-        {/* Icon and Title */}
         <Grid item xs={12} md={4}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box 
-              sx={{ 
-                width: 60, 
-                height: 60, 
-                borderRadius: '50%', 
-                background: 'rgba(255,255,255,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <CircularProgress 
-                size={40} 
-                sx={{ 
-                  color: 'white',
-                  '& .MuiCircularProgress-circle': {
-                    stroke: 'white'
-                  }
-                }} 
-              />
-            </Box>
+            <CircularProgress 
+              size={32} 
+              sx={{ color: 'white' }} 
+            />
             <Box>
               <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
                 Training in Progress
@@ -12640,13 +12692,12 @@ return (
           <Box sx={{ width: '100%' }}>
             <LinearProgress 
               sx={{ 
-                height: 8, 
-                borderRadius: 4,
+                height: 6, 
+                borderRadius: '2px',
                 backgroundColor: 'rgba(255,255,255,0.3)',
                 '& .MuiLinearProgress-bar': {
                   backgroundColor: 'white',
-                  borderRadius: 4,
-                  backgroundImage: 'linear-gradient(90deg, #fff, #f0f0f0)'
+                  borderRadius: '2px',
                 }
               }} 
             />
@@ -12669,20 +12720,20 @@ return (
     onClick={handleStopTraining}
     disabled={stopCooldown} // ← CRITIQUE
     sx={{
-      background: 'rgba(244, 67, 54, 0.9)',
+      background: '#b42318',
       color: 'white',
       fontWeight: 'bold',
       padding: '10px 24px',
-      borderRadius: '50px',
-      border: '2px solid rgba(255,255,255,0.3)',
+      borderRadius: '2px',
+      boxShadow: 'none',
+      textTransform: 'none',
       '&:disabled': {
-        background: 'rgba(150,150,150,0.5)',
-        color: 'rgba(255,255,255,0.5)',
-        border: '2px solid rgba(255,255,255,0.1)',
+        background: '#c8c9ca',
+        color: '#666',
         cursor: 'not-allowed'
       }
     }}
-    startIcon={stopCooldown ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <span>⏹️</span>}
+    startIcon={stopCooldown ? <CircularProgress size={20} sx={{ color: 'white' }} /> : null}
   >
     {stopCooldown ? 'Please wait...' : 'Stop Training'}
   </Button>
@@ -12730,7 +12781,7 @@ return (
               Random Search log
             </Typography>
             {randomSearchProgress.best_params && (
-              <Alert severity="success" sx={{ mb: 1 }}>
+              <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 1 }}>
                 Best score: {Number(randomSearchProgress.best_score).toFixed(4)}
                 {' · '}
                 Params: {JSON.stringify(randomSearchProgress.best_params)}
@@ -12758,7 +12809,7 @@ return (
       )}
 
       {error && (
-        <Alert severity="error" className="error-alert">
+        <Alert icon={false} className="train-alert" severity="error" className="error-alert">
           {error}
         </Alert>
       )}
@@ -12768,21 +12819,24 @@ return (
        <Card sx={{ 
       mt: 2, 
       mb: 3, 
-      border: '2px solid', 
-      borderColor: 'primary.main',
-      background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+      border: '1px solid #c8c9ca', 
+      borderRadius: '2px',
+      boxShadow: 'none',
+      background: '#f3f4f5'
     }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h5" color="primary.main" gutterBottom>
-              🎉 Model Training Complete!
+            <Typography variant="h5" sx={{ color: '#384850' }} gutterBottom>
+              Model training complete
             </Typography>
             <Typography variant="body1" color="text.secondary">
               Your <strong>{modelType.replace(/_/g, ' ')}</strong> model has been trained successfully at {result.timestamp}.
             </Typography>
             <Alert
               severity="warning"
+              icon={false}
+              className="train-alert"
               sx={{ mt: 1.5, mb: 0.5 }}
             >
               Please save your model within <strong>5 minutes</strong> after training
@@ -12805,15 +12859,16 @@ return (
               height: 50,
               fontSize: '1.1rem',
               fontWeight: 'bold',
-              background: 'linear-gradient(45deg, #384850, #0088CC)',
+              textTransform: 'none',
+              borderRadius: '2px',
+              boxShadow: 'none',
+              background: '#384850',
               '&:hover': {
-                background: 'linear-gradient(45deg, #003d54, #006699)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 6px 16px rgba(0, 80, 111, 0.4)'
+                background: '#2a3942',
               }
             }}
           >
-            💾 Save Model
+            Save Model
           </Button>
         </Box>
       </CardContent>
@@ -12837,6 +12892,7 @@ return (
         onClose={() => setModelLimitDialog((d) => ({ ...d, open: false }))}
         maxWidth="sm"
         fullWidth
+        PaperProps={{ className: "train-dialog" }}
       >
         <DialogTitle>Model limit reached</DialogTitle>
         <DialogContent>

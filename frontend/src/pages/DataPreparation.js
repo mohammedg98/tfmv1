@@ -46,7 +46,7 @@ import "./data_preparation/DataPreparation.css";
  */
 
 const TABS = [
-  { key: "target", label: "Target & Type", required: true },
+  { key: "target", label: "Target column", required: true },
   { key: "groups", label: "Groups", required: false },
   { key: "prepare", label: "Clean · Split · Impute", required: true },
   { key: "transform", label: "Transform", required: true },
@@ -193,9 +193,9 @@ function DataPreparation() {
       );
 
       const isNumericCompatible = (c) => {
-        if (c.column_type === "numerical" || c.column_type === "boolean") return true;
+        if (c.column_type === "numerical") return true;
         if (c.column_type === "date") return true; // at most one date: checked below
-        if (c.column_type === "categorical") {
+        if (c.column_type === "boolean" || c.column_type === "categorical") {
           const s = c.stats || {};
           return !!(
             s.is_numeric_content ||
@@ -323,14 +323,14 @@ function DataPreparation() {
     const tab = TABS[index];
     if (tab?.key === "prepare" && !prepareUnlocked) {
       showSnackbar(
-        'Choose a target column, or "No target column (unsupervised)", in Target & Type before opening Clean · Split · Impute.',
+        'Choose a target column, or "No target column (unsupervised)", in Target column before opening Clean · Split · Impute.',
         "warning"
       );
       return;
     }
     if (tab?.key === "train" && !requiredComplete) {
       showSnackbar(
-        "Finish Target & Type, Clean · Split · Impute (no empty values), and Transform before opening Train Model.",
+        "Finish Target column, Clean · Split · Impute (no empty values), and Transform before opening Train Model.",
         "warning"
       );
       return;
@@ -409,17 +409,27 @@ function DataPreparation() {
           <Typography variant="h5" className="data-prep-title">
             Data Preparation
           </Typography>
-          <Chip label={bdName} size="small" sx={{ backgroundColor: "rgba(0,80,111,0.1)" }} />
+          <Chip
+            label={bdName}
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: "#c8c9ca", color: "#384850" }}
+          />
           {targetColumn && (
             <Chip
-              label={`Target: ${targetColumn === "no-target-column" ? "None (unsupervised)" : targetColumn}`}
+              label={`Target: ${targetColumn === "no-target-column" ? "None" : targetColumn}`}
               size="small"
-              color="warning"
               variant="outlined"
+              sx={{ borderColor: "#c8c9ca", color: "#384850" }}
             />
           )}
           {problemType && (
-            <Chip label={problemType} size="small" color="info" variant="outlined" />
+            <Chip
+              label={problemType}
+              size="small"
+              variant="outlined"
+              sx={{ borderColor: "#c8c9ca", color: "#384850" }}
+            />
           )}
           <Tooltip
             title={
@@ -434,15 +444,16 @@ function DataPreparation() {
           >
             <Chip
               size="small"
-              color={hasValidSplit && emptyRowsCount === 0 ? "success" : hasValidSplit ? "warning" : "default"}
+              variant="outlined"
+              sx={{ borderColor: "#c8c9ca", color: "#384850" }}
               label={
                 !hasValidSplit
                   ? "Not split"
                   : emptyRowsCount > 0
-                  ? `Split · ${emptyRowsCount} empty`
+                  ? `Split, ${emptyRowsCount} empty`
                   : emptyRowsCount === 0
-                  ? "Split ✓ · Clean ✓"
-                  : "Split ✓"
+                  ? "Split and clean"
+                  : "Split"
               }
             />
           </Tooltip>
@@ -518,7 +529,7 @@ function DataPreparation() {
                 <Tooltip
                   title={
                     t.key === "prepare" && !prepareUnlocked
-                      ? 'Locked: choose a target column or "No target column" in Target & Type first'
+                      ? 'Locked: choose a target column or "No target column" first'
                       : locked
                       ? "Locked: finish Target, Split (no empty values), and Transform first"
                       : t.key === "prepare" && hasValidSplit && emptyRowsCount > 0
@@ -554,11 +565,13 @@ function DataPreparation() {
                       <span className={`dp-step-badge ${t.required ? "required" : "optional"}`}>
                         {locked
                           ? "Locked"
+                          : t.key === "train" && requiredComplete
+                          ? "Ready"
+                          : done && t.key !== "train"
+                          ? "Done"
                           : t.required
                           ? "Required"
                           : "Optional"}
-                        {!locked && done && t.key !== "train" ? " · Done" : ""}
-                        {!locked && t.key === "train" && requiredComplete ? " · Ready" : ""}
                       </span>
                     </span>
                   </button>
@@ -657,7 +670,7 @@ function DataPreparation() {
               Train Model is locked
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Complete Target & Type, Clean · Split · Impute (empty values must be 0), and Transform first.
+              Complete Target column, Clean · Split · Impute (empty values must be 0), and Transform first.
             </Typography>
           </Paper>
         )}
@@ -668,12 +681,10 @@ function DataPreparation() {
         onClose={() => setEdaDialogOpen(false)}
         maxWidth="xl"
         fullWidth
-        PaperProps={{ sx: { maxHeight: "92vh" } }}
+        PaperProps={{ className: "eda-dialog", sx: { maxHeight: "92vh" } }}
       >
         <DialogTitle
           sx={{
-            backgroundColor: "#384850",
-            color: "white",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -734,8 +745,10 @@ function DataPreparation() {
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          severity={snackbar.severity}
+          severity={snackbar.severity === "success" ? "info" : snackbar.severity}
+          icon={false}
           onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          className="target-alert"
           sx={{ width: "100%" }}
         >
           {snackbar.message}

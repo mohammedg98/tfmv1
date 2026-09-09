@@ -2,7 +2,7 @@ import axios from "axios";
 import { useEffect,useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom"; 
 import * as XLSX from "xlsx";
-import { DataGrid, GridDeleteIcon } from "@mui/x-data-grid";
+import { DataGrid } from "@mui/x-data-grid";
 import { 
   Box, Button, Input, Modal, Checkbox, List, ListItem, ListItemText, 
   TextField, Typography, FormControl, FormControlLabel, Radio, RadioGroup,
@@ -18,7 +18,6 @@ import {
   Add as AddIcon,
   Save as SaveIcon,
   Close as CloseIcon,
-  Info as InfoIcon,
   Edit as EditIcon
 } from "@mui/icons-material";
 import { backendUrl } from "../config";
@@ -55,23 +54,24 @@ function collectColumnNameErrors(names) {
 
 // Styled components for better UI
 const StyledUploadArea = styled(Box)(({ theme }) => ({
-  border: `2px dashed ${theme.palette.primary.main}`,
-  borderRadius: theme.spacing(1),
+  border: `2px dashed #384850`,
+  borderRadius: 2,
   padding: theme.spacing(4),
   textAlign: 'center',
-  backgroundColor: theme.palette.background.paper,
+  backgroundColor: '#ffffff',
   cursor: 'pointer',
-  transition: 'all 0.3s ease',
+  transition: 'border-color 0.15s ease, background-color 0.15s ease',
   '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-    borderColor: theme.palette.primary.dark
+    backgroundColor: '#f3f4f5',
+    borderColor: '#384850'
   }
 }));
 
 const FileInfoCard = styled(Card)(({ theme }) => ({
   marginTop: theme.spacing(3),
-  borderLeft: `4px solid ${theme.palette.primary.main}`,
-  boxShadow: theme.shadows[2]
+  border: '1px solid #c8c9ca',
+  boxShadow: 'none',
+  borderRadius: 2
 }));
 
 const DataGridContainer = styled(Box)(({ theme }) => ({
@@ -79,11 +79,11 @@ const DataGridContainer = styled(Box)(({ theme }) => ({
   width: '100%',
   marginTop: theme.spacing(3),
   '& .MuiDataGrid-cell': {
-    borderRight: `1px solid ${theme.palette.divider}`,
+    borderRight: '1px solid #DDDEDF',
   },
   '& .MuiDataGrid-columnHeaders': {
-    backgroundColor: theme.palette.grey[100],
-    borderBottom: `2px solid ${theme.palette.primary.main}`,
+    backgroundColor: '#e8e9ea',
+    borderBottom: '1px solid #c8c9ca',
   }
 }));
 
@@ -755,17 +755,16 @@ const handleSaveDatabase = async () => {
       </Stepper>
 
       {/* Dialog 0 - Select delimiter for TXT and CSV files */}
-      <Dialog open={openDelimiterDialog} onClose={() => setOpenDelimiterDialog(false)} maxWidth="sm" fullWidth className="upload-dialog">
+      <Dialog open={openDelimiterDialog} onClose={() => setOpenDelimiterDialog(false)} maxWidth="sm" fullWidth PaperProps={{ className: "upload-dialog" }}>
         <DialogTitle>
           <Box className="dialog-header">
-            <InfoIcon className="dialog-icon" />
             {file?.type === "text/csv" || file?.name.match(/\.csv$/i) 
               ? "CSV Field Separator Detection" 
               : "Select Field Separator"}
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Alert severity="info" className="info-alert">
+          <Alert severity="info" icon={false} className="info-alert">
             {file?.type === "text/csv" || file?.name.match(/\.csv$/i) 
               ? `This CSV file uses "${detectedDelimiter === '\t' ? 'Tab' : detectedDelimiter}" as separator. Please confirm or select a different separator:` 
               : `Detected separator: "${detectedDelimiter === '\t' ? 'Tab' : detectedDelimiter}". Please confirm or select a different separator:`}
@@ -803,15 +802,14 @@ const handleSaveDatabase = async () => {
       </Dialog>
 
       {/* Dialog - Rename the columns (opened on demand from the preview) */}
-      <Dialog open={openNameColumnsDialog} onClose={() => setOpenNameColumnsDialog(false)} maxWidth="md" fullWidth className="upload-dialog">
+      <Dialog open={openNameColumnsDialog} onClose={() => setOpenNameColumnsDialog(false)} maxWidth="md" fullWidth PaperProps={{ className: "upload-dialog" }}>
         <DialogTitle>
           <Box className="dialog-header">
-            <InfoIcon className="dialog-icon" />
             Rename Columns
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Alert severity="warning" className="info-alert">
+          <Alert severity="warning" icon={false} className="info-alert">
             Column names must match: letters, numbers, underscore only; start with a letter or underscore.
             Spaces, accents, dashes and special characters are not allowed. The name <strong>id</strong> is reserved.
             Invalid names must be fixed before you can save the dataset.
@@ -915,10 +913,9 @@ const handleSaveDatabase = async () => {
 
       {/* File Information */}
       {fileInfo.name && (
-        <FileInfoCard className="file-info-card">
+        <FileInfoCard elevation={0} className="file-info-card">
           <CardContent>
             <Typography variant="h6" className="file-info-header">
-              <InfoIcon className="file-info-icon" />
               File Information
             </Typography>
             <Box className="file-info-content">
@@ -1039,7 +1036,7 @@ const handleSaveDatabase = async () => {
               <CloseIcon />
             </IconButton>
           </Box>
-          
+          <Box className="modal-body">
          <TextField
   label="Database name"
   value={bdName}
@@ -1102,7 +1099,7 @@ const handleSaveDatabase = async () => {
             </List>
           </Box>
           
-          <Alert severity="info" className="info-alert">
+          <Alert severity="info" icon={false} className="info-alert">
             Note: Columns named "id" are automatically excluded and cannot be selected.
           </Alert>
           
@@ -1119,18 +1116,18 @@ const handleSaveDatabase = async () => {
               Save Database
             </Button>
           </Box>
+          </Box>
         </Box>
       </Modal>
 
-      <Dialog open={tableLimitExceeded} onClose={() => setTableLimitExceeded(false)} className="limit-dialog">
+      <Dialog open={tableLimitExceeded} onClose={() => setTableLimitExceeded(false)} PaperProps={{ className: "limit-dialog" }}>
         <DialogTitle>
           <Box className="limit-header">
-            <InfoIcon className="limit-icon" />
             Table Limit Exceeded
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Alert severity="warning" className="warning-alert">
+          <Alert severity="warning" icon={false} className="warning-alert">
             You have reached the maximum limit of 10 databases. Please delete some databases before uploading new ones.
           </Alert>
           <Typography variant="body1">
@@ -1149,10 +1146,10 @@ const handleSaveDatabase = async () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={saving} onClose={() => {}} maxWidth="sm" fullWidth className="saving-dialog">
+      <Dialog open={saving} onClose={() => {}} maxWidth="sm" fullWidth PaperProps={{ className: "saving-dialog" }}>
         <DialogTitle>
           <Box className="saving-header">
-            <CircularProgress size={24} sx={{ mr: 1 }} />
+            <CircularProgress size={24} sx={{ mr: 1, color: "#ffffff" }} />
             Saving Database
           </Box>
         </DialogTitle>

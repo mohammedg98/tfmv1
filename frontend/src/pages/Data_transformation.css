@@ -1,3 +1,34 @@
+:root {
+  --primary: #384850;
+  --accent: #DE6B06;
+  --neutral: #DDDEDF;
+  --danger: #b42318;
+}
+
+.outlier-dialog,
+.transform-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
+}
+
+.outlier-dialog .MuiDialogTitle-root,
+.transform-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
+}
+
+.transform-dialog .MuiDialogTitle-root .MuiIconButton-root {
+  color: #fff;
+}
+
+.transform-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca !important;
+  border-radius: 2px !important;
+}
+
 .column-header {
   background-color: var(--neutral);
   font-weight: bold;
@@ -8,15 +39,15 @@
 }
 
 .numerical-cell {
-  background-color: rgba(0, 80, 111, 0.05);
+  background-color: rgba(56, 72, 80, 0.05);
 }
 
 /* Pour les colonnes numériques */
 .numerical-header {
-  background-color: rgba(0, 80, 111, 0.1) !important;
+  background-color: rgba(56, 72, 80, 0.1) !important;
 }
 .numerical-cell {
-  background-color: rgba(0, 80, 111, 0.05);
+  background-color: rgba(56, 72, 80, 0.05);
 }
 
 /* Pour les colonnes catégorielles */
@@ -47,15 +78,15 @@
 }
 
 .numerical-cell {
-  background-color: rgba(0, 80, 111, 0.05);
+  background-color: rgba(56, 72, 80, 0.05);
 }
 
 /* Pour les colonnes numériques */
 .numerical-header {
-  background-color: rgba(0, 80, 111, 0.1) !important;
+  background-color: rgba(56, 72, 80, 0.1) !important;
 }
 .numerical-cell {
-  background-color: rgba(0, 80, 111, 0.05);
+  background-color: rgba(56, 72, 80, 0.05);
 }
 
 /* Pour les colonnes catégorielles */
@@ -68,7 +99,7 @@
 
 /* Pour les erreurs de validation */
 .Mui-error {
-  color: #d32f2f;
+  color: #b42318;
   margin-top: 4px;
   font-size: 0.75rem;
 }

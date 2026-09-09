@@ -29,12 +29,9 @@ import {
 import {
   Refresh as RefreshIcon,
   ExpandMore as ExpandMoreIcon,
-  InsightsOutlined as InsightsIcon,
-  WarningAmber as WarningIcon,
   ZoomOutMap as ZoomIcon,
   HelpOutline as HelpIcon,
   Close as CloseIcon,
-  TableChart as TableChartIcon,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -69,7 +66,7 @@ const corrColor = (v) => {
   if (v === null || v === undefined) return "#f5f5f5";
   const a = Math.min(Math.abs(v), 1);
   // Bleu (positif) vs orange (négatif) cohérent avec l'identité visuelle.
-  if (v >= 0) return `rgba(0, 80, 111, ${0.15 + a * 0.75})`;
+  if (v >= 0) return `rgba(56, 72, 80, ${0.15 + a * 0.75})`;
   return `rgba(222, 107, 6, ${0.15 + a * 0.75})`;
 };
 
@@ -80,7 +77,7 @@ function DistributionChart({ column, height = 180, detailed = false }) {
   if (dist.kind === "histogram") {
     const data = dist.bins.map((b) => ({
       label: `${fmt(b.start, 1)}`,
-      range: `${fmt(b.start, 2)} – ${fmt(b.end, 2)}`,
+      range: `${fmt(b.start, 2)} to ${fmt(b.end, 2)}`,
       count: b.count,
     }));
     return (
@@ -96,7 +93,7 @@ function DistributionChart({ column, height = 180, detailed = false }) {
           />
           <YAxis tick={{ fontSize: detailed ? 12 : 10 }} allowDecimals={false} />
           <RTooltip formatter={(v) => [v, "count"]} labelFormatter={(l, p) => (p && p[0] ? p[0].payload.range : l)} />
-          <Bar dataKey="count" fill="rgb(0, 80, 111)" />
+          <Bar dataKey="count" fill="#384850" />
         </BarChart>
       </ResponsiveContainer>
     );
@@ -177,14 +174,19 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 2 }}>
         <CircularProgress />
-        <Typography color="text.secondary">Computing statistics on the server…</Typography>
+        <Typography color="text.secondary">Computing statistics…</Typography>
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error" action={<Button color="inherit" size="small" onClick={loadEda}>Retry</Button>}>
+      <Alert
+        severity="error"
+        icon={false}
+        className="eda-alert"
+        action={<Button color="inherit" size="small" onClick={loadEda}>Retry</Button>}
+      >
         {error}
       </Alert>
     );
@@ -199,14 +201,11 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
       {/* Bandeau portée + actions */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-          <InsightsIcon sx={{ color: "#DE6B06" }} />
-          <Typography variant="h6" sx={{ color: "rgb(0, 80, 111)", fontWeight: 700 }}>
-            Exploratory Data Analysis
-          </Typography>
-          <Tooltip title={data.scope === "train" ? "Analysis restricted to the training subset to prevent data leakage" : "Analysis on the full dataset"}>
+          <Tooltip title={data.scope === "train" ? "Only training rows are used, so you do not peek at the test set." : "No split yet, so the whole table is used."}>
             <Chip
               size="small"
-              color={data.scope === "train" ? "success" : "default"}
+              variant="outlined"
+              sx={{ borderColor: "#384850", color: "#384850" }}
               label={data.scope === "train" ? "Scope: Train only" : "Scope: Full dataset"}
             />
           </Tooltip>
@@ -219,9 +218,10 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
             sx={{
               height: 40,
               textTransform: "none",
-              borderColor: "rgb(0, 80, 111)",
-              color: "rgb(0, 80, 111)",
+              borderColor: "#384850",
+              color: "#384850",
               fontWeight: 600,
+              borderRadius: "2px",
             }}
           >
             Refresh
@@ -229,12 +229,10 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
         </Box>
       </Box>
 
-      {/* View Dataset: accordion (collapsed by default), same pattern as Descriptive statistics */}
-      <Accordion sx={{ mb: 1 }}>
+      <Accordion sx={{ mb: 1, borderRadius: "2px", "&:before": { display: "none" } }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <TableChartIcon sx={{ mr: 1, color: "#384850" }} fontSize="small" />
           <Typography>View Dataset</Typography>
-          <InfoHint text="Paginated preview of the raw table rows. Expand to browse columns and values without leaving EDA." />
+          <InfoHint text="Open to see the table rows, page by page." />
         </AccordionSummary>
         <AccordionDetails>
           <EdaDatasetPreview bdName={bdName} />
@@ -242,39 +240,46 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
       </Accordion>
 
       {/* Vue d'ensemble */}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
+      <Box sx={{ mb: 2, display: "flex", flexDirection: "column" }}>
         {[
           { label: "Rows", value: data.row_count },
           { label: "Columns", value: data.column_count },
           { label: "Numeric columns", value: data.numeric_columns?.length || 0 },
           { label: "Missing cells", value: `${data.missing_summary?.missing_pct ?? 0}%` },
         ].map((s) => (
-          <Grid item xs={6} md={3} key={s.label}>
-            <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: "4px solid #DE6B06" }}>
-              <CardContent sx={{ py: 1.5 }}>
-                <Typography variant="caption" color="text.secondary">{s.label}</Typography>
-                <Typography variant="h6">{typeof s.value === "number" ? s.value.toLocaleString() : s.value}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+          <Box
+            key={s.label}
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 2,
+              py: 0.75,
+              px: 1,
+              borderBottom: "1px solid #c8c9ca",
+            }}
+          >
+            <Typography variant="body2" sx={{ color: "#384850" }}>{s.label}</Typography>
+            <Typography variant="body2" sx={{ color: "#384850", fontWeight: 700 }}>
+              {typeof s.value === "number" ? s.value.toLocaleString() : s.value}
+            </Typography>
+          </Box>
         ))}
-      </Grid>
+      </Box>
 
       {/* Valeurs manquantes */}
       {data.missing_summary?.columns_with_missing?.length > 0 && (
-        <Accordion defaultExpanded sx={{ mb: 1, borderRadius: 2 }}>
+        <Accordion defaultExpanded sx={{ mb: 1, borderRadius: "2px", "&:before": { display: "none" } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <WarningIcon sx={{ color: "#ffc107", mr: 1 }} />
             <Typography>Missing values ({data.missing_summary.columns_with_missing.length} columns)</Typography>
-            <InfoHint text="Share of empty cells per column. High percentages may require imputation (after the train/test split) or dropping the column." />
+            <InfoHint text="How many empty cells per column. If a lot are empty, fill them after the split, or delete the column." />
           </AccordionSummary>
           <AccordionDetails>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               {data.missing_summary.columns_with_missing.map((c) => (
                 <Box key={c.name} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Typography variant="body2" sx={{ minWidth: 160 }}>{c.name}</Typography>
-                  <Box sx={{ flex: 1, backgroundColor: "#eee", borderRadius: 1, height: 10, overflow: "hidden" }}>
-                    <Box sx={{ width: `${c.missing_pct}%`, backgroundColor: "#ffc107", height: "100%" }} />
+                  <Box sx={{ flex: 1, backgroundColor: "#e8e9ea", height: 8, overflow: "hidden" }}>
+                    <Box sx={{ width: `${c.missing_pct}%`, backgroundColor: "#384850", height: "100%" }} />
                   </Box>
                   <Typography variant="caption" sx={{ minWidth: 90, textAlign: "right" }}>
                     {c.missing} ({c.missing_pct}%)
@@ -287,10 +292,10 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
       )}
 
       {/* Statistiques descriptives */}
-      <Accordion defaultExpanded sx={{ mb: 1 }}>
+      <Accordion defaultExpanded sx={{ mb: 1, borderRadius: "2px", "&:before": { display: "none" } }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography>Descriptive statistics</Typography>
-          <InfoHint text="Per-column summary: count, missing, unique values, and (for numeric columns) mean, standard deviation, min, median and max. 'Top' shows the most frequent value for categorical columns." />
+          <InfoHint text="For each column: how many values, how many empty, how many distinct. For numbers also mean, spread, min, median, max. Top is the most common label for categories." />
         </AccordionSummary>
         <AccordionDetails>
           <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 420 }}>
@@ -341,10 +346,10 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
       </Accordion>
 
       {/* Distributions */}
-      <Accordion sx={{ mb: 1 }} defaultExpanded>
+      <Accordion sx={{ mb: 1, borderRadius: "2px", "&:before": { display: "none" } }} defaultExpanded>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography>Distributions</Typography>
-          <InfoHint text="How values spread out. Numeric columns show a histogram (counts per value range); categorical columns show the most frequent categories. Click the expand icon to enlarge any chart." />
+          <InfoHint text="How values are spread. Numbers: bars by range. Categories: bars for the most common labels. Click enlarge to see a bigger chart." />
         </AccordionSummary>
         <AccordionDetails>
           {(() => {
@@ -356,13 +361,13 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
                 <Grid container spacing={2}>
                   {visible.map((c) => (
                     <Grid item xs={12} md={6} lg={4} key={c.name}>
-                      <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                      <Card variant="outlined" sx={{ borderRadius: "2px" }}>
                         <CardContent sx={{ py: 1.5 }}>
                           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                             <Box sx={{ minWidth: 0 }}>
                               <Typography variant="subtitle2" noWrap title={c.name}>{c.name}</Typography>
                               <Typography variant="caption" color="text.secondary">
-                                {c.distribution.kind === "histogram" ? "Numeric · value ranges" : "Categorical · top values"}
+                                {c.distribution.kind === "histogram" ? "Numeric, value ranges" : "Categorical, top values"}
                               </Typography>
                             </Box>
                             <Tooltip title="Enlarge">
@@ -374,8 +379,8 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
                           <DistributionChart column={c} />
                           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
                             {c.distribution.kind === "histogram"
-                              ? "X: value ranges · Y: number of rows"
-                              : "X: number of rows · Y: category"}
+                              ? "X: value ranges. Y: number of rows"
+                              : "X: number of rows. Y: category"}
                           </Typography>
                         </CardContent>
                       </Card>
@@ -406,10 +411,10 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
 
       {/* Corrélations */}
       {corr && corr.columns?.length >= 2 && (
-        <Accordion>
+        <Accordion sx={{ borderRadius: "2px", "&:before": { display: "none" } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography>Correlations (Pearson)</Typography>
-            <InfoHint text="Linear relationship between numeric columns, from -1 to +1. Blue = positive (rise together), orange = negative (one rises as the other falls), near 0 = little linear relation. Strong correlations can indicate redundant features." />
+            <InfoHint text="How two number columns move together, from -1 to 1. Darker navy: they rise together. Orange: one rises when the other falls. Near 0: little linear link. A strong link can mean two columns say almost the same thing." />
           </AccordionSummary>
           <AccordionDetails>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
@@ -497,9 +502,15 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
       )}
 
       {/* Dialogue d'agrandissement d'une distribution */}
-      <Dialog open={!!zoomColumn} onClose={() => setZoomColumn(null)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ backgroundColor: "rgb(0, 80, 111)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>Distribution · {zoomColumn?.name}</span>
+      <Dialog
+        open={!!zoomColumn}
+        onClose={() => setZoomColumn(null)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ className: "eda-dialog" }}
+      >
+        <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span>Distribution: {zoomColumn?.name}</span>
           <IconButton onClick={() => setZoomColumn(null)} sx={{ color: "#fff" }} size="small">
             <CloseIcon />
           </IconButton>
@@ -507,17 +518,34 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
         <DialogContent dividers>
           {zoomColumn && (
             <>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
-                <Chip size="small" label={zoomColumn.type} />
-                <Chip size="small" variant="outlined" label={`${zoomColumn.count} values`} />
-                <Chip size="small" variant="outlined" label={`${zoomColumn.unique} unique`} />
-                {zoomColumn.missing > 0 && (
-                  <Chip size="small" color="warning" variant="outlined" label={`${zoomColumn.missing} missing (${zoomColumn.missing_pct}%)`} />
-                )}
+              <Box sx={{ display: "flex", flexDirection: "column", mb: 2 }}>
+                {[
+                  ["Type", zoomColumn.type],
+                  ["Values", zoomColumn.count],
+                  ["Unique", zoomColumn.unique],
+                  ...(zoomColumn.missing > 0
+                    ? [["Missing", `${zoomColumn.missing} (${zoomColumn.missing_pct}%)`]]
+                    : []),
+                ].map(([label, v]) => (
+                  <Box
+                    key={label}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 2,
+                      py: 0.75,
+                      px: 1,
+                      borderBottom: "1px solid #c8c9ca",
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ color: "#384850" }}>{label}</Typography>
+                    <Typography variant="body2" sx={{ color: "#384850", fontWeight: 700 }}>{v}</Typography>
+                  </Box>
+                ))}
               </Box>
               <DistributionChart column={zoomColumn} height={380} detailed />
               {zoomColumn.numeric && (
-                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 2 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", mt: 2 }}>
                   {[
                     ["Mean", zoomColumn.numeric.mean],
                     ["Std", zoomColumn.numeric.std],
@@ -527,23 +555,33 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
                     ["Q3", zoomColumn.numeric.q3],
                     ["Max", zoomColumn.numeric.max],
                   ].map(([label, v]) => (
-                    <Box key={label} sx={{ minWidth: 80 }}>
-                      <Typography variant="caption" color="text.secondary">{label}</Typography>
-                      <Typography variant="body2" fontWeight={600}>{fmt(v)}</Typography>
+                    <Box
+                      key={label}
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 2,
+                        py: 0.75,
+                        px: 1,
+                        borderBottom: "1px solid #c8c9ca",
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ color: "#384850" }}>{label}</Typography>
+                      <Typography variant="body2" sx={{ color: "#384850", fontWeight: 700 }}>{fmt(v)}</Typography>
                     </Box>
                   ))}
                 </Box>
               )}
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
                 {zoomColumn.distribution?.kind === "histogram"
-                  ? "Each bar counts how many rows fall within a value range. Hover a bar to see its exact range and count."
+                  ? "Each bar counts how many rows fall in a value range. Hover a bar to see the range and count."
                   : "Each bar shows how many rows have that category (top values only)."}
               </Typography>
             </>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setZoomColumn(null)}>Close</Button>
+          <Button onClick={() => setZoomColumn(null)} sx={{ textTransform: "none", color: "#384850" }}>Close</Button>
         </DialogActions>
       </Dialog>
 
@@ -626,8 +664,7 @@ function EdaDatasetPreview({ bdName }) {
 
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Page {pagination.page + 1} of {Math.max(1, Math.ceil(pagination.totalRows / pagination.pageSize))} •
-          Total: {pagination.totalRows.toLocaleString()} rows
+          Page {pagination.page + 1} of {Math.max(1, Math.ceil(pagination.totalRows / pagination.pageSize))}. Total: {pagination.totalRows.toLocaleString()} rows
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           <Button size="small" onClick={() => loadPage(pagination.page - 1)} disabled={pagination.page === 0}>

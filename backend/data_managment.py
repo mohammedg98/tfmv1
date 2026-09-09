@@ -11,6 +11,7 @@ from sklearn.metrics import (
     f1_score, roc_auc_score, confusion_matrix,
     classification_report, log_loss
 )
+from psycopg2.extras import Json, execute_values
 import logging
 from sklearn.model_selection import learning_curve
 from sklearn.preprocessing import LabelEncoder, StandardScaler
@@ -210,11 +211,15 @@ from backend.routes.user_routes import get_current_user2
 from backend.transformations import (
     apply_actions_to_dataframe,
     apply_actions_to_records,
+    align_record_keys,
     build_feature_matrix,
     decode_class_label,
     extract_target_label_maps,
     infer_raw_input_columns,
+    is_skip_column,
     pipeline_summary,
+    _encoding_key_variants,
+    _norm_col_name,
 )
 #from backend.utils.database import get_db_connection
 import psycopg2
@@ -333,18 +338,16 @@ class NumerisationRequest(BaseModel):
 
 
 def _encode_column_to_binary(series: pd.Series) -> pd.Series:
-    """Map boolean-like values to 0/1 without wiping already-numeric 0/1 columns.
-
-    The old path used astype(str).map({...}) which turns float 1.0 → "1.0"
-    (not in the map) → NaN for every row.
-    """
+    
     BOOL_MAP = {
         "true": 1, "false": 0, "1": 1, "0": 0, "t": 1, "f": 0,
         "yes": 1, "no": 0, "vrai": 1, "faux": 0, "oui": 1, "non": 0,
         "y": 1, "n": 0,
     }
+    EMPTY_LIKE = {"", "nan", "none", "null", "na", "n/a", "nat"}
 
-    def _one(v):
+    def _norm_key(v):
+        """Normalize a raw value to a canonical string key, or None if empty/null."""
         if v is None:
             return None
         try:
@@ -353,33 +356,38 @@ def _encode_column_to_binary(series: pd.Series) -> pd.Series:
         except (TypeError, ValueError):
             pass
         if isinstance(v, (bool, np.bool_)):
-            return int(bool(v))
-        # Numeric 0/1 (int, float, numpy scalars) — keep as int
+            return "true" if bool(v) else "false"
         if isinstance(v, (int, np.integer)) and not isinstance(v, (bool, np.bool_)):
             if int(v) in (0, 1):
-                return int(v)
+                return "1" if int(v) == 1 else "0"
         if isinstance(v, (float, np.floating)):
             if float(v) in (0.0, 1.0):
-                return int(v)
+                return "1" if float(v) == 1.0 else "0"
         s = str(v).strip().lower()
-        if s in ("", "nan", "none", "null", "na", "n/a", "nat"):
+        if s in EMPTY_LIKE:
             return None
-        # "1.0" / "0.0"
         if s.endswith(".0") and s[:-2].lstrip("+-").isdigit():
             s = s[:-2]
-        if s in BOOL_MAP:
-            return BOOL_MAP[s]
-        # Last resort: numeric parse
-        try:
-            fv = float(s)
-            if fv in (0.0, 1.0):
-                return int(fv)
-        except (TypeError, ValueError):
-            pass
-        return None
+        return s
+
+    # 1. Determine the actual unique non-empty keys present in the column.
+    normalized = series.map(_norm_key)
+    uniques = sorted({k for k in normalized if k is not None})
+
+    # 2. Build the mapping: recognized boolean vocabulary → semantic mapping;
+    #    otherwise generic alphabetical fallback (first → 0, second → 1).
+    if uniques and set(uniques) <= set(BOOL_MAP.keys()):
+        mapping = {k: BOOL_MAP[k] for k in uniques}
+    else:
+        mapping = {k: i for i, k in enumerate(uniques[:2])}
+
+    def _one(v):
+        key = _norm_key(v)
+        if key is None:
+            return None
+        return mapping.get(key)
 
     return series.map(_one)
-
 
 def _normalize_category_key(v):
     """Normalize category values so PG 'true' matches pandas True → 'True' → 'true'.
@@ -533,8 +541,7 @@ def validate_normalized_dataset_name(normalized: str) -> None:
             status_code=400,
             detail="Invalid dataset name. After cleanup, only letters, numbers and underscores are allowed (max 50 characters), and it must start with a letter.",
         )
-    reserved = {"null", "undefined", "select", "insert", "delete", "update", "drop", "create"}
-    if normalized in reserved:
+    if is_forbidden_physical_table(normalized):
         raise HTTPException(status_code=400, detail="This name is reserved and cannot be used")
 
 
@@ -579,6 +586,34 @@ def validate_column_names(columns: list) -> None:
 
 
 _TABLE_IDENT_RE = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
+_SQL_KEYWORD_TABLE_NAMES = {
+    "null",
+    "undefined",
+    "select",
+    "insert",
+    "delete",
+    "update",
+    "drop",
+    "create",
+}
+_CATALOG_TABLE_NAMES = {
+    "user_saved_models",
+    "user_tables_metadata",
+}
+
+
+def is_forbidden_physical_table(name: str) -> bool:
+    """True if this identifier must never be used as a user dataset table."""
+    n = (name or "").strip().lower()
+    if not n:
+        return True
+    if n.startswith("pg_"):
+        return True
+    bases = {n}
+    for suf in ("_reset", "_backup", "_numerized"):
+        if n.endswith(suf) and len(n) > len(suf):
+            bases.add(n[: -len(suf)])
+    return bool(bases & (_SQL_KEYWORD_TABLE_NAMES | _CATALOG_TABLE_NAMES))
 
 
 def normalize_table_ident(name: str) -> str:
@@ -588,7 +623,50 @@ def normalize_table_ident(name: str) -> str:
     table = str(name).strip().lower()
     if not _TABLE_IDENT_RE.match(table):
         raise HTTPException(status_code=400, detail="Invalid table name")
+    if is_forbidden_physical_table(table):
+        raise HTTPException(status_code=400, detail="Invalid table name")
     return table
+
+
+def _drop_user_table_if_exists(cur, table_name: str, *, cascade: bool = False) -> None:
+    """DROP a user dataset table only if the name is a safe identifier (not catalog)."""
+    table = str(table_name or "").strip().lower()
+    if not _TABLE_IDENT_RE.match(table) or is_forbidden_physical_table(table):
+        return
+    stmt = (
+        sql.SQL("DROP TABLE IF EXISTS {} CASCADE")
+        if cascade
+        else sql.SQL("DROP TABLE IF EXISTS {}")
+    )
+    cur.execute(stmt.format(sql.Identifier(table)))
+
+
+def _saved_models_dir() -> str:
+    here = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(here)
+    return os.path.realpath(os.path.join(project_root, "saved_models"))
+
+
+def _is_under_saved_models(path: str) -> bool:
+    if not path:
+        return False
+    real_dir = _saved_models_dir()
+    real_file = os.path.realpath(path)
+    try:
+        common = os.path.commonpath([real_dir, real_file])
+    except ValueError:
+        return False
+    return common == real_dir
+
+
+def assert_model_path_in_jail(model_path: str) -> str:
+    """Return realpath if the file is a regular file inside saved_models/. Else 404."""
+    if not model_path or not _is_under_saved_models(model_path):
+        raise HTTPException(status_code=404, detail="Model file not found on disk")
+    real_file = os.path.realpath(model_path)
+    if not os.path.isfile(real_file):
+        raise HTTPException(status_code=404, detail="Model file not found on disk")
+    return real_file
 
 
 def user_owns_table(cur, table_name: str, user_id: str) -> bool:
@@ -600,7 +678,19 @@ def user_owns_table(cur, table_name: str, user_id: str) -> bool:
         (table_name, user_id),
     )
     return cur.fetchone() is not None
+def _pg_savepoint(cur, name: str) -> None:
+    """Crée un SAVEPOINT Postgres nommé `name` dans la transaction en cours."""
+    cur.execute(sql.SQL("SAVEPOINT {}").format(sql.Identifier(name)))
 
+
+def _pg_release(cur, name: str) -> None:
+    """Libère (valide) le SAVEPOINT `name` une fois l'opération protégée réussie."""
+    cur.execute(sql.SQL("RELEASE SAVEPOINT {}").format(sql.Identifier(name)))
+
+
+def _pg_rollback_to(cur, name: str) -> None:
+    """Annule uniquement les changements faits depuis le SAVEPOINT `name`."""
+    cur.execute(sql.SQL("ROLLBACK TO SAVEPOINT {}").format(sql.Identifier(name)))
 
 def physical_table_exists(cur, table_name: str) -> bool:
     cur.execute(
@@ -617,6 +707,60 @@ def assert_owns_table(cur, table_name: str, user_id: str, *, label: str = "table
     table_name = normalize_table_ident(table_name)
     if not user_owns_table(cur, table_name, user_id):
         raise HTTPException(status_code=403, detail=f"Access denied to {label}")
+    return table_name
+
+
+_DATASET_SUFFIXES = ("_numerized", "_backup", "_reset")
+
+
+def _strip_dataset_suffix(name: str) -> str:
+    n = str(name or "").strip().lower()
+    for suf in _DATASET_SUFFIXES:
+        if n.endswith(suf) and len(n) > len(suf):
+            return n[: -len(suf)]
+    return n
+
+
+def _resolve_owned_sample_dataset(cur, user_id: str, *names):
+    """
+    Find a dataset the user owns among related names
+    (base / _numerized / _backup / _reset).
+    Returns (owned_table, base_name) or (None, None).
+    """
+    seen = []
+    for raw in names:
+        if not raw:
+            continue
+        n = str(raw).strip().lower()
+        if not n:
+            continue
+        base = _strip_dataset_suffix(n)
+        for cand in (n, base, f"{base}_numerized", f"{base}_backup", f"{base}_reset"):
+            if cand and cand not in seen:
+                seen.append(cand)
+    for cand in seen:
+        if user_owns_table(cur, cand, user_id):
+            return cand, _strip_dataset_suffix(cand)
+    return None, None
+
+
+def assert_table_not_owned_by_other(cur, table_name: str, user_id: str) -> str:
+    """Allow acting on a table the caller owns, or on one nobody claims yet.
+
+    Used where a missing metadata row is a legitimate repair case: adopting an
+    orphan table stays possible, claiming someone else's does not.
+    """
+    table_name = normalize_table_ident(table_name)
+    cur.execute(
+        """
+        SELECT 1 FROM user_tables_metadata
+        WHERE table_name = %s AND owner_id <> %s
+        LIMIT 1
+        """,
+        (table_name, user_id),
+    )
+    if cur.fetchone() is not None:
+        raise HTTPException(status_code=403, detail="Access denied to dataset")
     return table_name
 
 
@@ -698,7 +842,13 @@ def _json_or_default(value, default="[]"):
         return _json.dumps(value)
     return value
 
-
+def _meta_row_exists(cur, table_name: str, user_id: str) -> bool:
+    
+    cur.execute(
+        "SELECT 1 FROM user_tables_metadata WHERE table_name = %s AND owner_id = %s",
+        (table_name, user_id),
+    )
+    return cur.fetchone() is not None
 def upsert_metadata_from_source(cur, source_table: str, target_table: str, user_id: str) -> None:
     """
     Copy pipeline metadata from source_table → target_table for this owner.
@@ -774,6 +924,56 @@ def upsert_metadata_from_source(cur, source_table: str, target_table: str, user_
                 stage,
                 modification_history,
                 dataset_info,
+            ),
+        )
+
+def reset_pipeline_metadata(
+    cur,
+    table_name: str,
+    user_id: str,
+    columns: list,
+    dataset_info=None,
+    mark_backup: bool = False,
+) -> None:
+    stage = "target_selection"
+    applied_actions = "[]"
+    modification_history = "[]"
+    target_column = None
+    model_type = None
+
+    if _meta_row_exists(cur, table_name, user_id):
+        cur.execute(
+            """
+            UPDATE user_tables_metadata
+            SET
+                columns = %s,
+                target_column = %s,
+                model_type = %s,
+                applied_actions = %s,
+                stage = %s,
+                modification_history = %s,
+                dataset_info = COALESCE(%s, dataset_info),
+                updated_at = NOW()
+            WHERE table_name = %s AND owner_id = %s
+            """,
+            (
+                columns, target_column, model_type, applied_actions,
+                stage, modification_history, dataset_info,
+                table_name, user_id,
+            ),
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO user_tables_metadata
+                (table_name, owner_id, columns, target_column, model_type,
+                 applied_actions, stage, modification_history, dataset_info,
+                 created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            """,
+            (
+                table_name, user_id, columns, target_column, model_type,
+                applied_actions, stage, modification_history, dataset_info,
             ),
         )
 
@@ -901,7 +1101,9 @@ async def create_reset_copy(
 
             # 2. Compter les lignes AVANT l'opération
             try:
-                cur.execute(f"SELECT COUNT(*) FROM {source_table}")
+                cur.execute(
+                    sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(source_table))
+                )
                 source_count_before = cur.fetchone()[0]
                 print(f"   Lignes dans {source_table} (source): {source_count_before}")
             except Exception as e:
@@ -909,7 +1111,9 @@ async def create_reset_copy(
                 source_count_before = "N/A"
 
             try:
-                cur.execute(f"SELECT COUNT(*) FROM {target_table}")
+                cur.execute(
+                    sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(target_table))
+                )
                 target_count_before = cur.fetchone()[0]
                 print(f"   Lignes dans {target_table} (target avant): {target_count_before}")
             except Exception as e:
@@ -918,21 +1122,25 @@ async def create_reset_copy(
 
             # 3. Supprimer la table target si elle existe
             print(f"   Suppression de {target_table}...")
-            cur.execute(f"DROP TABLE IF EXISTS {target_table}")
+            _drop_user_table_if_exists(cur, target_table)
             print(f"   ✅ Table {target_table} supprimée")
 
             # 4. Créer la nouvelle table avec les données de la source
             print(f"   Création de {target_table} depuis {source_table}...")
-            cur.execute(f"""
-                CREATE TABLE {target_table} AS
-                SELECT * FROM {source_table}
-            """)
+            cur.execute(
+                sql.SQL("CREATE TABLE {} AS SELECT * FROM {}").format(
+                    sql.Identifier(target_table),
+                    sql.Identifier(source_table),
+                )
+            )
             rows_copied = cur.rowcount
             print(f"   ✅ Table créée, lignes copiées: {rows_copied}")
 
             # 5. Compter les lignes APRÈS l'opération
             try:
-                cur.execute(f"SELECT COUNT(*) FROM {target_table}")
+                cur.execute(
+                    sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(target_table))
+                )
                 target_count_after = cur.fetchone()[0]
                 print(f"   Lignes dans {target_table} (target après): {target_count_after}")
             except Exception as e:
@@ -1059,9 +1267,19 @@ async def save_to_db(
                     
                     for value in values:
                         # Test booléen
+                        # ⚠️ IMPORTANT : '0'/'1' ne sont PAS traités ici comme des
+                        # indices de booléen. Une colonne numérique composée
+                        # uniquement de 0/1 (flags binaires, one-hot encoding,
+                        # dataset déjà préparé pour l'entraînement) doit rester
+                        # INTEGER, pas BOOLEAN — sinon elle ressort ensuite de
+                        # Postgres en True/False et casse tout le pipeline
+                        # Clean/Split/Impute/Training qui traite BOOLEAN comme
+                        # non-numérique (cf. detect-problem-type, column-stats...).
+                        # On ne détecte comme booléen que les vrais indices
+                        # explicites : objet Python bool, ou texte true/false/yes/no.
                         if isinstance(value, bool):
                             continue
-                        if str(value).lower() in ['true', 'false', 'yes', 'no', '0', '1']:
+                        if str(value).strip().lower() in ['true', 'false', 'yes', 'no']:
                             continue
                         all_boolean = False
                         
@@ -1132,17 +1350,27 @@ async def save_to_db(
             )
 
             # 5. Insertion des données avec conversion automatique des types
+            # ✅ BULK INSERT préservant le comportement exact de l'ancien code :
+            # seules les colonnes présentes dans `row` (col_key in row) sont
+            # insérées pour cette ligne, comme avant. On regroupe les lignes
+            # par ensemble de colonnes présentes (même ordre que data.columns)
+            # pour les envoyer en un seul execute_values par groupe au lieu
+            # d'un cur.execute() par ligne. Résultat en base identique à
+            # l'ancien code, juste beaucoup plus rapide.
             type_by_col = {name: ptype for name, ptype in column_types}
-            successful_rows = 0
+
+            groups = {}       # Dict[Tuple[str, ...], List[Tuple]]
+            group_order = []  # préserve l'ordre d'apparition des groupes
+
             for row_idx, row in enumerate(data.rows):
                 cols = []
                 vals = []
-                
+
                 for col_idx, col_name in enumerate(data.columns):
                     col_key = f"col{col_idx}"
                     if col_key in row:
                         value = row[col_key]
-                        
+
                         # Conversion des valeurs spéciales
                         if value in ["", "NA", "NaN", "null"]:
                             value = None
@@ -1162,22 +1390,30 @@ async def save_to_db(
                                         value = False
                             except (ValueError, TypeError):
                                 pass
-                        
+
                         cols.append(col_name)
                         vals.append(value)
-                
+
                 if cols:
-                    try:
-                        insert_sql = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
-                            sql.Identifier(table_name),
-                            sql.SQL(", ").join(sql.Identifier(c) for c in cols),
-                            sql.SQL(", ").join([sql.Placeholder()] * len(cols)),
-                        )
-                        cur.execute(insert_sql, vals)
-                        successful_rows += 1
-                    except Exception as insert_error:
-                        logger.error(f"Insert error row {row_idx}: {insert_error}")
-                        raise insert_error
+                    key = tuple(cols)
+                    if key not in groups:
+                        groups[key] = []
+                        group_order.append(key)
+                    groups[key].append(tuple(vals))
+
+            successful_rows = 0
+            try:
+                for key in group_order:
+                    rows_for_group = groups[key]
+                    insert_sql = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(
+                        sql.Identifier(table_name),
+                        sql.SQL(", ").join(sql.Identifier(c) for c in key),
+                    )
+                    execute_values(cur, insert_sql, rows_for_group, page_size=1000)
+                    successful_rows += len(rows_for_group)
+            except Exception as insert_error:
+                logger.error(f"Bulk insert error: {insert_error}")
+                raise insert_error
 
             # 6. Sauvegarde des métadonnées
             cur.execute("""
@@ -1206,8 +1442,6 @@ async def save_to_db(
         finally:
             if conn:
                 conn.close()
-
-
 
 @router.post("/save-modification-history")
 async def save_modification_history(
@@ -1930,6 +2164,9 @@ async def process_numerisation(
         # Vérifier que la table de travail (originale) existe
         with get_db_connection() as conn:
             cur = conn.cursor()
+            # Physical tables all live in the public schema, so existence alone
+            # is not proof of access: require ownership before touching data.
+            assert_owns_table(cur, numerized_bd_name, current_user_id, label="dataset")
             cur.execute("""
                 SELECT 1 FROM information_schema.tables 
                 WHERE table_name = %s
@@ -2367,7 +2604,11 @@ async def process_numerisation(
         # 8. Save the numerized version
         with get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute(f"DROP TABLE IF EXISTS {numerized_bd_name.lower()}")
+            cur.execute(
+                sql.SQL("DROP TABLE IF EXISTS {}").format(
+                    sql.Identifier(numerized_bd_name.lower())
+                )
+            )
             
             column_defs = ["id SERIAL PRIMARY KEY"]
             for col in full_df.columns:
@@ -3510,12 +3751,23 @@ def consume_pending_save_model(training_id: str, user_id: str) -> None:
     if info and info.get("user_id") == str(user_id):
         pending_save_models.pop(training_id, None)
 
-
+def _sanitize_for_json(obj):
+    """Remplace récursivement NaN/inf/-inf par None pour éviter que
+    json.dumps() (utilisé par FastAPI) ne plante avec
+    'Out of range float values are not JSON compliant'."""
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_for_json(v) for v in obj]
+    return obj
 def _safe_set_training_result(training_id, result):
     """Complete a training Future only if still pending (avoid CANCELLED InvalidStateError)."""
     info = active_trainings.get(training_id)
     if not info:
         return
+    result = _sanitize_for_json(result)
     info["completed"] = True
     info["result"] = result
     info["error"] = None
@@ -3526,7 +3778,6 @@ def _safe_set_training_result(training_id, result):
             future.set_result(result)
         except Exception as e:
             logger.warning(f"Could not set_result for {training_id}: {e}")
-
 
 def _safe_set_training_error(training_id, error_msg, *, stopped=False):
     """Mark training failed/stopped without crashing if Future was already cancelled."""
@@ -15974,7 +16225,7 @@ async def delete_database_with_related(
 
                     if cur.fetchone():
                         # SOLUTION: Utiliser CASCADE pour supprimer les dépendances
-                        cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+                        _drop_user_table_if_exists(cur, table, cascade=True)
                         
                         # Supprimer les métadonnées
                         cur.execute("""
@@ -16080,7 +16331,7 @@ async def delete_numerized_version(
 
             if cur.fetchone():
                 # Supprimer la table
-                cur.execute(f"DROP TABLE IF EXISTS {numerized_table}")
+                _drop_user_table_if_exists(cur, numerized_table)
                 # Supprimer les métadonnées
                 cur.execute("""
                     DELETE FROM user_tables_metadata
@@ -16122,9 +16373,22 @@ async def get_database_data(
             cur.execute("""
                 SELECT 1 FROM user_tables_metadata
                 WHERE table_name = %s AND owner_id = %s
-            """, (table_name, current_user_id))
+                """, (table_name, current_user_id))
+
             if not cur.fetchone():
-                raise HTTPException(status_code=403, detail="Access denied")
+    # Not owned directly — check if it's a predefined dataset owned by an admin
+                admin_users = list(db.users.find({"is_admin": True}, {"_id": 1}))
+                admin_ids = [str(u["_id"]) for u in admin_users]
+                if admin_ids:
+                    placeholders = ','.join(['%s'] * len(admin_ids))
+                    cur.execute(f"""
+                        SELECT 1 FROM user_tables_metadata
+                         WHERE table_name = %s AND owner_id IN ({placeholders})
+                    """, [table_name] + admin_ids)
+                    if not cur.fetchone():
+                        raise HTTPException(status_code=403, detail="Access denied")
+                else:
+                    raise HTTPException(status_code=403, detail="Access denied")
             
             # 1. Get column names
             cur.execute("""
@@ -16205,11 +16469,19 @@ async def restore_from_backup(
             
             # Perform restoration in transaction
             try:
-                cur.execute(f"DROP TABLE IF EXISTS {request.dbName}")
-                cur.execute(f"""
-                    CREATE TABLE {request.dbName} AS 
-                    SELECT * FROM {backup_db_name}
-                """)
+                dst = str(request.dbName or "").strip().lower()
+                src = str(backup_db_name or "").strip().lower()
+                if not _TABLE_IDENT_RE.match(dst) or is_forbidden_physical_table(dst):
+                    raise HTTPException(status_code=400, detail="Invalid dataset name")
+                if not _TABLE_IDENT_RE.match(src) or is_forbidden_physical_table(src):
+                    raise HTTPException(status_code=400, detail="Invalid backup name")
+                _drop_user_table_if_exists(cur, dst)
+                cur.execute(
+                    sql.SQL("CREATE TABLE {} AS SELECT * FROM {}").format(
+                        sql.Identifier(dst),
+                        sql.Identifier(src),
+                    )
+                )
                 
                 # Update metadata
                 cur.execute("""
@@ -16430,6 +16702,8 @@ def _infer_algorithm_from_saved_file(model_path: str, model_type: str = None, fr
         return "mlp"
     if not model_path or not os.path.exists(model_path):
         return None
+    if not _is_under_saved_models(model_path):
+        return None
     try:
         if str(model_path).endswith(".pt"):
             return "mlp"
@@ -16488,6 +16762,27 @@ def _fetch_dataset_applied_actions(cur, db_name: str, user_id: str):
     return []
 
 
+def _lookup_dataset_target_column(cur, db_name: str, user_id: str):
+    """Dataset target name from metadata (may exist even for anomaly / one-class SVM)."""
+    if not db_name:
+        return None
+    base = str(db_name).replace("_numerized", "").replace("_backup", "").replace("_reset", "")
+    for cand in (base, db_name, f"{base}_numerized"):
+        if not cand:
+            continue
+        cur.execute(
+            """
+            SELECT target_column FROM user_tables_metadata
+            WHERE table_name = %s AND owner_id = %s
+            """,
+            (cand, user_id),
+        )
+        row = cur.fetchone()
+        if row and row[0]:
+            return row[0]
+    return None
+
+
 def _find_predictable_model(obj, path=""):
     """Recursively find an object that exposes .predict()."""
     if obj is None:
@@ -16531,6 +16826,16 @@ def _extract_sklearn_model_from_joblib(saved_data):
 
     metadata = dict(saved_data.get("metadata") or {})
     scaler = saved_data.get("scaler")
+    for k in (
+        "class_names",
+        "is_classification",
+        "feature_names",
+        "algorithm",
+        "model_type",
+        "target_excluded",
+    ):
+        if k in saved_data and not metadata.get(k):
+            metadata[k] = saved_data[k]
 
     # Direct model key
     if "model" in saved_data:
@@ -16538,7 +16843,15 @@ def _extract_sklearn_model_from_joblib(saved_data):
         if isinstance(raw, dict):
             if scaler is None:
                 scaler = raw.get("scaler")
-            for k in ("algorithm", "model_type", "params", "feature_names", "target_excluded"):
+            for k in (
+                "algorithm",
+                "model_type",
+                "params",
+                "feature_names",
+                "target_excluded",
+                "class_names",
+                "is_classification",
+            ):
                 if k in raw and k not in metadata:
                     metadata[k] = raw[k]
             if raw.get("metadata") and isinstance(raw["metadata"], dict):
@@ -16562,6 +16875,269 @@ def _extract_sklearn_model_from_joblib(saved_data):
     )
 
 
+def _apply_saved_scaler(X, scaler):
+    """Apply the StandardScaler saved next to the estimator at training time."""
+    X_arr = np.asarray(X, dtype=float)
+    if X_arr.ndim == 1:
+        X_arr = X_arr.reshape(1, -1)
+    if scaler is None:
+        return X_arr
+    n_in = getattr(scaler, "n_features_in_", None)
+    if n_in is not None and int(n_in) != int(X_arr.shape[1]):
+        raise ValueError(
+            f"Feature count {X_arr.shape[1]} does not match the saved scaler ({int(n_in)}). "
+            "Column names or order may not match training."
+        )
+    return scaler.transform(X_arr)
+
+
+def _is_torch_module(obj) -> bool:
+    return (
+        obj is not None
+        and hasattr(obj, "eval")
+        and hasattr(obj, "forward")
+        and callable(getattr(obj, "forward", None))
+    )
+
+
+class _LegacyPyTorchMLP(nn.Module):
+    """Rebuild MLP from a saved layers list [in, h1, ..., out]."""
+
+    def __init__(self, layers, activation="relu", dropout_rate=0.0, **kwargs):
+        super().__init__()
+        self.layer_list = nn.ModuleList()
+        for i in range(len(layers) - 1):
+            self.layer_list.append(nn.Linear(int(layers[i]), int(layers[i + 1])))
+        acts = {
+            "relu": nn.ReLU(),
+            "sigmoid": nn.Sigmoid(),
+            "tanh": nn.Tanh(),
+            "leaky_relu": nn.LeakyReLU(),
+        }
+        self.activation = acts.get(str(activation).lower(), nn.ReLU())
+        self.dropout = nn.Dropout(float(dropout_rate)) if dropout_rate else None
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layer_list):
+            x = layer(x)
+            if i < len(self.layer_list) - 1:
+                x = self.activation(x)
+                if self.dropout:
+                    x = self.dropout(x)
+        return x
+
+
+def _is_pytorch_saved_model(framework=None, model_type=None, model_path=None) -> bool:
+    fw = str(framework or "").strip().lower()
+    mt = str(model_type or "").strip().lower()
+    path = str(model_path or "").strip().lower()
+    return fw == "pytorch" or mt in ("pytorch_mlp",) or path.endswith(".pt")
+
+
+def _pytorch_class_labels(metadata, reverse_map, n=None):
+    stored = [c for c in (metadata or {}).get("class_names") or [] if c is not None]
+    if n is None:
+        n = len(stored) if stored else 0
+    labels = []
+    for i in range(int(n)):
+        human, _ = decode_class_label(i, reverse_map)
+        mapped = False
+        if reverse_map:
+            for key in _encoding_key_variants(i):
+                if key in reverse_map:
+                    mapped = True
+                    break
+        if mapped:
+            labels.append(str(human))
+        elif i < len(stored):
+            human2, _ = decode_class_label(stored[i], reverse_map)
+            labels.append(str(human2))
+        else:
+            labels.append(str(human))
+    return labels
+
+
+def _load_pytorch_saved_model(model_path):
+    """
+    Load an MLP checkpoint (.pt) the same way /predict does.
+    Returns (nn.Module, scaler_or_None, metadata_dict).
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    try:
+        loaded = torch.load(model_path, map_location=device, weights_only=True)
+    except Exception:
+        loaded = torch.load(model_path, map_location=device, weights_only=False)
+
+    scaler = None
+    metadata = {}
+
+    if _is_torch_module(loaded):
+        loaded.eval()
+        return loaded, None, metadata
+
+    if not isinstance(loaded, dict):
+        raise HTTPException(
+            500, detail=f"Unsupported PyTorch model format: {type(loaded)}"
+        )
+
+    for k in (
+        "feature_names",
+        "is_classification",
+        "problem_type",
+        "class_names",
+        "final_parameters",
+        "algorithm",
+        "model_type",
+    ):
+        if k in loaded and loaded[k] is not None:
+            metadata[k] = loaded[k]
+    scaler = loaded.get("scaler")
+    if isinstance(loaded.get("metadata"), dict):
+        for k, v in loaded["metadata"].items():
+            metadata.setdefault(k, v)
+
+    model = None
+    raw_model = loaded.get("model")
+    if _is_torch_module(raw_model):
+        model = raw_model
+    elif "model_state_dict" in loaded and "model_config" in loaded:
+        model = _LegacyPyTorchMLP(**(loaded.get("model_config") or {}))
+        model.load_state_dict(loaded["model_state_dict"])
+    elif "state_dict" in loaded:
+        model = _LegacyPyTorchMLP(**(loaded.get("model_config") or {}))
+        model.load_state_dict(loaded["state_dict"])
+    elif isinstance(raw_model, dict) and "state_dict" in raw_model:
+        cfg = raw_model.get("config") or raw_model.get("model_config") or {}
+        model = _LegacyPyTorchMLP(**cfg)
+        model.load_state_dict(raw_model["state_dict"])
+        if scaler is None:
+            scaler = raw_model.get("scaler")
+        for k in ("feature_names", "class_names", "is_classification", "problem_type"):
+            if k in raw_model and k not in metadata:
+                metadata[k] = raw_model[k]
+    if model is None:
+        for value in loaded.values():
+            if _is_torch_module(value):
+                model = value
+                break
+    if model is None:
+        raise HTTPException(
+            500,
+            detail=f"Unsupported PyTorch model format. Keys: {list(loaded.keys())}",
+        )
+
+    model.eval()
+    metadata_path = str(model_path).replace(".pt", "_metadata.joblib")
+    if os.path.exists(metadata_path) and _is_under_saved_models(metadata_path):
+        try:
+            extra = joblib.load(metadata_path) or {}
+            if isinstance(extra, dict):
+                for k, v in extra.items():
+                    metadata.setdefault(k, v)
+        except Exception as e:
+            logger.warning("Could not load PyTorch sidecar metadata: %s", e)
+    return model, scaler, metadata
+
+
+def _pytorch_supervised_predict(
+    model, X, reverse_map, metadata=None, decision_threshold=0.5, scaler=None
+):
+    """
+    One-row MLP prediction. Same rules as /predict:
+    threshold only for binary; multiclass uses argmax; scaler applied when saved.
+    """
+    metadata = metadata or {}
+    X_arr = _apply_saved_scaler(X, scaler)
+    model.eval()
+    with torch.no_grad():
+        tensor = torch.as_tensor(X_arr, dtype=torch.float32)
+        output = model(tensor)
+        if output.ndim == 1:
+            output = output.unsqueeze(0)
+
+    problem_type = str(metadata.get("problem_type") or "").lower()
+    is_classification = bool(metadata.get("is_classification")) or "classif" in problem_type
+    out_dim = int(output.shape[1]) if output.ndim == 2 else 1
+    row = output[0]
+
+    if out_dim > 1:
+        probs_t = row
+        total = float(probs_t.sum().item())
+        amin = float(probs_t.min().item())
+        if amin < -1e-6 or abs(total - 1.0) > 0.05:
+            probs_t = torch.softmax(output, dim=1)[0]
+        probs = probs_t.detach().cpu().numpy().astype(float)
+        n_classes = int(len(probs))
+        class_labels = _pytorch_class_labels(metadata, reverse_map, n_classes)
+        is_binary = n_classes == 2
+        if is_binary:
+            pos_prob = float(probs[1])
+            pred_idx = 1 if pos_prob >= float(decision_threshold) else 0
+            threshold_applied = True
+        else:
+            pred_idx = int(np.argmax(probs))
+            pos_prob = None
+            threshold_applied = False
+        human, enc = decode_class_label(pred_idx, reverse_map)
+        if class_labels and pred_idx < len(class_labels):
+            human = class_labels[pred_idx]
+        prob_dict = {
+            str(class_labels[i] if i < len(class_labels) else i): float(probs[i])
+            for i in range(n_classes)
+        }
+        return {
+            "pred": pred_idx,
+            "human": human,
+            "enc": enc if enc is not None else pred_idx,
+            "conf": float(probs[pred_idx]),
+            "pos_prob": pos_prob,
+            "threshold_applied": threshold_applied,
+            "n_classes": n_classes,
+            "probabilities": prob_dict,
+            "class_labels": class_labels,
+            "positive_class_name": class_labels[1] if is_binary and len(class_labels) > 1 else None,
+        }
+
+    val = float(row.reshape(-1)[0].item())
+    if is_classification or problem_type in ("binary_classification", "binary"):
+        probability = val if 0.0 <= val <= 1.0 else float(torch.sigmoid(torch.tensor(val)).item())
+        pred_idx = 1 if probability >= float(decision_threshold) else 0
+        class_labels = _pytorch_class_labels(metadata, reverse_map, 2)
+        if len(class_labels) < 2:
+            class_labels = [str(decode_class_label(0, reverse_map)[0]), str(decode_class_label(1, reverse_map)[0])]
+        human, enc = decode_class_label(pred_idx, reverse_map)
+        if pred_idx < len(class_labels):
+            human = class_labels[pred_idx]
+        return {
+            "pred": pred_idx,
+            "human": human,
+            "enc": enc if enc is not None else pred_idx,
+            "conf": float(probability if pred_idx == 1 else 1.0 - probability),
+            "pos_prob": float(probability),
+            "threshold_applied": True,
+            "n_classes": 2,
+            "probabilities": {
+                str(class_labels[0]): float(1.0 - probability),
+                str(class_labels[1]): float(probability),
+            },
+            "class_labels": class_labels,
+            "positive_class_name": class_labels[1],
+        }
+
+    return {
+        "pred": val,
+        "human": val,
+        "enc": val,
+        "conf": None,
+        "pos_prob": None,
+        "threshold_applied": False,
+        "n_classes": None,
+        "probabilities": None,
+        "class_labels": [],
+        "positive_class_name": None,
+    }
+
+
 def _is_anomaly_model(model=None, model_type=None, metadata=None, algorithm=None) -> bool:
     mt = str(model_type or "").lower()
     algo = str(algorithm or (metadata or {}).get("algorithm") or "").lower()
@@ -16575,6 +17151,34 @@ def _is_anomaly_model(model=None, model_type=None, metadata=None, algorithm=None
         or "isolation" in algo
         or "one_class" in algo
     )
+
+
+def _anomaly_ignored_target(feature_names, target_excluded=None, dataset_target=None):
+    """
+    Isolation Forest / One-Class SVM:
+    - target existed at training → that column is NOT a feature (ignore it)
+    - no target at training → every data column is a feature (return None)
+    Never use the live dataset target if the frozen model actually trained on it.
+    """
+    feats = [c for c in (feature_names or []) if c]
+    feat_l = {_norm_col_name(c) for c in feats}
+
+    def _unused(name):
+        if not name:
+            return None
+        if feat_l and _norm_col_name(name) in feat_l:
+            return None
+        return name
+
+    ignored = _unused(target_excluded)
+    if ignored:
+        return ignored
+    ignored = _unused(dataset_target)
+    if ignored:
+        return ignored
+    if not feat_l:
+        return target_excluded or dataset_target or None
+    return None
 
 
 def _anomaly_predict_row(model, X, scaler=None):
@@ -16863,6 +17467,13 @@ async def save_model(
                     kmeans_params=request.kmeans_params,
                 ) or "unknown"
 
+                if model_type == "anomaly" and target_for_raw:
+                    saved_raw_cols = [
+                        c
+                        for c in (saved_raw_cols or [])
+                        if not is_skip_column(c, target_for_raw)
+                    ]
+
                 # === Sauvegarde sur disque ===
                 try:
                     if request.framework == "pytorch":
@@ -17122,8 +17733,7 @@ async def download_model(
                     raise HTTPException(404, detail="Model not found")
                 model_name, model_path, framework, algorithm = row
 
-        if not model_path or not os.path.exists(model_path):
-            raise HTTPException(404, detail="Model file not found on disk")
+        model_path = assert_model_path_in_jail(model_path)
 
         # Prefer stored extension; fall back from path
         _, ext = os.path.splitext(model_path)
@@ -17311,6 +17921,7 @@ async def make_prediction(
 
         model_applied_actions = []
         model_raw_input_columns = None
+        dataset_target = None
 
         # Récupération des infos du modèle
         with get_db_connection() as conn:
@@ -17333,19 +17944,28 @@ async def make_prediction(
                 model_applied_actions = model_applied_actions or []
                 logger.info(f"📦 Model found - Name: {model_name}, Type: {model_type}, Path: {model_path}, Framework: {framework}")
 
-                if not os.path.exists(model_path):
-                    logger.error(f"❌ Model file not found at: {model_path}")
-                    raise HTTPException(status_code=404, detail="Model file not found")
+                model_path = assert_model_path_in_jail(model_path)
 
                 # Legacy models: fall back to live dataset metadata
                 if not model_applied_actions:
                     model_applied_actions = _fetch_dataset_applied_actions(cur, db_name, current_user_id)
                     logger.info(f"📎 Loaded {len(model_applied_actions)} actions from dataset metadata (legacy)")
 
+                dataset_target = _lookup_dataset_target_column(cur, db_name, current_user_id)
+
+        # Isolation Forest / One-Class SVM: Use Model hides the target field (not a feature),
+        # but the frozen pipeline still contains label_encoding(target). Skip that step using
+        # the dataset target name — same as logistic/SVM classification.
+        pipeline_target = (
+            target_column
+            or data.get("datasetTargetColumn")
+            or dataset_target
+        )
+
         # ==================== RÉCUPÉRATION DU LABEL ENCODING MAPPING ====================
         applied_actions = model_applied_actions or []
         reverse_label_mapping, label_mapping = extract_target_label_maps(
-            applied_actions, target_column
+            applied_actions, pipeline_target
         )
         if label_mapping:
             logger.info(f"🎯 Label mapping found: {label_mapping}")
@@ -17359,201 +17979,17 @@ async def make_prediction(
         scaler = None
         model_metadata = {}
         
-        if framework == "pytorch":
+        if _is_pytorch_saved_model(framework, model_type, model_path):
             try:
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                loaded_data = torch.load(model_path, map_location=device, weights_only=False)
-                
-                logger.info(f"🔍 Loaded PyTorch data type: {type(loaded_data)}")
-                
-                # CAS 1: C'est déjà un modèle PyTorch (nn.Module)
-                if hasattr(loaded_data, 'eval') and hasattr(loaded_data, 'forward'):
-                    model = loaded_data
-                    model.eval()
-                    logger.info(f"✅ Loaded as direct PyTorch model - Type: {type(model)}")
-                
-                # CAS 2: C'est un dictionnaire avec state_dict
-                elif isinstance(loaded_data, dict):
-                    logger.info(f"📋 Dictionary keys: {list(loaded_data.keys())}")
-                    
-                    # Extraire les métadonnées si elles sont incluses
-                    if 'feature_names' in loaded_data:
-                        model_metadata['feature_names'] = loaded_data['feature_names']
-                    if 'is_classification' in loaded_data:
-                        model_metadata['is_classification'] = loaded_data['is_classification']
-                    if 'problem_type' in loaded_data:
-                        model_metadata['problem_type'] = loaded_data['problem_type']
-                    if 'class_names' in loaded_data:
-                        model_metadata['class_names'] = loaded_data['class_names']
-                    if 'final_parameters' in loaded_data:
-                        model_metadata['final_parameters'] = loaded_data['final_parameters']
-                    if 'scaler' in loaded_data:
-                        scaler = loaded_data['scaler']
-                    
-                    # Ajouter le label mapping aux métadonnées si disponible
-                    if label_mapping:
-                        model_metadata['label_mapping'] = label_mapping
-                        model_metadata['reverse_label_mapping'] = reverse_label_mapping
-                    
-                    # SOUS-CAS 2A: Format standard avec model_state_dict et model_config
-                    if 'model_state_dict' in loaded_data and 'model_config' in loaded_data:
-                        model_config = loaded_data['model_config']
-                        state_dict = loaded_data['model_state_dict']
-                        
-                        # Reconstruire le modèle MLP
-                        import torch.nn as nn
-                        
-                        class PyTorchMLP(nn.Module):
-                            def __init__(self, layers, activation='relu', dropout_rate=0.0):
-                                super(PyTorchMLP, self).__init__()
-                                self.layer_list = nn.ModuleList()
-                                
-                                for i in range(len(layers) - 1):
-                                    self.layer_list.append(nn.Linear(layers[i], layers[i+1]))
-                                
-                                self.activation_name = activation
-                                if activation == 'relu':
-                                    self.activation = nn.ReLU()
-                                elif activation == 'sigmoid':
-                                    self.activation = nn.Sigmoid()
-                                elif activation == 'tanh':
-                                    self.activation = nn.Tanh()
-                                elif activation == 'leaky_relu':
-                                    self.activation = nn.LeakyReLU()
-                                else:
-                                    self.activation = nn.ReLU()
-                                
-                                self.dropout = nn.Dropout(dropout_rate) if dropout_rate > 0 else None
-                                
-                            def forward(self, x):
-                                for i, layer in enumerate(self.layer_list):
-                                    x = layer(x)
-                                    if i < len(self.layer_list) - 1:
-                                        x = self.activation(x)
-                                        if self.dropout:
-                                            x = self.dropout(x)
-                                return x
-                        
-                        model = PyTorchMLP(**model_config)
-                        model.load_state_dict(state_dict)
-                        model.eval()
-                        
-                        if 'metadata' in loaded_data:
-                            model_metadata.update(loaded_data['metadata'])
-                        
-                        logger.info(f"✅ MLP reconstructed from state_dict - Layers: {model_config.get('layers', 'N/A')}")
-                    
-                    # SOUS-CAS 2B: Format avec state_dict direct
-                    elif 'state_dict' in loaded_data:
-                        state_dict = loaded_data['state_dict']
-                        model_config = loaded_data.get('model_config', {})
-                        
-                        import torch.nn as nn
-                        
-                        class PyTorchMLP(nn.Module):
-                            def __init__(self, layers, activation='relu', dropout_rate=0.0):
-                                super(PyTorchMLP, self).__init__()
-                                self.layer_list = nn.ModuleList()
-                                for i in range(len(layers) - 1):
-                                    self.layer_list.append(nn.Linear(layers[i], layers[i+1]))
-                                self.activation_name = activation
-                                if activation == 'relu':
-                                    self.activation = nn.ReLU()
-                                elif activation == 'sigmoid':
-                                    self.activation = nn.Sigmoid()
-                                elif activation == 'tanh':
-                                    self.activation = nn.Tanh()
-                                else:
-                                    self.activation = nn.ReLU()
-                                self.dropout = nn.Dropout(dropout_rate) if dropout_rate > 0 else None
-                                
-                            def forward(self, x):
-                                for i, layer in enumerate(self.layer_list):
-                                    x = layer(x)
-                                    if i < len(self.layer_list) - 1:
-                                        x = self.activation(x)
-                                        if self.dropout:
-                                            x = self.dropout(x)
-                                return x
-                        
-                        model = PyTorchMLP(**model_config)
-                        model.load_state_dict(state_dict)
-                        model.eval()
-                        
-                        if 'metadata' in loaded_data:
-                            model_metadata.update(loaded_data['metadata'])
-                            
-                        logger.info(f"✅ MLP reconstructed from state_dict (format 2)")
-                    
-                    # SOUS-CAS 2C: Format avec architecture imbriquée
-                    elif 'model' in loaded_data and isinstance(loaded_data['model'], dict):
-                        model_dict = loaded_data['model']
-                        if 'state_dict' in model_dict and 'config' in model_dict:
-                            state_dict = model_dict['state_dict']
-                            model_config = model_dict['config']
-                            
-                            import torch.nn as nn
-                            class PyTorchMLP(nn.Module):
-                                def __init__(self, layers, **kwargs):
-                                    super(PyTorchMLP, self).__init__()
-                                    self.layer_list = nn.ModuleList()
-                                    for i in range(len(layers) - 1):
-                                        self.layer_list.append(nn.Linear(layers[i], layers[i+1]))
-                                    self.activation = nn.ReLU()
-                                    
-                                def forward(self, x):
-                                    for i, layer in enumerate(self.layer_list):
-                                        x = layer(x)
-                                        if i < len(self.layer_list) - 1:
-                                            x = self.activation(x)
-                                    return x
-                            
-                            model = PyTorchMLP(**model_config)
-                            model.load_state_dict(state_dict)
-                            model.eval()
-                            
-                            if 'metadata' in loaded_data:
-                                model_metadata.update(loaded_data['metadata'])
-                                
-                            logger.info(f"✅ MLP reconstructed from nested structure")
-                    
-                    # SOUS-CAS 2D: Format inconnu
-                    else:
-                        logger.warning(f"⚠️ Unknown dictionary format. Trying to find nn.Module in values...")
-                        for key, value in loaded_data.items():
-                            if hasattr(value, 'eval') and hasattr(value, 'forward'):
-                                model = value
-                                model.eval()
-                                logger.info(f"✅ Found nn.Module in key: {key}")
-                                break
-                        
-                        if model is None:
-                            logger.error("❌ No nn.Module found in PyTorch file")
-                            raise HTTPException(
-                                status_code=500, 
-                                detail=f"Unsupported PyTorch model format. Keys: {list(loaded_data.keys())}"
-                            )
-                
-                # CAS 3: Format inconnu
-                else:
-                    logger.error(f"❌ Unknown PyTorch model format: {type(loaded_data)}")
-                    raise HTTPException(
-                        status_code=500, 
-                        detail=f"Unsupported PyTorch model format: {type(loaded_data)}"
-                    )
-                
-                # Charger les métadonnées séparées si elles existent
-                metadata_path = model_path.replace(".pt", "_metadata.joblib")
-                if os.path.exists(metadata_path):
-                    try:
-                        additional_metadata = joblib.load(metadata_path)
-                        model_metadata.update(additional_metadata)
-                        logger.info(f"✅ Loaded additional PyTorch model metadata")
-                    except Exception as e:
-                        logger.warning(f"⚠️ Could not load additional metadata: {str(e)}")
-                
+                model, scaler, model_metadata = _load_pytorch_saved_model(model_path)
+                if label_mapping:
+                    model_metadata['label_mapping'] = label_mapping
+                    model_metadata['reverse_label_mapping'] = reverse_label_mapping
+                logger.info(f"Loaded PyTorch model: {type(model)} features={model_metadata.get('feature_names')}")
+            except HTTPException:
+                raise
             except Exception as e:
-                logger.error(f"❌ Failed to load PyTorch model: {str(e)}")
+                logger.error(f"Failed to load PyTorch model: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to load PyTorch model: {str(e)}")
         
         else:
@@ -17572,14 +18008,18 @@ async def make_prediction(
                 if 'model' in saved_data:
                     raw_model = saved_data['model']
                     scaler = saved_data.get('scaler')
+                    
                     model_metadata = saved_data.get('metadata', {}) or {}
+                    for _k in ('class_names', 'is_classification', 'feature_names'):
+                        if _k in saved_data and _k not in model_metadata:
+                            model_metadata[_k] = saved_data[_k]
                     logger.info(f"🔍 Raw model type from saved_data: {type(raw_model)}")
                     
                     # Nested train wrappers (KMeans / anomaly): {model, scaler, feature_names, ...}
                     if isinstance(raw_model, dict):
                         if scaler is None:
                             scaler = raw_model.get('scaler')
-                        for _k in ('algorithm', 'model_type', 'params', 'feature_names', 'target_excluded'):
+                        for _k in ('algorithm', 'model_type', 'params', 'feature_names', 'target_excluded', 'class_names', 'is_classification'):
                             if _k in raw_model and _k not in model_metadata:
                                 model_metadata[_k] = raw_model[_k]
 
@@ -17647,11 +18087,42 @@ async def make_prediction(
                 
                 logger.info(f"✅ Scikit-learn model loaded and validated successfully - Type: {type(model)}")
                 
+                
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"❌ Failed to load scikit-learn model: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
+        
+        if not reverse_label_mapping and isinstance(model_metadata, dict):
+            saved_class_names = model_metadata.get('class_names')
+            if saved_class_names and model_metadata.get('is_classification', True):
+                try:
+                    stored_classes = list(saved_class_names)
+                    model_classes = getattr(model, 'classes_', None)
+                    looks_index_encoded = (
+                        model_classes is not None
+                        and len(model_classes) == len(stored_classes)
+                        and list(model_classes) == list(range(len(stored_classes)))
+                    )
+                    names_look_like_labels = any(
+                        not str(c).replace(".", "", 1).lstrip("-").isdigit()
+                        for c in stored_classes
+                    )
+                    if looks_index_encoded and names_look_like_labels:
+                        reverse_label_mapping = {
+                            str(i): str(cls) for i, cls in enumerate(stored_classes)
+                        }
+                        logger.info(
+                            f"🔁 Reconstructed label mapping from saved class_names: {reverse_label_mapping}"
+                        )
+                    else:
+                        logger.info(
+                            "ℹ️ Model appears fit on raw target values (not index-encoded) "
+                            "— skipping class_names fallback to avoid mis-mapping."
+                        )
+                except Exception as _fallback_err:
+                    logger.warning(f"Could not rebuild label mapping from class_names: {_fallback_err}")
 
         # ==================== DÉTERMINER LES COLONNES À UTILISER ====================
         is_anomaly_pred = _is_anomaly_model(model, model_type, model_metadata)
@@ -17660,38 +18131,53 @@ async def make_prediction(
         if isinstance(model_metadata, dict):
             target_excluded = model_metadata.get("target_excluded")
 
+        # Supervised: skip/hide the true target. Anomaly: only skip the column
+        # that was ignored at training (if any). No target at train → all fields stay.
+        if is_anomaly_pred:
+            pipeline_target = _anomaly_ignored_target(
+                meta_features, target_excluded, dataset_target
+            )
+        elif not pipeline_target:
+            pipeline_target = target_excluded
+
         if meta_features:
-            required_columns = [c for c in meta_features if c not in ("split_type", "id")]
+            required_columns = [c for c in meta_features if not is_skip_column(c, None)]
             logger.info(f"📊 Using frozen feature_names from model file: {required_columns}")
         elif expected_features:
-            required_columns = [c for c in expected_features if c != target_column]
+            required_columns = [c for c in expected_features if not is_skip_column(c, pipeline_target)]
             logger.info(f"📊 Using expected features from frontend: {required_columns}")
         else:
             if model_type == "kmeans":
-                required_columns = list(db_columns or [])
+                required_columns = [c for c in (db_columns or []) if not is_skip_column(c, None)]
             else:
-                required_columns = [col for col in (db_columns or []) if col != target_column]
+                required_columns = [col for col in (db_columns or []) if not is_skip_column(col, pipeline_target)]
             logger.info(f"📊 Using saved DB columns: {required_columns}")
 
-        # Anomaly / explicit exclusions: never feed target into the model
-        drop_targets = {t for t in (target_column, target_excluded) if t}
+        # Anomaly: drop only the column ignored at training. Supervised: never feed target.
+        if is_anomaly_pred:
+            drop_targets = {t for t in (pipeline_target, target_excluded) if t}
+        else:
+            drop_targets = {t for t in (target_column, pipeline_target, target_excluded) if t}
         if drop_targets:
-            required_columns = [c for c in required_columns if c not in drop_targets]
+            drop_l = {_norm_col_name(t) for t in drop_targets}
+            required_columns = [c for c in required_columns if _norm_col_name(c) not in drop_l]
 
         # ==================== APPLY SHARED PIPELINE (raw → features) ====================
         working_input = dict(input_data or {})
         # Strip target from raw input so it cannot leak into features
-        for t in drop_targets:
-            working_input.pop(t, None)
+        for t in list(working_input.keys()):
+            if is_skip_column(t, pipeline_target) or (target_excluded and _norm_col_name(t) == _norm_col_name(target_excluded)):
+                if _norm_col_name(t) in {_norm_col_name(x) for x in drop_targets}:
+                    working_input.pop(t, None)
 
         if apply_pipeline and applied_actions:
             try:
-                # Always pass dataset target so label_encoding(target) is skipped by the pipeline.
-                # For anomaly, target is still stripped from features afterward (never used to score).
+                # Always pass dataset target so label_encoding(target) is skipped by the pipeline
+                # even when Use Model does not show that field (Isolation Forest, One-Class SVM).
                 transformed_list, transform_steps = apply_actions_to_records(
                     [working_input],
                     applied_actions,
-                    target_column=target_column,
+                    target_column=pipeline_target,
                 )
                 working_input = transformed_list[0]
                 for t in drop_targets:
@@ -17705,6 +18191,7 @@ async def make_prediction(
                 raise HTTPException(status_code=400, detail=f"Preprocessing pipeline failed: {str(e)}")
 
         # Fill missing final features with 0 (e.g. unmatched one-hot)
+        working_input = align_record_keys(working_input, required_columns)
         for col in required_columns:
             if col not in working_input:
                 working_input[col] = 0
@@ -17719,7 +18206,7 @@ async def make_prediction(
 
         try:
             input_array = build_feature_matrix(
-                [working_input], required_columns, target_column=target_column
+                [working_input], required_columns, target_column=pipeline_target
             )
             input_values = input_array[0].tolist()
         except Exception as e:
@@ -17779,84 +18266,44 @@ async def make_prediction(
                     anom["anomaly_score"],
                 )
                 
-            elif framework == "pytorch":
-                # ==================== PRÉDICTION PYTORCH ====================
+            elif _is_pytorch_saved_model(framework, model_type, model_path):
                 try:
-                    input_tensor = torch.FloatTensor([input_values])
-                    
-                    with torch.no_grad():
-                        output = model(input_tensor)
-                    
-                    logger.info(f"🔍 PyTorch model output shape: {output.shape}, output: {output}")
-                    
-                    problem_type = model_metadata.get('problem_type', 'regression')
-                    is_classification = model_metadata.get('is_classification', False)
-                    class_names = model_metadata.get('class_names', [])
-                    
-                    # Si on a un label mapping, l'utiliser pour les noms de classes
-                    if label_mapping and not class_names:
-                        class_names = list(label_mapping.keys())
-                        logger.info(f"📋 Using label mapping for class names: {class_names}")
-                    
-                    output_shape = output.shape
-                    
-                    if len(output_shape) == 2 and output_shape[1] > 1:
-                        probabilities = torch.softmax(output, dim=1)
-                        predicted_class_index = torch.argmax(output, dim=1).item()
-                        prediction_value = predicted_class_index
-                        
-                        prob_dict = {}
-                        for i in range(output_shape[1]):
-                            if i < len(class_names):
-                                class_label = class_names[i]
-                            else:
-                                class_label = reverse_label_mapping.get(str(i), f"class_{i}")
-                            prob_dict[class_label] = float(probabilities[0][i])
-                        
-                        # Obtenir le nom de la classe prédite
-                        predicted_class_name = class_names[predicted_class_index] if predicted_class_index < len(class_names) else reverse_label_mapping.get(str(predicted_class_index), str(predicted_class_index))
-                        
+                    input_array = np.array([input_values], dtype=float)
+                    outp = _pytorch_supervised_predict(
+                        model,
+                        input_array,
+                        reverse_label_mapping,
+                        metadata=model_metadata,
+                        decision_threshold=decision_threshold,
+                        scaler=scaler,
+                    )
+                    if outp.get("n_classes"):
+                        enc = outp.get("enc")
                         prediction_result = {
-                            "prediction": float(prediction_value),
-                            "probabilities": prob_dict,
-                            "predicted_class": predicted_class_name,
-                            "confidence": float(torch.max(probabilities, dim=1)[0].item())
+                            "prediction": float(enc) if isinstance(enc, (int, float, np.number)) else enc,
+                            "probabilities": outp.get("probabilities"),
+                            "predicted_class": outp.get("human"),
+                            "predicted_label": outp.get("human"),
+                            "confidence": outp.get("conf"),
+                            "decision_threshold": decision_threshold if outp.get("threshold_applied") else None,
+                            "threshold_applied": bool(outp.get("threshold_applied")),
+                            "positive_class_prob": outp.get("pos_prob"),
+                            "positive_class_name": outp.get("positive_class_name"),
+                            "n_classes": outp.get("n_classes"),
                         }
-                        
-                        logger.info(f"✅ PyTorch multiclass - Predicted: {predicted_class_name} (index: {predicted_class_index})")
-                    
-                    elif problem_type == 'binary_classification' or (is_classification and output_shape[1] == 1):
-                        probability = torch.sigmoid(output).item()
-                        prediction_value = 1 if probability >= decision_threshold else 0
-                        
-                        predicted_class_name = class_names[prediction_value] if prediction_value < len(class_names) else reverse_label_mapping.get(str(prediction_value), str(prediction_value))
-                        
-                        prediction_result = {
-                            "prediction": float(prediction_value),
-                            "probability": float(probability),
-                            "predicted_class": predicted_class_name,
-                            "predicted_label": predicted_class_name,
-                            "confidence": float(probability if prediction_value == 1 else 1 - probability),
-                            "decision_threshold": decision_threshold,
-                        }
-                        
-                        logger.info(f"✅ PyTorch binary - Prediction: {predicted_class_name} (value: {prediction_value})")
-                    
                     else:
-                        if output.numel() == 1:
-                            prediction_value = output.item()
-                        else:
-                            prediction_value = output[0].item() if len(output) > 0 else 0.0
-                            
+                        pred_val = outp.get("pred")
                         prediction_result = {
-                            "prediction": float(prediction_value),
-                            "output_values": output.tolist() if output.numel() > 1 else None
+                            "prediction": float(pred_val) if isinstance(pred_val, (int, float, np.number)) else pred_val,
                         }
-                        
-                        logger.info(f"✅ PyTorch regression - Prediction: {prediction_value}")
-                    
+                    logger.info(
+                        "PyTorch prediction: %s",
+                        prediction_result.get("predicted_class", prediction_result.get("prediction")),
+                    )
+                except HTTPException:
+                    raise
                 except Exception as e:
-                    logger.error(f"❌ PyTorch prediction error: {str(e)}")
+                    logger.error(f"PyTorch prediction error: {e}")
                     raise HTTPException(status_code=500, detail=f"PyTorch prediction failed: {str(e)}")
                 
             else:
@@ -17887,64 +18334,60 @@ async def make_prediction(
                         logger.info(f"🔍 Probabilities: {probabilities}")
                         
                         # Récupérer les classes du modèle
-                        model_classes = getattr(model, 'classes_', [])
+                        model_classes = list(getattr(model, "classes_", []) if getattr(model, "classes_", None) is not None else [])
                         logger.info(f"🔍 Model classes_: {model_classes}")
-                        
-                        # Récupérer les métadonnées
-                        class_names = model_metadata.get('class_names', [])
-                        
-                        # Déterminer les noms de classes à afficher
+                        n_model_classes = len(model_classes) if model_classes else len(probabilities)
+
+                        # Decode via the training mapping first (never assume class_names[i]
+                        # matches model.classes_[i] — that is what broke 3-class logistic).
                         effective_class_names = []
+                        for cls_val in model_classes:
+                            human, _ = decode_class_label(cls_val, reverse_label_mapping)
+                            effective_class_names.append(str(human))
+                        if not effective_class_names:
+                            class_names = model_metadata.get('class_names', []) or []
+                            effective_class_names = [str(c) for c in class_names]
                         
-                        if class_names and len(class_names) == len(probabilities):
-                            effective_class_names = class_names
-                            logger.info(f"📋 Using class_names from metadata: {effective_class_names}")
-                        elif label_mapping:
-                            # Utiliser le mapping inverse pour obtenir les labels
-                            for i, cls_val in enumerate(model_classes):
-                                cls_str = str(cls_val)
-                                if cls_str in reverse_label_mapping:
-                                    effective_class_names.append(reverse_label_mapping[cls_str])
-                                else:
-                                    effective_class_names.append(f"Class_{cls_val}")
-                            logger.info(f"📋 Using label mapping for class names: {effective_class_names}")
-                        else:
-                            # Convertir les classes du modèle en strings
-                            effective_class_names = [str(cls) for cls in model_classes]
-                            logger.info(f"📋 Using model classes as strings: {effective_class_names}")
-                        
-                        # S'assurer que les tailles correspondent
+                        # Do not truncate classes: a 3-class model must keep 3 probabilities.
                         if len(effective_class_names) != len(probabilities):
-                            logger.warning(f"⚠️ Class names count ({len(effective_class_names)}) != probabilities count ({len(probabilities)})")
-                            min_len = min(len(effective_class_names), len(probabilities))
-                            effective_class_names = effective_class_names[:min_len]
-                            probabilities = probabilities[:min_len]
+                            logger.warning(
+                                "Class names count (%s) != probabilities count (%s) — using model.classes_",
+                                len(effective_class_names),
+                                len(probabilities),
+                            )
+                            effective_class_names = [str(decode_class_label(c, reverse_label_mapping)[0]) for c in model_classes]
+                            if len(effective_class_names) != len(probabilities):
+                                effective_class_names = [str(i) for i in range(len(probabilities))]
                         
                         # Construire le dictionnaire des probabilités avec les vrais noms
                         prob_dict = {}
                         for i, prob in enumerate(probabilities):
                             class_label = effective_class_names[i] if i < len(effective_class_names) else f"class_{i}"
-                            prob_dict[class_label] = float(prob)
+                            # ⚠️ Forcer str() : certains algos (Logistic Regression)
+                            # sauvegardent class_names en numpy.int64 brut (pas
+                            # castes en string, contrairement a SVM/kNN/LightGBM/MLP).
+                            # Une cle de dict numpy.int64 fait planter le serialiseur
+                            # JSON de FastAPI ('numpy.int64' object is not iterable).
+                            prob_dict[str(class_label)] = float(prob)
                         
-                        # Binary threshold override when 2 classes + user threshold ≠ 0.5
+                        # Binary threshold ONLY when the model has exactly 2 classes.
                         predicted_class_index = None
-                        if len(probabilities) == 2:
-                            # Treat index 1 as positive class probability
+                        is_binary_model = n_model_classes == 2 and len(probabilities) == 2
+                        if is_binary_model:
                             pos_prob = float(probabilities[1])
                             predicted_class_index = 1 if pos_prob >= decision_threshold else 0
                             prediction = model_classes[predicted_class_index] if len(model_classes) > predicted_class_index else predicted_class_index
-                        elif isinstance(prediction, (int, np.integer)):
-                            predicted_class_index = int(prediction)
-                        elif isinstance(prediction, (float, np.floating)):
-                            predicted_class_index = int(prediction)
                         else:
                             try:
                                 predicted_class_index = list(model_classes).index(prediction)
                             except (ValueError, TypeError):
-                                predicted_class_index = int(np.argmax(probabilities))
+                                try:
+                                    predicted_class_index = [str(c) for c in model_classes].index(str(prediction))
+                                except (ValueError, TypeError):
+                                    predicted_class_index = int(np.argmax(probabilities))
                         
                         if predicted_class_index is not None and predicted_class_index < len(effective_class_names):
-                            predicted_class_name = effective_class_names[predicted_class_index]
+                            predicted_class_name = str(effective_class_names[predicted_class_index])
                         else:
                             predicted_class_name = str(prediction)
                         
@@ -17956,10 +18399,11 @@ async def make_prediction(
                             "predicted_class": predicted_class_name,
                             "predicted_label": predicted_class_name,
                             "confidence": confidence,
-                            "decision_threshold": decision_threshold if len(probabilities) == 2 else None,
-                            "threshold_applied": len(probabilities) == 2,
-                            "positive_class_prob": float(probabilities[1]) if len(probabilities) == 2 else None,
-                            "positive_class_name": effective_class_names[1] if len(probabilities) == 2 and len(effective_class_names) > 1 else None,
+                            "decision_threshold": decision_threshold if is_binary_model else None,
+                            "threshold_applied": bool(is_binary_model),
+                            "positive_class_prob": float(probabilities[1]) if is_binary_model else None,
+                            "positive_class_name": str(effective_class_names[1]) if is_binary_model and len(effective_class_names) > 1 else None,
+                            "n_classes": n_model_classes,
                         }
                         
                         logger.info(f"✅ Classification - Predicted: {predicted_class_name} (raw: {prediction}), Confidence: {confidence:.4f}")
@@ -18142,10 +18586,18 @@ async def model_inference_info(
             file_feature_names = None
             file_meta = {}
             is_anomaly = False
+            _m = None
             try:
-                if model_path and os.path.exists(model_path) and not str(model_path).endswith(".pt"):
-                    saved = joblib.load(model_path)
-                    _m, _s, file_meta = _extract_sklearn_model_from_joblib(saved)
+                if (
+                    model_path
+                    and os.path.exists(model_path)
+                    and _is_under_saved_models(model_path)
+                ):
+                    if _is_pytorch_saved_model(framework, model_type, model_path):
+                        _m, _s, file_meta = _load_pytorch_saved_model(model_path)
+                    else:
+                        saved = joblib.load(model_path)
+                        _m, _s, file_meta = _extract_sklearn_model_from_joblib(saved)
                     file_feature_names = file_meta.get("feature_names")
                     is_anomaly = _is_anomaly_model(_m, model_type, file_meta, algorithm)
             except Exception as e:
@@ -18153,27 +18605,59 @@ async def model_inference_info(
                 is_anomaly = _is_anomaly_model(None, model_type, None, algorithm)
 
             feature_columns = list(file_feature_names or []) or [
-                c for c in (db_columns or []) if c not in ("split_type", "id")
+                c for c in (db_columns or []) if not is_skip_column(c, None)
             ]
-            target_excluded = file_meta.get("target_excluded") or target_column
-            if target_excluded:
-                feature_columns = [c for c in feature_columns if c != target_excluded]
-            if target_column:
-                feature_columns = [c for c in feature_columns if c != target_column]
+            target_excluded = file_meta.get("target_excluded")
+            if is_anomaly:
+                ignored_target = _anomaly_ignored_target(
+                    feature_columns, target_excluded, target_column
+                )
+                if ignored_target:
+                    feature_columns = [
+                        c for c in feature_columns if not is_skip_column(c, ignored_target)
+                    ]
+            else:
+                ignored_target = None
+                if target_excluded:
+                    feature_columns = [
+                        c for c in feature_columns if not is_skip_column(c, target_excluded)
+                    ]
+                if target_column:
+                    feature_columns = [
+                        c for c in feature_columns if not is_skip_column(c, target_column)
+                    ]
 
-            # Anomaly: never ask the user for the dataset target as an input feature
             raw_cols = list(raw_input_columns or []) or infer_raw_input_columns(
                 feature_columns,
                 applied_actions,
-                None if is_anomaly else target_column,
+                ignored_target if is_anomaly else target_column,
             )
-            if is_anomaly and target_column:
-                raw_cols = [c for c in raw_cols if c != target_column]
-            raw_cols = [c for c in raw_cols if c not in ("split_type", "id")]
+            skip_tgt = ignored_target if is_anomaly else None
+            raw_cols = [c for c in raw_cols if not is_skip_column(c, skip_tgt)]
+            if not is_anomaly and target_column:
+                raw_cols = [c for c in raw_cols if not is_skip_column(c, target_column)]
 
             reverse_map, forward_map = extract_target_label_maps(
                 applied_actions, None if is_anomaly else target_column
             )
+
+            n_classes = None
+            class_labels = []
+            is_binary_classification = False
+            try:
+                if _m is not None and not is_anomaly:
+                    classes, class_labels = _labels_for_model_classes(_m, reverse_map)
+                    if not class_labels:
+                        stored = list(file_meta.get("class_names") or [])
+                        n_from_meta = len(stored) if stored else None
+                        if file_meta.get("is_classification") and n_from_meta:
+                            class_labels = _pytorch_class_labels(file_meta, reverse_map, n_from_meta)
+                    n_classes = len(class_labels) if class_labels else (len(classes) if classes else None)
+                    if not n_classes and file_meta.get("class_names"):
+                        n_classes = len(file_meta.get("class_names") or [])
+                    is_binary_classification = n_classes == 2
+            except Exception:
+                pass
 
             return {
                 "model_id": mid,
@@ -18187,6 +18671,7 @@ async def model_inference_info(
                 # For anomaly: still report dataset target for context, but not as a form field
                 "target_column": None if is_anomaly else target_column,
                 "dataset_target_column": target_column,
+                "ignored_target_column": ignored_target if is_anomaly else None,
                 "is_anomaly_model": is_anomaly,
                 "feature_columns": feature_columns,
                 "raw_input_columns": raw_cols,
@@ -18195,6 +18680,9 @@ async def model_inference_info(
                 "has_pipeline": len(applied_actions) > 0,
                 "label_mapping": {} if is_anomaly else forward_map,
                 "reverse_label_mapping": {} if is_anomaly else reverse_map,
+                "n_classes": n_classes,
+                "class_labels": class_labels,
+                "is_binary_classification": is_binary_classification,
             }
 
 
@@ -18211,27 +18699,50 @@ async def sample_row(
     Return RAW example row(s) for the prediction form (default 1, up to 50).
     Prefers *_backup / *_reset (pre-transform) joined to test rows when possible.
     """
-    base = bdName.replace("_numerized", "").replace("_backup", "").replace("_reset", "").lower()
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT 1 FROM user_tables_metadata
-                WHERE table_name = %s AND owner_id = %s
-                """,
-                (base, current_user_id),
-            )
-            if not cur.fetchone():
-                raise HTTPException(403, "Dataset not found or not owned by user")
+            model_db_name = None
+            if modelId is not None:
+                cur.execute(
+                    """
+                    SELECT db_name FROM user_saved_models
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (modelId, current_user_id),
+                )
+                mrow = cur.fetchone()
+                if not mrow:
+                    raise HTTPException(404, "Model not found")
+                model_db_name = mrow[0]
 
-            candidates = [f"{base}_backup", f"{base}_reset", base]
+            owned_table, base = _resolve_owned_sample_dataset(
+                cur, current_user_id, model_db_name, bdName
+            )
+            if not owned_table or not base:
+                raise HTTPException(
+                    403,
+                    "Dataset not found or not owned by user. "
+                    "The training table linked to this model may have been renamed or deleted. "
+                    "You can still upload a CSV in the Batch tab.",
+                )
+
+            candidates = []
+            for t in (
+                f"{base}_backup",
+                f"{base}_reset",
+                owned_table,
+                f"{base}_numerized",
+                base,
+            ):
+                if t and t not in candidates:
+                    candidates.append(t)
             source_table = None
             for t in candidates:
                 cur.execute(
                     """
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.tables
-                        WHERE table_name = %s
+                        WHERE table_schema = 'public' AND table_name = %s
                     )
                     """,
                     (t,),
@@ -18329,6 +18840,513 @@ async def sample_row(
             }
 
 
+BATCH_MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB
+_CSV_CONTENT_TYPES = {
+    "",
+    "text/csv",
+    "text/plain",
+    "text/comma-separated-values",
+    "application/csv",
+    "application/vnd.ms-excel",
+    "application/octet-stream",
+}
+
+
+def _require_batch_uuid(batch_id: str) -> str:
+    """Accept only a canonical UUID (same form as uuid.uuid4()). Blocks path traversal."""
+    import uuid as _uuid
+
+    raw = str(batch_id or "").strip()
+    try:
+        parsed = _uuid.UUID(raw)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid batch id.")
+    canonical = str(parsed)
+    if raw.lower() != canonical:
+        raise HTTPException(status_code=400, detail="Invalid batch id.")
+    return canonical
+
+
+def _batch_csv_path(current_user_id: str, batch_id: str) -> str:
+    """Temp CSV path for a batch result. batch_id must be a UUID."""
+    import tempfile
+
+    safe_id = _require_batch_uuid(batch_id)
+    tmp_dir = os.path.realpath(os.path.join(tempfile.gettempdir(), "automl_batch_preds"))
+    os.makedirs(tmp_dir, exist_ok=True)
+    path = os.path.realpath(os.path.join(tmp_dir, f"{current_user_id}_{safe_id}.csv"))
+    if os.path.commonpath([tmp_dir, path]) != tmp_dir:
+        raise HTTPException(status_code=400, detail="Invalid batch id.")
+    return path
+
+
+def _reject_if_not_csv_upload(filename: str, content_type: str, content: bytes) -> None:
+    """Same idea as dataset upload: real .csv only (name, MIME, not Excel/ZIP/binary)."""
+    name = (filename or "").strip().lower()
+    if not name.endswith(".csv"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file. Only CSV (.csv) files are allowed.",
+        )
+    if content[:4] == b"PK\x03\x04":
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file. Excel/ZIP files are not allowed. Please upload a CSV.",
+        )
+    if content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file. Excel files are not allowed. Please upload a CSV.",
+        )
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    if ctype and ctype not in _CSV_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file. Only CSV (.csv) files are allowed.",
+        )
+    sample = content[:8192]
+    if b"\x00" in sample:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file. Binary files are not allowed. Please upload a CSV.",
+        )
+    try:
+        sample.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            sample.decode("latin-1")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not read CSV. Use UTF-8 or Latin-1 encoding.",
+            )
+
+
+def _json_num(v, nd=4):
+    if v is None:
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(x):
+        return None
+    return round(x, nd)
+
+
+def _norm_eval_label(v):
+    if v is None:
+        return None
+    if isinstance(v, float) and pd.isna(v):
+        return None
+    s = str(v).strip()
+    if not s or s.lower() in ("nan", "none", "null"):
+        return None
+    return s
+
+
+def _looks_numeric_values(values):
+    n = 0
+    ok = 0
+    for v in values:
+        lab = _norm_eval_label(v)
+        if lab is None:
+            continue
+        n += 1
+        try:
+            float(lab)
+            ok += 1
+        except (TypeError, ValueError):
+            pass
+    return n > 0 and (ok / n) >= 0.9
+
+
+def _decode_eval_label(v, reverse_map):
+    s = _norm_eval_label(v)
+    if s is None:
+        return None
+    if reverse_map:
+        for key in (s, s.lower()):
+            if key in reverse_map and reverse_map[key] is not None:
+                return str(reverse_map[key]).strip()
+        try:
+            n = int(float(s))
+            for key in (n, str(n)):
+                if key in reverse_map and reverse_map[key] is not None:
+                    return str(reverse_map[key]).strip()
+        except (TypeError, ValueError):
+            pass
+    return s
+
+
+def _is_cluster_model(model_type, algorithm):
+    mt = str(model_type or "").lower()
+    algo = str(algorithm or "").lower()
+    return "kmeans" in mt or "cluster" in mt or "kmeans" in algo or "cluster" in algo
+
+
+def _norm_code_token(v):
+    s = _norm_eval_label(v)
+    if s is None:
+        return None
+    try:
+        f = float(s)
+        if abs(f - int(round(f))) < 1e-9:
+            return str(int(round(f)))
+    except (TypeError, ValueError):
+        pass
+    return s.strip().lower()
+
+
+def _to_human_label(v, reverse_map):
+    s = _norm_eval_label(v)
+    if s is None:
+        return None
+    sl = s.strip().lower()
+    human_values = {str(x).strip().lower() for x in (reverse_map or {}).values()}
+    if sl in human_values:
+        return sl
+    for key in _encoding_key_variants(s):
+        if key in (reverse_map or {}) and reverse_map[key] is not None:
+            return str(reverse_map[key]).strip().lower()
+    return sl
+
+
+def _to_encoded_label(v, reverse_map, forward_map):
+    s = _norm_eval_label(v)
+    if s is None:
+        return None
+    sl = s.strip().lower()
+    for key in _encoding_key_variants(s):
+        if key in (reverse_map or {}):
+            return _norm_code_token(key)
+    for lab, enc in (forward_map or {}).items():
+        if str(lab).strip().lower() == sl:
+            return _norm_code_token(enc)
+    for enc, lab in (reverse_map or {}).items():
+        if str(lab).strip().lower() == sl:
+            return _norm_code_token(enc)
+    return _norm_code_token(s) or sl
+
+
+def _align_classification_labels(actuals, preds_human, preds_enc, reverse_map, forward_map):
+    """
+    Compare true vs predicted in the label space that actually matches
+    (original names OR encoded 0/1/2). Picks the alignment with the highest accuracy.
+    This is what made 3-class logistic look like ~33% when names were compared to codes.
+    """
+    strategies = []
+
+    def _pack(yt, yp):
+        pairs = [(a, b) for a, b in zip(yt, yp) if a is not None and b is not None]
+        if not pairs:
+            return None
+        y_true = [p[0] for p in pairs]
+        y_pred = [p[1] for p in pairs]
+        acc = float(accuracy_score(y_true, y_pred))
+        return acc, y_true, y_pred
+
+    yt_h, yp_h = [], []
+    yt_e, yp_e = [], []
+    yt_r, yp_r = [], []
+    for act, human, enc in zip(actuals, preds_human, preds_enc):
+        yt_h.append(_to_human_label(act, reverse_map))
+        yp_h.append(
+            _to_human_label(human, reverse_map) or _to_human_label(enc, reverse_map)
+        )
+        yt_e.append(_to_encoded_label(act, reverse_map, forward_map))
+        yp_e.append(
+            _to_encoded_label(enc, reverse_map, forward_map)
+            or _to_encoded_label(human, reverse_map, forward_map)
+        )
+        yt_r.append(_norm_code_token(act) or (_norm_eval_label(act) or "").strip().lower() or None)
+        yp_r.append(
+            _norm_code_token(enc)
+            or _norm_code_token(human)
+            or (_norm_eval_label(human) or "").strip().lower()
+            or None
+        )
+
+    for packed in (_pack(yt_h, yp_h), _pack(yt_e, yp_e), _pack(yt_r, yp_r)):
+        if packed:
+            strategies.append(packed)
+    if not strategies:
+        return [], []
+    strategies.sort(key=lambda x: x[0], reverse=True)
+    _, y_true, y_pred = strategies[0]
+    return y_true, y_pred
+
+
+def _labels_for_model_classes(model, reverse_map):
+    raw = getattr(model, "classes_", None)
+    classes = list(raw) if raw is not None else []
+    labels = []
+    for c in classes:
+        human, _ = decode_class_label(c, reverse_map)
+        labels.append(str(human))
+    return classes, labels
+
+
+def _sklearn_supervised_predict(model, X, reverse_map, decision_threshold=0.5, scaler=None):
+    """
+    Predict one row. Decision threshold is applied only for true binary models
+    (exactly 2 classes). Multiclass uses argmax / model.predict().
+    Always apply the joblib scaler when present — same as /predict.
+    """
+    X_arr = _apply_saved_scaler(X, scaler)
+    pred = model.predict(X_arr)[0]
+    classes, class_labels = _labels_for_model_classes(model, reverse_map)
+    n_classes = len(classes) if classes else None
+    conf = None
+    pos_prob = None
+    threshold_applied = False
+    prob_dict = None
+
+    if hasattr(model, "predict_proba"):
+        try:
+            probs = np.asarray(model.predict_proba(X_arr)[0], dtype=float)
+            if n_classes is None:
+                n_classes = int(len(probs))
+            if class_labels and len(class_labels) == len(probs):
+                prob_dict = {str(class_labels[i]): float(probs[i]) for i in range(len(probs))}
+            else:
+                prob_dict = {str(i): float(p) for i, p in enumerate(probs)}
+            is_binary = n_classes == 2 and len(probs) == 2
+            if is_binary:
+                pos_prob = float(probs[1])
+                pred_idx = 1 if pos_prob >= float(decision_threshold) else 0
+                pred = classes[pred_idx] if pred_idx < len(classes) else pred_idx
+                conf = float(probs[pred_idx])
+                threshold_applied = True
+            else:
+                conf = float(np.max(probs))
+                threshold_applied = False
+        except Exception:
+            pass
+
+    human, enc = decode_class_label(pred, reverse_map)
+    return {
+        "pred": pred,
+        "human": human,
+        "enc": enc,
+        "conf": conf,
+        "pos_prob": pos_prob,
+        "threshold_applied": threshold_applied,
+        "n_classes": n_classes,
+        "probabilities": prob_dict,
+        "class_labels": class_labels,
+        "positive_class_name": class_labels[1] if class_labels and len(class_labels) == 2 else None,
+    }
+
+
+def _compute_batch_metrics(
+    *,
+    actuals,
+    preds_human,
+    preds_enc,
+    confs,
+    anom_scores,
+    is_anom_flags,
+    has_target,
+    target_column,
+    model_type,
+    algorithm,
+    is_anomaly,
+    reverse_map,
+    forward_map=None,
+    model_n_classes=None,
+    model_class_labels=None,
+):
+    """Scores for the uploaded file, adapted to the problem type."""
+    n = len(preds_human)
+    kind = "classification"
+    if is_anomaly:
+        kind = "anomaly"
+    elif _is_cluster_model(model_type, algorithm):
+        kind = "clustering"
+    else:
+        mt = str(model_type or "").lower()
+        unique_enc = {str(v) for v in preds_enc if _norm_eval_label(v) is not None}
+        numeric_pred = _looks_numeric_values(preds_enc)
+        numeric_act = has_target and _looks_numeric_values(actuals)
+        if "classif" in mt or "logistic" in mt:
+            kind = "classification"
+        elif "regress" in mt or "ridge" in mt:
+            kind = "regression"
+        elif numeric_pred and (len(unique_enc) > 20 or (numeric_act and len(unique_enc) > 15)):
+            kind = "regression"
+        else:
+            kind = "classification"
+
+    out = {
+        "kind": kind,
+        "has_ground_truth": False,
+        "n_rows": n,
+        "n_evaluated": 0,
+        "target_column": target_column if has_target else None,
+        "hint": None,
+    }
+
+    conf_ok = [float(c) for c in confs if c is not None]
+    conf_ok = [c for c in conf_ok if np.isfinite(c)]
+    if conf_ok:
+        out["mean_confidence"] = _json_num(float(np.mean(conf_ok)))
+
+    try:
+        if kind == "anomaly":
+            n_anom = sum(1 for f in is_anom_flags if f)
+            n_norm = sum(1 for f in is_anom_flags if f is False)
+            scores = [float(s) for s in anom_scores if s is not None]
+            scores = [s for s in scores if np.isfinite(s)]
+            out["n_anomaly"] = int(n_anom)
+            out["n_normal"] = int(n_norm)
+            out["anomaly_rate"] = _json_num((n_anom / n) if n else 0)
+            if scores:
+                out["score_min"] = _json_num(min(scores), 6)
+                out["score_mean"] = _json_num(float(np.mean(scores)), 6)
+                out["score_max"] = _json_num(max(scores), 6)
+            if has_target:
+                out["hint"] = (
+                    "The target column in the file is display-only. "
+                    "Isolation Forest / One-Class SVM do not use accuracy, precision, recall or F1."
+                )
+            return out
+
+        if kind == "clustering":
+            sizes = Counter(
+                str(_norm_eval_label(h) or _norm_eval_label(e) or "unknown")
+                for h, e in zip(preds_human, preds_enc)
+            )
+            out["n_clusters"] = len(sizes)
+            out["cluster_sizes"] = {
+                k: int(v) for k, v in sorted(sizes.items(), key=lambda kv: kv[0])
+            }
+            biggest = max(sizes.values()) if sizes else 0
+            out["largest_cluster_share"] = _json_num((biggest / n) if n else 0)
+            out["hint"] = (
+                "Clustering has no accuracy/R²: groups are discovered, not compared to a true target."
+            )
+            return out
+
+        if kind == "regression":
+            pred_vals = []
+            for e, h in zip(preds_enc, preds_human):
+                num = _json_num(e, 8)
+                if num is None:
+                    num = _json_num(h, 8)
+                pred_vals.append(num)
+            finite_preds = [p for p in pred_vals if p is not None]
+            if finite_preds:
+                out["pred_mean"] = _json_num(float(np.mean(finite_preds)))
+                out["pred_std"] = _json_num(float(np.std(finite_preds)))
+                out["pred_min"] = _json_num(min(finite_preds))
+                out["pred_max"] = _json_num(max(finite_preds))
+            if has_target:
+                y_true, y_pred = [], []
+                for act, pred in zip(actuals, pred_vals):
+                    yt = _json_num(act, 8)
+                    if yt is None or pred is None:
+                        continue
+                    y_true.append(yt)
+                    y_pred.append(pred)
+                if len(y_true) >= 2:
+                    out["has_ground_truth"] = True
+                    out["n_evaluated"] = len(y_true)
+                    out["r2"] = _json_num(r2_score(y_true, y_pred))
+                    out["mae"] = _json_num(mean_absolute_error(y_true, y_pred))
+                    mse = mean_squared_error(y_true, y_pred)
+                    out["mse"] = _json_num(mse)
+                    out["rmse"] = _json_num(float(np.sqrt(mse)))
+                    if any(abs(t) > 1e-12 for t in y_true):
+                        mape = float(np.mean([
+                            abs(p - t) / abs(t)
+                            for t, p in zip(y_true, y_pred)
+                            if abs(t) > 1e-12
+                        ]))
+                        out["mape"] = _json_num(mape)
+                else:
+                    out["hint"] = (
+                        "Need numeric true values in the target column to compute R², MAE and RMSE."
+                    )
+            else:
+                out["hint"] = "Add the true target column to the CSV to compute R², MAE and RMSE."
+            return out
+
+        dist = Counter(str(_norm_eval_label(h) or "unknown") for h in preds_human)
+        out["class_distribution"] = {k: int(v) for k, v in dist.most_common()}
+        out["predicted_n_classes"] = len(dist)
+        if model_n_classes:
+            out["n_classes"] = int(model_n_classes)
+        else:
+            out["n_classes"] = len(dist)
+        if has_target:
+            y_true, y_pred = _align_classification_labels(
+                actuals, preds_human, preds_enc, reverse_map, forward_map or {}
+            )
+            if y_true:
+                out["has_ground_truth"] = True
+                out["n_evaluated"] = len(y_true)
+                out["accuracy"] = _json_num(accuracy_score(y_true, y_pred))
+                observed = set(y_true) | set(y_pred)
+                labels = []
+                seen = set()
+                for lab in model_class_labels or []:
+                    key = str(lab).strip().lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    labels.append(key)
+                for lab in sorted(observed):
+                    key = str(lab).strip().lower()
+                    if key not in seen:
+                        seen.add(key)
+                        labels.append(key)
+                if not labels:
+                    labels = sorted(observed)
+                if len(labels) == 2:
+                    normalish = {"normal", "benign", "legitimate", "0", "false", "no"}
+                    pos_label = next((l for l in labels if l not in normalish), labels[-1])
+                    out["precision"] = _json_num(
+                        precision_score(y_true, y_pred, pos_label=pos_label, zero_division=0)
+                    )
+                    out["recall"] = _json_num(
+                        recall_score(y_true, y_pred, pos_label=pos_label, zero_division=0)
+                    )
+                    out["f1"] = _json_num(
+                        f1_score(y_true, y_pred, pos_label=pos_label, zero_division=0)
+                    )
+                    out["positive_class"] = pos_label
+                else:
+                    out["precision"] = _json_num(
+                        precision_score(y_true, y_pred, average="macro", zero_division=0)
+                    )
+                    out["recall"] = _json_num(
+                        recall_score(y_true, y_pred, average="macro", zero_division=0)
+                    )
+                    out["f1"] = _json_num(
+                        f1_score(y_true, y_pred, average="macro", zero_division=0)
+                    )
+                    out["average"] = "macro"
+                out["n_correct"] = int(sum(a == b for a, b in zip(y_true, y_pred)))
+                if len(labels) <= 6:
+                    cm = confusion_matrix(y_true, y_pred, labels=labels)
+                    out["confusion"] = {"labels": labels, "matrix": cm.tolist()}
+            else:
+                out["hint"] = (
+                    "The file includes a target column, but labels could not be aligned "
+                    "with predictions. Check that the true classes use the same names."
+                )
+        else:
+            out["hint"] = (
+                "Add the true target column to the CSV to compute accuracy, precision, recall and F1."
+            )
+        return out
+    except Exception:
+        logger.exception("Batch metrics failed")
+        out["hint"] = "Scores could not be computed for this file."
+        return out
+
+
 @router.post("/predict-batch")
 async def predict_batch(
     modelId: int = Query(...),
@@ -18346,7 +19364,6 @@ async def predict_batch(
     - Anomaly models: scaler applied, labels mapped to normal/anomaly (not raw -1/1)
     """
     import uuid
-    import tempfile
     from collections import Counter
 
     try:
@@ -18399,15 +19416,18 @@ async def predict_batch(
                         target_column = trow[0]
                         break
 
-        if framework == "pytorch":
-            raise HTTPException(400, detail="Batch prediction for PyTorch models is not enabled yet. Use single prediction.")
+        model_path = assert_model_path_in_jail(model_path)
+        is_pytorch = _is_pytorch_saved_model(framework, model_type, model_path)
 
-        if not os.path.exists(model_path):
-            raise HTTPException(404, detail=f"Model file not found on disk: {model_path}")
-
-        content = await file.read()
+        content = await file.read(BATCH_MAX_UPLOAD_BYTES + 1)
         if not content:
             raise HTTPException(400, detail="Uploaded file is empty.")
+        if len(content) > BATCH_MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="File is too large. Maximum allowed size is 100 MB.",
+            )
+        _reject_if_not_csv_upload(file.filename, file.content_type, content)
 
         try:
             df_raw = pd.read_csv(io.BytesIO(content))
@@ -18424,8 +19444,11 @@ async def predict_batch(
         csv_cols = list(df_raw.columns)
 
         try:
-            saved = joblib.load(model_path)
-            model, scaler, model_meta = _extract_sklearn_model_from_joblib(saved)
+            if is_pytorch:
+                model, scaler, model_meta = _load_pytorch_saved_model(model_path)
+            else:
+                saved = joblib.load(model_path)
+                model, scaler, model_meta = _extract_sklearn_model_from_joblib(saved)
         except HTTPException:
             raise
         except Exception as e:
@@ -18434,42 +19457,75 @@ async def predict_batch(
                 detail=f"Could not load a usable model for batch prediction: {e}",
             )
 
-        if not hasattr(model, "predict"):
+        if not is_pytorch and not hasattr(model, "predict"):
             raise HTTPException(
                 500,
                 detail="Saved model object has no predict() method after extraction.",
             )
+        if is_pytorch and not _is_torch_module(model):
+            raise HTTPException(
+                500,
+                detail="Saved PyTorch model could not be loaded for batch prediction.",
+            )
 
         is_anomaly = _is_anomaly_model(model, model_type, model_meta, algorithm)
 
-        # Prefer frozen feature names from the saved artifact (excludes target for anomaly)
+        # Prefer frozen feature names from the saved artifact
         feature_columns = list(model_meta.get("feature_names") or []) or [
-            c for c in (db_columns or []) if c not in ("split_type", "id")
+            c for c in (db_columns or []) if not is_skip_column(c, None)
         ]
-        # Never use dataset target as a model feature (anomaly / supervised)
-        target_excluded = model_meta.get("target_excluded") or target_column
-        if target_excluded:
-            feature_columns = [c for c in feature_columns if c != target_excluded]
-        if target_column:
-            feature_columns = [c for c in feature_columns if c != target_column]
+        target_excluded = model_meta.get("target_excluded")
+        ignored_target = None
+        if is_anomaly:
+            ignored_target = _anomaly_ignored_target(
+                feature_columns, target_excluded, target_column
+            )
+            if ignored_target:
+                feature_columns = [
+                    c for c in feature_columns if not is_skip_column(c, ignored_target)
+                ]
+        else:
+            if target_excluded:
+                feature_columns = [
+                    c for c in feature_columns if not is_skip_column(c, target_excluded)
+                ]
+            if target_column:
+                feature_columns = [
+                    c for c in feature_columns if not is_skip_column(c, target_column)
+                ]
 
         expected_raw = list(raw_input_columns or []) or infer_raw_input_columns(
-            feature_columns, applied_actions, target_column if not is_anomaly else None
+            feature_columns,
+            applied_actions,
+            ignored_target if is_anomaly else target_column,
         )
-        # Anomaly: target must never be a required input feature
-        if is_anomaly and target_column:
-            expected_raw = [c for c in expected_raw if c != target_column]
-        expected_raw = [c for c in expected_raw if c not in ("split_type", "id")]
+        expected_raw = [
+            c for c in expected_raw if not is_skip_column(c, ignored_target if is_anomaly else None)
+        ]
+        if not is_anomaly:
+            expected_raw = [c for c in expected_raw if not is_skip_column(c, target_column)]
 
-        has_target_in_csv = bool(target_column and target_column in csv_cols)
+        has_target_in_csv = bool(
+            target_column
+            and any(_norm_col_name(c) == _norm_col_name(target_column) for c in csv_cols)
+        )
+        csv_lookup = {_norm_col_name(c): c for c in csv_cols}
 
-        ignore = {target_column, "split_type", "id", None}
-        required = [c for c in expected_raw if c not in ignore]
+        required = [
+            c
+            for c in expected_raw
+            if not is_skip_column(c, ignored_target if is_anomaly else target_column)
+        ]
         # Also require feature columns if raw list is empty/wrong
         if not required:
             required = list(feature_columns)
-        missing = [c for c in required if c not in csv_cols]
-        extra = [c for c in csv_cols if c not in required and c not in ignore]
+        missing = [c for c in required if _norm_col_name(c) not in csv_lookup]
+        extra = [
+            c
+            for c in csv_cols
+            if _norm_col_name(c) not in {_norm_col_name(r) for r in required}
+            and (not target_column or _norm_col_name(c) != _norm_col_name(target_column))
+        ]
 
         if missing:
             raise HTTPException(
@@ -18481,7 +19537,7 @@ async def predict_batch(
                 ),
             )
 
-        reverse_map, _forward = extract_target_label_maps(
+        reverse_map, forward_map = extract_target_label_maps(
             applied_actions, None if is_anomaly else target_column
         )
 
@@ -18489,12 +19545,22 @@ async def predict_batch(
         skip_log = []
         labels_ok = []
         threshold_applied_count = 0
+        eval_actuals = []
+        eval_preds_human = []
+        eval_preds_enc = []
+        eval_confs = []
+        eval_anom_scores = []
+        eval_is_anom = []
 
         for idx, series in df_raw.iterrows():
             row_num = int(idx) + 2  # header is line 1
             row_dict = series.to_dict()
 
-            useful = {k: v for k, v in row_dict.items() if k not in ignore}
+            useful = {
+                k: v
+                for k, v in row_dict.items()
+                if not is_skip_column(k, target_column)
+            }
             if all(pd.isna(v) or str(v).strip() == "" for v in useful.values()):
                 skip_log.append({"row": row_num, "reason": "Empty row (all required fields blank)"})
                 continue
@@ -18502,12 +19568,14 @@ async def predict_batch(
             # Keep actual target for display only (never fed to the model)
             actual_target = None
             if has_target_in_csv:
-                actual_target = row_dict.get(target_column)
+                tgt_key = csv_lookup.get(_norm_col_name(target_column), target_column)
+                actual_target = row_dict.get(tgt_key, row_dict.get(target_column))
 
             raw_input = {}
             type_errors = []
             for col in required:
-                val = row_dict.get(col, "")
+                csv_key = csv_lookup.get(_norm_col_name(col), col)
+                val = row_dict.get(csv_key, row_dict.get(col, ""))
                 if pd.isna(val) or str(val).strip() == "":
                     type_errors.append(f"'{col}' is empty")
                     continue
@@ -18523,19 +19591,24 @@ async def predict_batch(
                 transformed_list, _steps = apply_actions_to_records(
                     [raw_input],
                     applied_actions,
-                    target_column=target_column,
+                    target_column=ignored_target if is_anomaly else target_column,
                 )
                 transformed = transformed_list[0]
             except Exception as e:
                 skip_log.append({"row": row_num, "reason": f"Preprocessing failed: {e}"})
                 continue
 
-            # Strip target if it somehow appeared after transforms
-            if target_column and target_column in transformed:
-                transformed.pop(target_column, None)
-            if target_excluded and target_excluded in transformed:
-                transformed.pop(target_excluded, None)
+            # Strip target only if this model ignored it (anomaly) or it is the supervised target
+            strip_tgt = ignored_target if is_anomaly else target_column
+            if strip_tgt:
+                drop_l = {_norm_col_name(strip_tgt)}
+                if target_excluded:
+                    drop_l.add(_norm_col_name(target_excluded))
+                for k in list(transformed.keys()):
+                    if _norm_col_name(k) in drop_l:
+                        transformed.pop(k, None)
 
+            transformed = align_record_keys(transformed, feature_columns)
             for c in feature_columns:
                 if c not in transformed:
                     transformed[c] = 0
@@ -18544,7 +19617,7 @@ async def predict_batch(
                 X = build_feature_matrix(
                     [transformed],
                     feature_columns,
-                    target_column=target_column,
+                    target_column=strip_tgt,
                 )
             except Exception as e:
                 skip_log.append({"row": row_num, "reason": f"Invalid feature types after transform: {e}"})
@@ -18557,34 +19630,52 @@ async def predict_batch(
                     enc = anom["encoded_class"]
                     conf = None
                     pos_prob = None
+                elif is_pytorch:
+                    outp = _pytorch_supervised_predict(
+                        model,
+                        X,
+                        reverse_map,
+                        metadata=model_meta,
+                        decision_threshold=decisionThreshold,
+                        scaler=scaler,
+                    )
+                    human = outp["human"]
+                    enc = outp["enc"]
+                    conf = outp["conf"]
+                    pos_prob = outp["pos_prob"]
+                    if outp["threshold_applied"]:
+                        threshold_applied_count += 1
+                    anom = None
                 else:
-                    # Supervised / clustering: keep prior behavior (no extra outer scaler
-                    # unless we later unify loading). Pipeline transforms handle scaling.
-                    pred = model.predict(X)[0]
-                    conf = None
-                    pos_prob = None
-                    if hasattr(model, "predict_proba"):
-                        try:
-                            probs = model.predict_proba(X)[0]
-                            if len(probs) == 2:
-                                pos = float(probs[1])
-                                pos_prob = pos
-                                pred_idx = 1 if pos >= decisionThreshold else 0
-                                classes = getattr(model, "classes_", np.array([0, 1]))
-                                pred = classes[pred_idx]
-                                conf = float(probs[pred_idx])
-                                threshold_applied_count += 1
-                            else:
-                                conf = float(np.max(probs))
-                        except Exception:
-                            conf = None
-                    human, enc = decode_class_label(pred, reverse_map)
+                    outp = _sklearn_supervised_predict(
+                        model,
+                        X,
+                        reverse_map,
+                        decision_threshold=decisionThreshold,
+                        scaler=scaler,
+                    )
+                    human = outp["human"]
+                    enc = outp["enc"]
+                    conf = outp["conf"]
+                    pos_prob = outp["pos_prob"]
+                    if outp["threshold_applied"]:
+                        threshold_applied_count += 1
                     anom = None
             except Exception as e:
                 skip_log.append({"row": row_num, "reason": f"Model predict failed: {e}"})
                 continue
 
             labels_ok.append(human)
+            eval_actuals.append(actual_target if has_target_in_csv else None)
+            eval_preds_human.append(human)
+            eval_preds_enc.append(enc)
+            eval_confs.append(conf)
+            if is_anomaly and anom:
+                eval_anom_scores.append(anom.get("anomaly_score"))
+                eval_is_anom.append(bool(anom.get("is_anomaly")))
+            else:
+                eval_anom_scores.append(None)
+                eval_is_anom.append(None)
 
             out_row = {c: raw_input.get(c, row_dict.get(c)) for c in required}
             if has_target_in_csv:
@@ -18626,12 +19717,36 @@ async def predict_batch(
             intrusion_count = sum(1 for lab in labels_ok if str(lab).strip().lower() not in normalish)
 
         batch_id = str(uuid.uuid4())
-        tmp_dir = os.path.join(tempfile.gettempdir(), "automl_batch_preds")
-        os.makedirs(tmp_dir, exist_ok=True)
-        out_path = os.path.join(tmp_dir, f"{current_user_id}_{batch_id}.csv")
+        try:
+            _mc, _mlabels = _labels_for_model_classes(model, reverse_map)
+        except Exception:
+            _mc, _mlabels = [], []
+        if not _mlabels:
+            stored = list((model_meta or {}).get("class_names") or [])
+            if stored:
+                _mlabels = _pytorch_class_labels(model_meta, reverse_map, len(stored))
+                _mc = list(range(len(_mlabels)))
+        metrics = _compute_batch_metrics(
+            actuals=eval_actuals,
+            preds_human=eval_preds_human,
+            preds_enc=eval_preds_enc,
+            confs=eval_confs,
+            anom_scores=eval_anom_scores,
+            is_anom_flags=eval_is_anom,
+            has_target=has_target_in_csv,
+            target_column=target_column,
+            model_type=model_type,
+            algorithm=algorithm,
+            is_anomaly=is_anomaly,
+            reverse_map=reverse_map,
+            forward_map=forward_map,
+            model_n_classes=len(_mc) or None,
+            model_class_labels=_mlabels,
+        )
+        out_path = _batch_csv_path(current_user_id, batch_id)
         out.to_csv(out_path, index=False)
 
-        skip_path = os.path.join(tmp_dir, f"{current_user_id}_{batch_id}_skips.json")
+        skip_path = os.path.join(os.path.dirname(out_path), f"{current_user_id}_{batch_id}_skips.json")
         with open(skip_path, "w", encoding="utf-8") as sf:
             json.dump(skip_log, sf)
 
@@ -18666,6 +19781,7 @@ async def predict_batch(
             "threshold_applied_rows": threshold_applied_count,
             "download_token": batch_id,
             "pipeline_applied": len(applied_actions) > 0,
+            "metrics": metrics,
             "message": (
                 f"Processed {total_ok}/{total_in} rows"
                 + (f", skipped {len(skip_log)}" if skip_log else "")
@@ -18675,14 +19791,9 @@ async def predict_batch(
                     else (
                         f". Binary decision threshold {decisionThreshold:.2f} applied on {threshold_applied_count} row(s)"
                         if threshold_applied_count > 0
-                        else (
-                            ". Detection threshold not applied (not binary classification with predict_proba)"
-                            if total_ok > 0
-                            else ""
-                        )
+                        else ""
                     )
                 )
-                + (f". Ignored unexpected columns: {extra}" if extra else "")
                 + "."
             ),
         }
@@ -18708,14 +19819,13 @@ async def predict_batch_download(
     current_user_id: str = Depends(get_current_user2),
 ):
     """Download full batch prediction CSV generated by /predict-batch."""
-    import tempfile
     from fastapi.responses import FileResponse
 
-    tmp_dir = os.path.join(tempfile.gettempdir(), "automl_batch_preds")
-    path = os.path.join(tmp_dir, f"{current_user_id}_{batchId}.csv")
+    safe_id = _require_batch_uuid(batchId)
+    path = _batch_csv_path(current_user_id, safe_id)
     if not os.path.exists(path):
         raise HTTPException(404, "Batch result expired or not found. Re-run batch prediction.")
-    return FileResponse(path, filename=f"predictions_{batchId}.csv", media_type="text/csv")
+    return FileResponse(path, filename=f"predictions_{safe_id}.csv", media_type="text/csv")
 
 
 @router.get("/predict-batch-preview")
@@ -18729,10 +19839,7 @@ async def predict_batch_preview(
     Paginate an already-computed batch CSV (no re-upload).
     Used by Use Model preview Prev/Next.
     """
-    import tempfile
-
-    tmp_dir = os.path.join(tempfile.gettempdir(), "automl_batch_preds")
-    path = os.path.join(tmp_dir, f"{current_user_id}_{batchId}.csv")
+    path = _batch_csv_path(current_user_id, batchId)
     if not os.path.exists(path):
         raise HTTPException(
             404,
@@ -19288,6 +20395,8 @@ def _safe_unlink_model_files(model_path: str) -> bool:
         seen.add(path)
         if not os.path.isfile(path):
             continue
+        if not _is_under_saved_models(path):
+            continue
         try:
             os.remove(path)
             deleted = True
@@ -19345,6 +20454,59 @@ def _saved_models_disk_usage_bytes() -> int:
         except OSError as err:
             print(f"Warning: disk usage scan failed for {directory}: {err}")
     return total
+
+
+def _audit_client_ip(request) -> str:
+    """Real client IP behind Nginx (X-Real-IP is set by the proxy, not the client)."""
+    if request is None:
+        return "unknown"
+    try:
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip and real_ip.strip():
+            return real_ip.strip()
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[-1].strip()
+        if request.client:
+            return request.client.host or "unknown"
+    except Exception:
+        pass
+    return "unknown"
+
+
+def audit_admin_action(
+    action: str,
+    admin_id: str,
+    target: str = None,
+    result: str = "SUCCESS",
+    request=None,
+    details: dict = None,
+) -> None:
+    """
+    Append-only trace of privileged actions (who, what, on whom, when, from where).
+    Never raises: an audit failure must not break the admin operation.
+    """
+    entry = {
+        "action": action,
+        "admin_id": str(admin_id) if admin_id else None,
+        "target": str(target) if target is not None else None,
+        "result": result,
+        "ip": _audit_client_ip(request),
+        "timestamp": datetime.utcnow(),
+        "details": details or {},
+    }
+    logger.info(
+        "AUDIT admin=%s action=%s target=%s result=%s ip=%s",
+        entry["admin_id"],
+        action,
+        entry["target"],
+        result,
+        entry["ip"],
+    )
+    try:
+        db.admin_audit.insert_one(dict(entry))
+    except Exception as audit_err:
+        logger.warning("Could not persist audit entry: %s", audit_err)
 
 
 async def verify_admin(current_user: dict = Depends(get_current_user3)):
@@ -19555,6 +20717,20 @@ async def get_database_metadata(
             
             result = cur.fetchone()
             
+            if not result and admin_user_ids:
+                # Not owned by this user — check if it's a predefined dataset owned by an admin
+                placeholders = ",".join(["%s"] * len(admin_user_ids))
+                cur.execute(f"""
+                    SELECT 
+                        stage,
+                        dataset_info,
+                        target_column,
+                        columns
+                    FROM user_tables_metadata
+                    WHERE table_name = %s AND owner_id IN ({placeholders})
+                """, [dbName] + admin_user_ids)
+                result = cur.fetchone()
+
             if not result:
                 print(f"DEBUG - Dataset {dbName} not found")
                 return {
@@ -19563,7 +20739,6 @@ async def get_database_metadata(
                     "has_dataset_info": False,
                     "target_column": None
                 }
-            
             stage, dataset_info, target_column, columns = result
             info_text = _normalize_dataset_info_text(dataset_info)
 
@@ -19690,36 +20865,36 @@ async def get_all_users(
         users = list(db.users.find({}, {"password": 0}))
         dataset_counts = {}
         model_counts = {}
+
+        def _id_key(value) -> str:
+            return str(value).strip().lower() if value is not None else ""
+
         try:
             with get_db_connection() as conn:
                 cur = conn.cursor()
-                cur.execute(
-                    "SELECT owner_id, COUNT(*) FROM user_tables_metadata GROUP BY owner_id"
-                )
-                for owner_id, cnt in cur.fetchall():
-                    dataset_counts[str(owner_id)] = cnt
-                cur.execute(
-                    "SELECT user_id, COUNT(*) FROM user_saved_models GROUP BY user_id"
-                )
-                for uid, cnt in cur.fetchall():
-                    model_counts[str(uid)] = cnt
+                cur.execute("SELECT owner_id FROM user_tables_metadata")
+                for (oid,) in cur.fetchall():
+                    key = _id_key(oid)
+                    if key:
+                        dataset_counts[key] = dataset_counts.get(key, 0) + 1
+                cur.execute("SELECT user_id FROM user_saved_models")
+                for (uid_row,) in cur.fetchall():
+                    key = _id_key(uid_row)
+                    if key:
+                        model_counts[key] = model_counts.get(key, 0) + 1
         except Exception as count_err:
             print(f"Warning: user resource counts failed: {count_err}")
 
         for user in users:
-            uid = str(user["_id"])
-            user["_id"] = uid
-            if "created_at" not in user:
+            uid = _id_key(user["_id"])
+            user["_id"] = str(user["_id"]).strip()
+            created = user.get("created_at") or user.get("createdAt")
+            if created is None:
                 try:
-                    user["created_at"] = user["_id"]  # placeholder; overwritten below if possible
+                    created = ObjectId(uid).generation_time
                 except Exception:
-                    pass
-                try:
-                    # Prefer ObjectId generation time when created_at missing
-                    oid = ObjectId(uid)
-                    user["created_at"] = oid.generation_time
-                except Exception:
-                    user["created_at"] = datetime.now()
+                    created = None
+            user["created_at"] = created
             user["dataset_count"] = dataset_counts.get(uid, 0)
             user["model_count"] = model_counts.get(uid, 0)
 
@@ -19746,6 +20921,7 @@ async def get_all_users(
 async def set_user_admin_role(
     user_id: str,
     body: dict = Body(...),
+    request: Request = None,
     current_user_id: str = Depends(verify_admin),
 ):
     """Promote or demote an admin. Guards: no self-demote, never demote last admin."""
@@ -19774,6 +20950,14 @@ async def set_user_admin_role(
             {"_id": ObjectId(user_id)},
             {"$set": {"is_admin": is_admin}},
         )
+        audit_admin_action(
+            "PROMOTE_ADMIN" if is_admin else "DEMOTE_ADMIN",
+            current_user_id,
+            user_id,
+            "SUCCESS",
+            request,
+            {"email": target.get("email")},
+        )
         return {
             "message": "User role updated",
             "user_id": user_id,
@@ -19783,6 +20967,7 @@ async def set_user_admin_role(
         raise
     except Exception as e:
         print(f"Error updating user role: {str(e)}")
+        audit_admin_action("CHANGE_ROLE", current_user_id, user_id, "ERROR", request)
         raise HTTPException(status_code=500, detail="Error updating user role")
 
 
@@ -19841,7 +21026,7 @@ async def get_all_datasets(
 
                 datasets.append({
                     "table_name": table_name,
-                    "owner_id": oid,
+                    "owner_id": str(oid).strip() if oid is not None else "",
                     "owner_name": user.get("name") if user else "Unknown User",
                     "owner_email": user.get("email") if user else "Unknown Email",
                     "created_at": created_at,
@@ -19911,7 +21096,7 @@ async def get_all_models(
 
                 models.append({
                     "id": mid,
-                    "user_id": user_id,
+                    "user_id": str(user_id).strip() if user_id is not None else "",
                     "model_name": model_name,
                     "db_name": db_name,
                     "model_path": model_path,
@@ -19944,16 +21129,26 @@ async def get_all_models(
 
 
 @router.delete("/admin/users/{user_id}")
-async def delete_user(user_id: str, current_user_id: str = Depends(verify_admin)):
+async def delete_user(
+    user_id: str,
+    request: Request = None,
+    current_user_id: str = Depends(verify_admin),
+):
     """
     Supprimer un utilisateur (admin seulement)
     """
     try:
         if user_id == current_user_id:
+            audit_admin_action(
+                "DELETE_USER", current_user_id, user_id, "DENIED_SELF", request
+            )
             raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
         user_to_delete = db.users.find_one({"_id": ObjectId(user_id)})
         if user_to_delete and user_to_delete.get("is_admin"):
+            audit_admin_action(
+                "DELETE_USER", current_user_id, user_id, "DENIED_ADMIN_TARGET", request
+            )
             raise HTTPException(status_code=400, detail="Cannot delete admin users")
 
         with get_db_connection() as conn:
@@ -19974,7 +21169,7 @@ async def delete_user(user_id: str, current_user_id: str = Depends(verify_admin)
             )
             for (table_name,) in cur.fetchall():
                 try:
-                    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+                    _drop_user_table_if_exists(cur, table_name)
                 except Exception as drop_error:
                     print(f"Warning: Could not drop table {table_name}: {drop_error}")
 
@@ -19984,20 +21179,33 @@ async def delete_user(user_id: str, current_user_id: str = Depends(verify_admin)
 
         result = db.users.delete_one({"_id": ObjectId(user_id)})
         if result.deleted_count == 0:
+            audit_admin_action(
+                "DELETE_USER", current_user_id, user_id, "NOT_FOUND", request
+            )
             raise HTTPException(status_code=404, detail="User not found")
 
+        audit_admin_action(
+            "DELETE_USER",
+            current_user_id,
+            user_id,
+            "SUCCESS",
+            request,
+            {"email": (user_to_delete or {}).get("email")},
+        )
         return {"message": "User deleted successfully"}
 
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error deleting user: {str(e)}")
+        audit_admin_action("DELETE_USER", current_user_id, user_id, "ERROR", request)
         raise HTTPException(status_code=500, detail="Error deleting user")
 
 
 @router.delete("/admin/datasets")
 async def delete_dataset(
     dataset_data: dict,
+    request: Request = None,
     current_user_id: str = Depends(verify_admin),
 ):
     """
@@ -20037,24 +21245,40 @@ async def delete_dataset(
             )
 
             try:
-                cur.execute(f"DROP TABLE IF EXISTS {dataset_name}")
+                _drop_user_table_if_exists(cur, dataset_name)
             except Exception as drop_error:
                 print(f"Warning: Could not drop table {dataset_name}: {drop_error}")
 
             conn.commit()
 
+        audit_admin_action(
+            "DELETE_DATASET",
+            current_user_id,
+            dataset_name,
+            "SUCCESS",
+            request,
+            {"owner_id": owner_id},
+        )
         return {"message": "Dataset deleted successfully"}
 
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error deleting dataset: {str(e)}")
+        audit_admin_action(
+            "DELETE_DATASET",
+            current_user_id,
+            dataset_data.get("datasetName"),
+            "ERROR",
+            request,
+        )
         raise HTTPException(status_code=500, detail="Error deleting dataset")
 
 
 @router.delete("/admin/models")
 async def delete_model_admin(
     model_data: dict,
+    request: Request = None,
     current_user_id: str = Depends(verify_admin),
 ):
     """
@@ -20081,12 +21305,27 @@ async def delete_model_admin(
             cur.execute("DELETE FROM user_saved_models WHERE id = %s", (model_id,))
             conn.commit()
 
+            audit_admin_action(
+                "DELETE_MODEL",
+                current_user_id,
+                model_id,
+                "SUCCESS",
+                request,
+                {"model_name": model_name},
+            )
             return {"message": f"Model '{model_name}' deleted successfully"}
 
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error deleting model: {str(e)}")
+        audit_admin_action(
+            "DELETE_MODEL",
+            current_user_id,
+            model_data.get("modelId"),
+            "ERROR",
+            request,
+        )
         raise HTTPException(status_code=500, detail="Error deleting model")
 
 
@@ -20408,7 +21647,24 @@ async def duplicate_predefined_dataset(
             )
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Predefined dataset not found")
-            
+
+            # Same quota as save-to-db: duplicating must not be a way around it.
+            MAX_DATASETS_PER_USER = 10
+            cur.execute("""
+                SELECT COUNT(*) FROM user_tables_metadata
+                WHERE owner_id = %s
+                AND table_name !~ '_(reset|numerized|backup)$'
+            """, (current_user_id,))
+            dataset_count = cur.fetchone()[0] or 0
+            if dataset_count >= MAX_DATASETS_PER_USER:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Dataset limit reached (maximum 10). "
+                        "Delete a dataset before duplicating a new one."
+                    ),
+                )
+
             # 1. Vérifier que la table originale existe
             cur.execute("""
                 SELECT 1 FROM information_schema.tables 
@@ -21197,8 +22453,10 @@ async def reset_dataset_complete(
     with get_db_connection() as conn:
         try:
             cur = conn.cursor()
-            table_name = request.bdName.lower()
-            reset_table_name = f"{request.bdName.lower()}_reset"
+            table_name = assert_owns_table(
+                cur, request.bdName, current_user_id, label="dataset"
+            )
+            reset_table_name = f"{table_name}_reset"
 
             print(f"🔁 Resetting dataset: {table_name} from {reset_table_name}")
 
@@ -21214,10 +22472,15 @@ async def reset_dataset_complete(
                 raise HTTPException(404, f"Reset version '{reset_table_name}' not found")
 
             # 2. SUPPRIMER COMPLÈTEMENT la table originale
-            cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+            _drop_user_table_if_exists(cur, table_name)
 
             # 3. Créer une nouvelle table avec les données de reset
-            cur.execute(f"CREATE TABLE {table_name} AS SELECT * FROM {reset_table_name}")
+            cur.execute(
+                sql.SQL("CREATE TABLE {} AS SELECT * FROM {}").format(
+                    sql.Identifier(table_name),
+                    sql.Identifier(reset_table_name),
+                )
+            )
 
             conn.commit()
             return {
@@ -21245,7 +22508,9 @@ async def reset_id_column(
     with get_db_connection() as conn:
         try:
             cur = conn.cursor()
-            table_name = bdName.lower()
+            table_name = assert_owns_table(
+                cur, bdName, current_user_id, label="dataset"
+            )
 
             # Vérifier que la table existe
             cur.execute("""
@@ -21306,8 +22571,10 @@ async def create_empty_numerized(
     with get_db_connection() as conn:
         try:
             cur = conn.cursor()
-            source_table = bdName.lower()
-            target_table = target_db.lower()
+            # Source must be owned; target must be an aux name derived from it.
+            source_table, target_table = assert_reset_copy_access(
+                cur, bdName, target_db, current_user_id
+            )
 
             # Vérifier si la table cible existe déjà
             cur.execute("""
@@ -22463,7 +23730,9 @@ async def refresh_table_metadata(
     with get_db_connection() as conn:
         try:
             cur = conn.cursor()
-            table_name = bdName.lower()
+            # Metadata may legitimately be missing here (repair path), so only
+            # refuse when the table already belongs to somebody else.
+            table_name = assert_table_not_owned_by_other(cur, bdName, current_user_id)
 
             cur.execute("""
                 SELECT 1 FROM information_schema.tables 

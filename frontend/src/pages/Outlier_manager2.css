@@ -1,12 +1,30 @@
+.outlier-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
+}
+
+.outlier-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
+}
+
+.outlier-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca !important;
+  border-radius: 2px !important;
+}
+
 /* Outlier_manager2.css - Color Palette Styles */
 :root {
   --primary-color: #384850;   /* Bleu foncé */
   --secondary-color: #DE6B06; /* Orange */
   --neutral-color: #DDDEDF;   /* Gris */
-  --success-color: #4caf50;
-  --error-color: #f44336;
-  --warning-color: #ff9800;
-  --background-light: #f8f9fa;
+  --success-color: #384850;
+  --error-color: #b42318;
+  --warning-color: #DE6B06;
+  --background-light: #f3f4f5;
 }
 
 /* Header styles */
@@ -25,7 +43,7 @@
 }
 
 .primary-button:hover {
-  background-color: #003d54 !important;
+  background-color: #2a3942 !important;
 }
 
 .secondary-button {
@@ -45,7 +63,7 @@
 }
 
 .outlined-primary-button:hover {
-  background-color: rgba(0, 80, 111, 0.04) !important;
+  background-color: rgba(56, 72, 80, 0.08) !important;
   border-color: var(--primary-color) !important;
 }
 
@@ -68,18 +86,18 @@
 }
 
 .success-button:hover {
-  background-color: #388e3c !important;
+  background-color: #2a3942 !important;
 }
 
 /* Table and DataGrid styles */
 .numerical-header {
-  background-color: rgba(0, 80, 111, 0.1) !important;
+  background-color: rgba(56, 72, 80, 0.1) !important;
   font-weight: bold !important;
   color: var(--primary-color) !important;
 }
 
 .numerical-cell {
-  background-color: rgba(0, 80, 111, 0.05) !important;
+  background-color: rgba(56, 72, 80, 0.05) !important;
 }
 
 .categorical-header {
@@ -115,7 +133,7 @@
 .selection-chip {
   border-color: var(--primary-color) !important;
   color: var(--primary-color) !important;
-  background-color: rgba(0, 80, 111, 0.1) !important;
+  background-color: rgba(56, 72, 80, 0.1) !important;
 }
 
 /* Paper and container styles */

@@ -1,16 +1,16 @@
 :root {
   --primary: #384850;
-  --primary-dark: #003d54;
+  --primary-dark: #2a3942;
   --accent: #DE6B06;
   --accent-dark: #c55a05;
   --neutral: #DDDEDF;
-  --success: #2e7d32;
+  --success: #384850;
 }
 
 .data-prep-container {
   padding: 1.5rem 2rem;
   min-height: 100vh;
-  background: #f7f8fa;
+  background: #f3f4f5;
 }
 
 .data-prep-header {
@@ -22,18 +22,14 @@
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
   background: #ffffff;
-  border: 1px solid var(--neutral);
-  border-left: 4px solid var(--accent);
-  border-radius: 12px;
+  border: 1px solid #c8c9ca;
+  border-radius: 2px;
+  box-shadow: none;
 }
 
 .data-prep-title {
   font-weight: 700;
-  color: var(--primary-dark);
-  background: linear-gradient(90deg, var(--primary-dark), var(--primary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #384850;
 }
 
 .data-prep-content {
@@ -59,9 +55,9 @@
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
   background: #ffffff;
-  border: 1px solid var(--neutral);
-  border-left: 4px solid var(--accent);
-  border-radius: 12px;
+  border: 1px solid #c8c9ca;
+  border-radius: 2px;
+  box-shadow: none;
 }
 
 .dp-tab-toolbar-title {
@@ -88,8 +84,9 @@
   padding: 0.85rem 1rem;
   margin-bottom: 1.25rem;
   background: #fff;
-  border: 1px solid var(--neutral);
-  border-radius: 14px;
+  border: 1px solid #c8c9ca;
+  border-radius: 2px;
+  box-shadow: none;
 }
 
 .dp-steps {
@@ -110,15 +107,15 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  border: 1.5px solid var(--neutral);
-  background: #fafbfc;
-  border-radius: 10px;
+  border: 1px solid #c8c9ca;
+  background: #fff;
+  border-radius: 2px;
   padding: 0.55rem 0.75rem;
   cursor: pointer;
   min-width: 132px;
   text-align: left;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   font-family: inherit;
+  box-shadow: none;
 }
 
 .dp-step--locked {
@@ -139,9 +136,10 @@
 
 .embedded-page--train {
   background: #fff;
-  border: 1px solid var(--neutral);
-  border-radius: 12px;
+  border: 1px solid #c8c9ca;
+  border-radius: 2px;
   padding: 1rem 1.25rem 1.5rem;
+  box-shadow: none;
 }
 
 .embedded-page--train .model-training-container,
@@ -151,8 +149,7 @@
 }
 
 .dp-step:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: #384850;
 }
 
 .dp-step-icon {
@@ -161,9 +158,9 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
-  background: rgba(56, 72, 80, 0.08);
-  color: var(--primary);
+  border-radius: 2px;
+  background: #e8e9ea;
+  color: #384850;
   flex-shrink: 0;
 }
 
@@ -183,19 +180,18 @@
 .dp-step-label {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--primary-dark);
+  color: #384850;
   white-space: nowrap;
 }
 
 .dp-step-badge {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #7a858c;
 }
 
 .dp-step-badge.required {
-  color: var(--accent);
+  color: #384850;
 }
 
 .dp-step-badge.optional {
@@ -203,28 +199,27 @@
 }
 
 .dp-step--active {
-  border-color: var(--accent);
-  background: rgba(222, 107, 6, 0.06);
-  box-shadow: 0 0 0 2px rgba(222, 107, 6, 0.15);
+  border-color: #384850;
+  background: #f3f4f5;
 }
 
 .dp-step--active .dp-step-icon {
-  background: var(--accent);
+  background: #384850;
   color: #fff;
 }
 
 .dp-step--done {
-  border-color: rgba(46, 125, 50, 0.45);
-  background: rgba(46, 125, 50, 0.06);
+  border-color: #c8c9ca;
+  background: #fff;
 }
 
 .dp-step--done .dp-step-icon {
-  background: var(--success);
-  color: #fff;
+  background: #e8e9ea;
+  color: #384850;
 }
 
 .dp-step--done .dp-step-badge {
-  color: var(--success);
+  color: #384850;
 }
 
 .dp-step-arrow {
@@ -241,25 +236,18 @@
   min-width: 168px !important;
   font-weight: 700 !important;
   text-transform: none !important;
-  border-radius: 10px !important;
+  border-radius: 2px !important;
   padding: 0.7rem 1.2rem !important;
   background: #9aa3a8 !important;
   box-shadow: none !important;
 }
 
 .dp-train-btn.ready {
-  background: linear-gradient(135deg, #DE6B06 0%, #c55a05 100%) !important;
-  box-shadow: 0 6px 18px rgba(222, 107, 6, 0.35) !important;
-  animation: dpPulse 2.2s ease-in-out infinite;
+  background: #DE6B06 !important;
 }
 
 .dp-train-btn.ready:hover {
-  background: linear-gradient(135deg, #c55a05 0%, #a84c04 100%) !important;
-}
-
-@keyframes dpPulse {
-  0%, 100% { box-shadow: 0 6px 18px rgba(222, 107, 6, 0.35); }
-  50% { box-shadow: 0 8px 26px rgba(222, 107, 6, 0.55); }
+  background: #c55a05 !important;
 }
 
 @keyframes dpFadeIn {
@@ -281,4 +269,96 @@
   .data-prep-container {
     padding: 1rem;
   }
+}
+
+/* Target column block — same anti-AI palette as dashboard / upload */
+.target-tab .dp-tab-toolbar {
+  border-radius: 2px;
+  border: 1px solid #c8c9ca;
+  border-left: 1px solid #c8c9ca;
+  box-shadow: none;
+  background: #ffffff;
+}
+
+.target-tab .target-card,
+.target-tab .target-list-paper {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
+}
+
+.target-tab .target-btn {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+}
+
+.target-tab .target-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca !important;
+  border-radius: 2px !important;
+}
+
+.target-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
+}
+
+.target-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
+}
+
+.target-dialog .MuiDialogTitle-root .MuiButton-root {
+  color: #fff;
+}
+
+.target-score-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: #384850;
+}
+
+.target-score-table th,
+.target-score-table td {
+  border: 1px solid #c8c9ca;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.target-score-table th {
+  background: #e8e9ea;
+  font-weight: 600;
+}
+
+.target-score-table td:last-child,
+.target-score-table th:last-child {
+  white-space: nowrap;
+}
+
+.eda-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
+}
+
+.eda-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
+}
+
+.eda-dialog .MuiDialogTitle-root .MuiIconButton-root {
+  color: #fff;
+}
+
+.eda-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca !important;
+  border-radius: 2px !important;
 }

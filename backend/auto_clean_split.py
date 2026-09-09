@@ -63,8 +63,11 @@ def _append_log(job_id: str, message: str):
     job = auto_clean_split_jobs.get(job_id)
     if not job:
         return
+    text = (message or "").strip()
+    if not text:
+        return
     ts = datetime.now().strftime("%H:%M:%S")
-    job["logs"].append(f"[{ts}] {message}")
+    job["logs"].append(f"[{ts}] {text}")
 
 
 def _empty_expr(col: str) -> str:
@@ -127,11 +130,7 @@ def register_auto_clean_split_routes(
             "warnings": [],
         }
         try:
-            _append_log(job_id, f"Auto Clean & Split started for '{table_name}'.")
-            _append_log(
-                job_id,
-                "Rule: imputation stats are learned on TRAIN only, then applied to TRAIN + TEST.",
-            )
+            _append_log(job_id, f"dataset: {table_name}")
 
             with get_db_connection() as conn:
                 cur = conn.cursor()
@@ -152,8 +151,7 @@ def register_auto_clean_split_routes(
                 supervised = bool(target_column) and model_type != "unsupervised"
 
                 # ─── STEP 1: PROFILE ───────────────────────────────────────
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 1 — Dataset profiling")
+                _append_log(job_id, "1. profile")
                 profiles, n_rows, feature_cols = _profile(
                     cur, conn, table_name, analyze_column_type_backend
                 )
@@ -167,21 +165,21 @@ def register_auto_clean_split_routes(
                 cells = max(n_rows * max(len(feature_cols), 1), 1)
                 _append_log(
                     job_id,
-                    f"  Dataset: {n_rows:,} rows × {len(feature_cols)} columns",
+                    f"   {n_rows:,} rows x {len(feature_cols)} columns",
                 )
                 _append_log(
                     job_id,
-                    f"  Missing cells: {total_missing:,} ({100.0 * total_missing / cells:.1f}% of all cells)",
+                    f"   missing cells: {total_missing:,} ({100.0 * total_missing / cells:.1f}%)",
                 )
                 if supervised:
-                    _append_log(job_id, f"  Target column: '{target_column}' (supervised)")
+                    _append_log(job_id, f"   target: {target_column}")
                 else:
-                    _append_log(job_id, "  No target / unsupervised mode")
+                    _append_log(job_id, "   no target")
 
                 dup_count, dup_ratio = _count_duplicates(cur, table_name, get_duplicate_key)
                 _append_log(
                     job_id,
-                    f"  Duplicate rows: {dup_count:,} ({dup_ratio * 100:.1f}% of rows)",
+                    f"   duplicates: {dup_count:,} ({dup_ratio * 100:.1f}%)",
                 )
 
                 # Problem type hint from target cardinality
@@ -198,7 +196,7 @@ def register_auto_clean_split_routes(
                             problem_type = "regression"
                         else:
                             problem_type = "classification" if d <= 50 else "regression"
-                    _append_log(job_id, f"  Detected problem type: {problem_type}")
+                    _append_log(job_id, f"   problem type: {problem_type}")
 
                 # Temporal hint (warn only — this page has no time-based split)
                 date_like = [
@@ -209,15 +207,14 @@ def register_auto_clean_split_routes(
                 ]
                 if date_like:
                     msg = (
-                        f"Possible time-related columns detected ({', '.join(date_like[:4])}). "
-                        "Random/stratified split may mix past and future — review if this is a time series."
+                        f"Possible time-related columns: {', '.join(date_like[:4])}. "
+                        "The split is random, not by time."
                     )
                     report["warnings"].append(msg)
-                    _append_log(job_id, f"  Warning: {msg}")
+                    _append_log(job_id, f"   time-like columns: {', '.join(date_like[:4])} (split is not chronological)")
 
                 # ─── STEP 2: SAFE CLEANING ─────────────────────────────────
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 2 — Safe cleaning (before split)")
+                _append_log(job_id, "2. clean")
 
                 # 2a columns: 100% empty + constant (never drop target)
                 drop_cols = []
@@ -246,13 +243,13 @@ def register_auto_clean_split_routes(
                             report["removed"]["constant_columns"].append(c)
                         else:
                             report["removed"]["high_missing_columns"].append(c)
-                        _append_log(job_id, f"  Removed column '{c}' — {why}")
+                        _append_log(job_id, f"   drop column {c}: {why}")
                     # refresh column list
                     profiles, n_rows, feature_cols = _profile(
                         cur, conn, table_name, analyze_column_type_backend
                     )
                 else:
-                    _append_log(job_id, "  No empty or constant columns to remove.")
+                    _append_log(job_id, "   no empty or constant columns")
 
                 # 2b target missing rows (supervised) — never impute target
                 if supervised and target_column:
@@ -268,11 +265,10 @@ def register_auto_clean_split_routes(
                     if n_tgt:
                         _append_log(
                             job_id,
-                            f"  Removed {n_tgt:,} rows with missing target '{target_column}' "
-                            "(target is never imputed).",
+                            f"   drop {n_tgt:,} rows with empty target {target_column}",
                         )
                     else:
-                        _append_log(job_id, "  No rows with missing target.")
+                        _append_log(job_id, "   no empty target rows")
 
                 # 2c completely empty rows + high-missing rows
                 row_thr = float(opts.get("row_missing_threshold") or ROW_HIGH_MISSING)
@@ -282,32 +278,26 @@ def register_auto_clean_split_routes(
                 report["removed"]["empty_rows"] = empty_del
                 report["removed"]["high_missing_rows"] = high_del
                 if empty_del:
-                    _append_log(job_id, f"  Removed {empty_del:,} completely empty rows.")
+                    _append_log(job_id, f"   drop {empty_del:,} empty rows")
                 if high_del:
                     _append_log(
                         job_id,
-                        f"  Removed {high_del:,} rows with ≥{row_thr*100:.0f}% missing values "
-                        "(too little information to impute reliably).",
+                        f"   drop {high_del:,} rows with >= {row_thr*100:.0f}% missing",
                     )
                 if not empty_del and not high_del:
-                    _append_log(
-                        job_id,
-                        "  No empty / excessively incomplete rows to remove. "
-                        "Rows with moderate missingness are kept for Train-based imputation.",
-                    )
+                    _append_log(job_id, "   no empty or almost-empty rows")
 
                 # 2d duplicates
                 dup_count, dup_ratio = _count_duplicates(cur, table_name, get_duplicate_key)
                 remove_dups = opts.get("remove_duplicates")
                 if dup_count == 0:
-                    _append_log(job_id, "  No duplicate rows found.")
+                    _append_log(job_id, "   no duplicates")
                 else:
                     if remove_dups is None:
                         if dup_ratio > DUP_AUTO_REMOVE_MAX:
                             _append_log(
                                 job_id,
-                                f"  {dup_count:,} duplicates ({dup_ratio*100:.1f}%) — high ratio. "
-                                "Waiting for your decision…",
+                                f"   {dup_count:,} duplicates ({dup_ratio*100:.1f}%). waiting for your choice",
                             )
                             auto_clean_split_jobs[job_id]["status"] = "awaiting_input"
                             auto_clean_split_jobs[job_id]["pending_question"] = {
@@ -316,8 +306,7 @@ def register_auto_clean_split_routes(
                                 "duplicate_ratio": round(dup_ratio, 4),
                                 "message": (
                                     f"{dup_ratio*100:.1f}% of rows are duplicates ({dup_count:,} rows). "
-                                    "In cybersecurity data, identical rows may be real repeated events. "
-                                    "Remove them, or keep them?"
+                                    "Identical rows can be real repeated events. Remove them, or keep them?"
                                 ),
                             }
                             event = auto_clean_split_jobs[job_id].setdefault(
@@ -340,13 +329,13 @@ def register_auto_clean_split_routes(
                         report["removed"]["duplicate_rows"] = deleted
                         note = ""
                         if DUP_WARN_FROM <= dup_ratio <= DUP_AUTO_REMOVE_MAX:
-                            note = " (moderate ratio — removed with caution)"
+                            note = " (moderate share, removed)"
                             report["warnings"].append(
                                 f"Removed {deleted} duplicate rows ({dup_ratio*100:.1f}%)."
                             )
-                        _append_log(job_id, f"  Removed {deleted:,} duplicate rows{note}.")
+                        _append_log(job_id, f"   drop {deleted:,} duplicates{note}")
                     else:
-                        _append_log(job_id, "  Kept duplicate rows (per your choice).")
+                        _append_log(job_id, "   keep duplicates (your choice)")
                         report["warnings"].append("Duplicate rows were kept by user choice.")
 
                 cur.execute(f'SELECT COUNT(*) FROM "{table_name}"')
@@ -357,8 +346,7 @@ def register_auto_clean_split_routes(
                     )
 
                 # ─── STEP 3: SPLIT DECISION ────────────────────────────────
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 3 — Split decision")
+                _append_log(job_id, "3. split")
                 train_size = opts.get("train_size")
                 if train_size is None:
                     train_size = 0.9 if n_rows > 100_000 else 0.8
@@ -366,19 +354,15 @@ def register_auto_clean_split_routes(
 
                 if supervised and problem_type == "classification" and target_column:
                     split_method = "stratified"
-                    _append_log(
-                        job_id,
-                        "  Method: Stratified Split (preserves class ratios in train & test)",
-                    )
+                    _append_log(job_id, "   method: stratified (same class mix in train and test)")
                 else:
                     split_method = "random"
                     why = "regression / unsupervised" if supervised else "unsupervised"
-                    _append_log(job_id, f"  Method: Random Split ({why})")
+                    _append_log(job_id, f"   method: random ({why})")
 
                 _append_log(
                     job_id,
-                    f"  Ratio: Train {train_size*100:.0f}% / Test {(1-train_size)*100:.0f}% "
-                    f"({n_rows:,} rows)",
+                    f"   train {train_size*100:.0f}% / test {(1-train_size)*100:.0f}% ({n_rows:,} rows)",
                 )
 
                 # Ensure split_type column
@@ -409,13 +393,12 @@ def register_auto_clean_split_routes(
                     "test_rows": test_n,
                     "problem_type": problem_type,
                 }
-                _append_log(job_id, f"  Split done — Train: {train_n:,} | Test: {test_n:,}")
+                _append_log(job_id, f"   result: train {train_n:,} / test {test_n:,}")
                 if train_n == 0 or test_n == 0:
                     raise RuntimeError("Split produced an empty train or test set")
 
                 # ─── STEP 4: IMPUTATION (fit train → apply train+test) ─────
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 4 — Imputation (fit on TRAIN, apply to TRAIN + TEST)")
+                _append_log(job_id, "4. fill missing (stats from train only)")
 
                 # Refresh profiles after cleaning/split
                 profiles, _, feature_cols = _profile(
@@ -425,15 +408,15 @@ def register_auto_clean_split_routes(
                     cur, conn, table_name, profiles, target_column if supervised else None
                 )
                 if not impute_plan["median"] and not impute_plan["mean"] and not impute_plan["mode"]:
-                    _append_log(job_id, "  No missing feature values found after cleaning — skip imputation.")
+                    _append_log(job_id, "   no missing features, skip fill")
                 else:
                     for method, cols in impute_plan.items():
                         if not cols:
                             continue
                         _append_log(
                             job_id,
-                            f"  {method.upper()} on {len(cols)} column(s): {', '.join(cols[:8])}"
-                            + ("…" if len(cols) > 8 else ""),
+                            f"   {method}: {len(cols)} column(s): {', '.join(cols[:8])}"
+                            + ("..." if len(cols) > 8 else ""),
                         )
                         details = _apply_imputation_sync(cur, table_name, method, cols)
                         conn.commit()
@@ -443,21 +426,16 @@ def register_auto_clean_split_routes(
                         for c in cols:
                             d = details.get(c) or {}
                             if d.get("error"):
-                                _append_log(job_id, f"    '{c}': failed — {d['error']}")
+                                _append_log(job_id, f"   {c}: failed ({d['error']})")
                             elif d.get("skipped"):
-                                _append_log(job_id, f"    '{c}': skipped — {d['skipped']}")
+                                _append_log(job_id, f"   {c}: skipped ({d['skipped']})")
                             else:
                                 val = d.get("value")
                                 aff = d.get("affected_rows", 0)
-                                _append_log(
-                                    job_id,
-                                    f"    '{c}': fill={val!s} → {aff} cells "
-                                    "(value computed from TRAIN only)",
-                                )
+                                _append_log(job_id, f"   {c}: fill={val!s}, {aff} cells")
 
                 # ─── STEP 5: BALANCE TRAIN ONLY ────────────────────────────
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 5 — Class balance check (TRAIN only)")
+                _append_log(job_id, "5. class balance (train only)")
                 balance_info = {"applied": False, "method": None}
                 if supervised and problem_type == "classification" and target_column:
                     dist = get_class_distribution(cur, table_name, target_column, split_type="train")
@@ -466,12 +444,12 @@ def register_auto_clean_split_routes(
                         ratio = (max(vals) / max(min(vals), 1)) if vals else 1.0
                         _append_log(
                             job_id,
-                            "  Train class counts: "
+                            "   train classes: "
                             + ", ".join(f"{k}={v}" for k, v in list(dist.items())[:8]),
                         )
-                        _append_log(job_id, f"  Imbalance ratio (max/min): {ratio:.1f}:1")
+                        _append_log(job_id, f"   max/min ratio: {ratio:.1f}:1")
                         if ratio < IMBALANCE_MILD:
-                            _append_log(job_id, "  Classes look balanced — no resampling.")
+                            _append_log(job_id, "   balanced, no resampling")
                             balance_info = {"applied": False, "method": "none", "ratio": ratio}
                         elif ratio >= IMBALANCE_STRONG:
                             msg = (
@@ -479,7 +457,7 @@ def register_auto_clean_split_routes(
                                 "Applying oversampling on TRAIN with caution; review results."
                             )
                             report["warnings"].append(msg)
-                            _append_log(job_id, f"  Warning: {msg}")
+                            _append_log(job_id, f"   strong imbalance {ratio:.0f}:1, oversample train")
                             _run_async(apply_oversampling(conn, cur, table_name, target_column))
                             conn.commit()
                             balance_info = {
@@ -488,7 +466,7 @@ def register_auto_clean_split_routes(
                                 "ratio": ratio,
                                 "extreme": True,
                             }
-                            _append_log(job_id, "  Oversampling applied to TRAIN only. Test unchanged.")
+                            _append_log(job_id, "   oversampling on train. test unchanged")
                         else:
                             method = "undersampling" if train_n >= LARGE_TRAIN_FOR_UNDER else "oversampling"
                             if method == "oversampling":
@@ -497,19 +475,15 @@ def register_auto_clean_split_routes(
                                 _run_async(apply_undersampling(conn, cur, table_name, target_column))
                             conn.commit()
                             balance_info = {"applied": True, "method": method, "ratio": ratio}
-                            _append_log(
-                                job_id,
-                                f"  {method.capitalize()} applied to TRAIN only. Test set left unchanged.",
-                            )
+                            _append_log(job_id, f"   {method} on train. test unchanged")
                     else:
-                        _append_log(job_id, "  Could not compute train class distribution — skip balancing.")
+                        _append_log(job_id, "   cannot read train class counts, skip balance")
                 else:
-                    _append_log(job_id, "  Balancing not applicable (not a classification task).")
+                    _append_log(job_id, "   not classification, skip balance")
                 report["balance"] = balance_info
 
                 # ─── STEP 6: VALIDATION ────────────────────────────────────
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP 6 — Final validation")
+                _append_log(job_id, "6. check")
                 profiles, n_final, feature_cols = _profile(
                     cur, conn, table_name, analyze_column_type_backend
                 )
@@ -538,23 +512,19 @@ def register_auto_clean_split_routes(
                 }
                 _append_log(
                     job_id,
-                    f"  Missing feature cells — Train: {miss_train} | Test: {miss_test}",
+                    f"   missing feature cells: train {miss_train}, test {miss_test}",
                 )
                 if miss_train == 0 and miss_test == 0:
-                    _append_log(job_id, "  ✓ Feature missing values cleared on train and test.")
+                    _append_log(job_id, "   train and test features have no missing cells")
                 else:
                     report["warnings"].append(
                         f"Some missing feature cells remain (train={miss_train}, test={miss_test}). "
                         "They may be non-imputable types or empty columns created later."
                     )
-                    _append_log(job_id, "  ⚠ Some missing values remain — see report warnings.")
-                _append_log(
-                    job_id,
-                    "  ✓ Imputation used TRAIN statistics only (no preprocessing leakage).",
-                )
-                _append_log(job_id, "  ✓ Test set was never resampled for class balance.")
-                _append_log(job_id, "")
-                _append_log(job_id, "Auto Clean & Split completed successfully.")
+                    _append_log(job_id, "   some missing values remain")
+                _append_log(job_id, "   fill values came from train only")
+                _append_log(job_id, "   test was not resampled")
+                _append_log(job_id, "done.")
 
                 auto_clean_split_jobs[job_id]["status"] = "done"
                 auto_clean_split_jobs[job_id]["result"] = {
@@ -960,7 +930,6 @@ def register_auto_clean_split_routes(
             "started_at": datetime.now().isoformat(),
             "input_event": threading.Event(),
         }
-        _append_log(job_id, "Job queued.")
         t = threading.Thread(
             target=_run_job,
             args=(job_id, table, current_user_id, opts),
@@ -985,8 +954,7 @@ def register_auto_clean_split_routes(
         job["user_choice_remove_duplicates"] = bool(body.remove_duplicates)
         _append_log(
             body.job_id,
-            "User chose: "
-            + ("remove duplicates" if body.remove_duplicates else "keep duplicates"),
+            "choice: " + ("remove duplicates" if body.remove_duplicates else "keep duplicates"),
         )
         ev = job.get("input_event")
         if ev:

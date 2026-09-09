@@ -40,23 +40,23 @@ function Home() {
   const keyFeatures = [
     {
       title: "No-code pipeline",
-      description: "Go from CSV upload to a trained model without writing code."
+      description: "Go from a CSV to a trained model without writing code."
     },
     {
       title: "Built for cyber tabular data",
-      description: "Works with your own datasets and optional predefined cybersecurity sets."
+      description: "Works with your own tables and optional predefined cybersecurity sets."
     },
     {
       title: "Guided data preparation",
-      description: "Target selection, cleaning, split, transform, and outliers in one flow. Auto tools when you want them."
+      description: "Choose the target, clean, split, and transform in one flow. Auto Target, Auto Clean & Split, and Auto Transform are there when you want a shortcut."
     },
     {
       title: "Supervised and anomaly models",
       description: "Ridge, Logistic, Random Forest, SVM, KNN, LightGBM, MLP, Isolation Forest, One-Class SVM, and K-Means."
     },
     {
-      title: "Train, validate, reuse",
-      description: "Pick a validation method, review metrics, save the model, then run predictions."
+      title: "Train, check, reuse",
+      description: "Pick an algorithm, see how it does, and save it. On smaller training sets, Random Search can try several settings for you."
     },
     {
       title: "Checkpoints",
@@ -66,10 +66,10 @@ function Home() {
 
   const workflowSteps = [
     { step: "1", title: "Upload", desc: "Import CSV/Excel or copy a predefined dataset." },
-    { step: "2", title: "Target & Type", desc: "Choose the prediction target, or work without a target." },
-    { step: "3", title: "Prepare data", desc: "Optional groups, then clean, split, transform, and outliers." },
-    { step: "4", title: "Train Model", desc: "Select an algorithm, validate, and save." },
-    { step: "5", title: "Use Model", desc: "Run predictions on new rows." }
+    { step: "2", title: "Target & Type", desc: "Choose what to predict, or use Auto Target. You can also work without a target." },
+    { step: "3", title: "Prepare data", desc: "Optional groups, then clean, split, and transform. Auto Clean & Split and Auto Transform can do the routine steps if you prefer." },
+    { step: "4", title: "Train Model", desc: "Select an algorithm, validate, and save. Random Search is optional when the training set is not too large." },
+    { step: "5", title: "Use Model", desc: "Run predictions on new rows, one by one or in a file." }
   ];
 
   return (
@@ -83,7 +83,8 @@ function Home() {
           </h1>
           
           <p className="hero-description">
-            Upload tabular data, prepare it step by step, train a model, and run predictions.
+            Upload a table, prepare it step by step, train a model, and run predictions.
+            You can do each step yourself, or use the Auto options when you want the app to suggest a target, clean and split, or transform the columns.
             Aimed at intrusion detection and related security tasks.
           </p>
           
@@ -158,7 +159,7 @@ function Home() {
 
       <section className="final-cta">
         <h2>Start with your dataset</h2>
-        <p>Open the dashboard to upload data or use a predefined set.</p>
+        <p>Open the dashboard to upload data or use a predefined set. Auto steps are available later, when you prepare and train.</p>
         <button 
           className="cta-button secondary"
           onClick={handleGetStarted}

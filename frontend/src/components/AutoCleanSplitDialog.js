@@ -14,10 +14,6 @@ import {
   Grid,
   Typography,
 } from "@mui/material";
-import {
-  AutoFixHigh as AutoFixHighIcon,
-  HelpOutline as HelpOutlineIcon,
-} from "@mui/icons-material";
 import axios from "axios";
 import { backendUrl } from "../config";
 
@@ -154,7 +150,7 @@ export default function AutoCleanSplitDialog({
     onClose?.();
     reset();
     await onCompleted?.();
-    showSnackbar?.("Auto Clean & Split completed", "success");
+    showSnackbar?.("Auto Clean & Split finished", "success");
   };
 
   const report = result?.report;
@@ -166,12 +162,10 @@ export default function AutoCleanSplitDialog({
         onClose={phase === "running" || phase === "awaiting" ? undefined : handleClose}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ className: "clean-dialog" }}
       >
         <DialogTitle
           sx={{
-            color: "rgb(0, 80, 111)",
-            fontWeight: 700,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -179,70 +173,57 @@ export default function AutoCleanSplitDialog({
             pr: 2,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <AutoFixHighIcon sx={{ color: "#DE6B06" }} />
-            Auto Clean &amp; Split
-          </Box>
+          <span>Auto Clean &amp; Split</span>
           <Button
             size="small"
-            startIcon={<HelpOutlineIcon />}
             onClick={() => setHowOpen(true)}
-            sx={{ textTransform: "none", color: "rgb(0, 80, 111)" }}
+            sx={{ textTransform: "none", color: "#fff" }}
           >
             How it works
           </Button>
         </DialogTitle>
         <DialogContent dividers>
-          {phase === "intro" && (
+              {phase === "intro" && (
             <Box>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                One click: clean → split → impute (train stats only) → optional class balance.
+              <Typography variant="body1">
+                Cleans the dataset (empty values, duplicates, unused columns) and splits it automatically.
               </Typography>
-              <Alert severity="warning" variant="outlined">
-                This will modify your current dataset. Confirm to start: you can still use
-                the manual tools afterward.
-              </Alert>
             </Box>
           )}
 
           {(phase === "running" || phase === "awaiting" || phase === "done" || phase === "error") && (
             <Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <Typography variant="subtitle2" sx={{ color: "rgb(0, 80, 111)" }}>
-                  Pipeline log
+                <Typography variant="subtitle2" sx={{ color: "#384850" }}>
+                  Analysis log
                 </Typography>
                 {(phase === "running" || phase === "awaiting") && (
                   <CircularProgress size={16} />
-                )}
-                {jobId && (
-                  <Typography variant="caption" color="text.secondary">
-                    job {jobId.slice(0, 8)}…
-                  </Typography>
                 )}
               </Box>
               <Box
                 ref={logBoxRef}
                 sx={{
-                  bgcolor: "#1e1e1e",
-                  color: "#d4d4d4",
+                  bgcolor: "#384850",
+                  color: "#ffffff",
                   fontFamily: "Consolas, 'Courier New', monospace",
                   fontSize: 12,
                   lineHeight: 1.55,
                   p: 1.5,
-                  borderRadius: 1,
+                  borderRadius: "2px",
                   maxHeight: 280,
                   overflow: "auto",
                   whiteSpace: "pre-wrap",
                   mb: 2,
                 }}
               >
-                {(logs.length ? logs : ["Waiting for logs…"]).map((line, i) => (
+                {(logs.length ? logs : ["running..."]).map((line, i) => (
                   <div key={i}>{line}</div>
                 ))}
               </Box>
 
               {phase === "awaiting" && pendingQuestion && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
+                <Alert severity="warning" icon={false} className="clean-alert" sx={{ mb: 2 }}>
                   <Typography variant="body2" sx={{ mb: 1.5 }}>
                     {pendingQuestion.message}
                   </Typography>
@@ -263,13 +244,13 @@ export default function AutoCleanSplitDialog({
               )}
 
               {phase === "error" && (
-                <Alert severity="error">
+                <Alert severity="error" icon={false}>
                   {result?.message || "Auto Clean & Split failed"}
                 </Alert>
               )}
 
               {phase === "done" && report && (
-                <Card variant="outlined" sx={{ borderColor: "#2e7d32", bgcolor: "rgba(46,125,50,0.05)" }}>
+                <Card variant="outlined" sx={{ borderColor: "#c8c9ca", boxShadow: "none", borderRadius: "2px" }}>
                   <CardContent>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
                       Summary report
@@ -335,7 +316,7 @@ export default function AutoCleanSplitDialog({
                     {(report.warnings || []).length > 0 && (
                       <Box sx={{ mt: 1.5 }}>
                         {report.warnings.map((w, i) => (
-                          <Alert key={i} severity="warning" variant="outlined" sx={{ mb: 1 }}>
+                      <Alert key={i} severity="warning" icon={false} className="clean-alert" sx={{ mb: 1 }}>
                             {w}
                           </Alert>
                         ))}
@@ -360,8 +341,7 @@ export default function AutoCleanSplitDialog({
               <Button
                 variant="contained"
                 onClick={startJob}
-                startIcon={<AutoFixHighIcon />}
-                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}
+                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" }, textTransform: "none", borderRadius: "2px", boxShadow: "none" }}
               >
                 Start Auto Clean &amp; Split
               </Button>
@@ -392,55 +372,41 @@ export default function AutoCleanSplitDialog({
               onClick={finishAndRefresh}
               sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}
             >
-              Done: refresh view
+              Done
             </Button>
           )}
         </DialogActions>
       </Dialog>
 
       <Dialog open={howOpen} onClose={() => setHowOpen(false)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ color: "rgb(0, 80, 111)", fontWeight: 700 }}>
-          How Auto Clean &amp; Split works
+        PaperProps={{ className: "clean-dialog" }}>
+        <DialogTitle>
+          How it works
         </DialogTitle>
         <DialogContent dividers>
-          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>1. Profile</Typography>
           <Typography variant="body2" paragraph>
-            Counts rows/columns, missing values, duplicates, and column types: without
-            loading the full table into memory.
+            1. Count rows, missing values, and duplicates.
           </Typography>
-          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>2. Safe cleaning (before split)</Typography>
           <Typography variant="body2" paragraph>
-            Removes completely empty columns, constant columns, fully empty rows, and rows
-            with very high missingness (≥80% by default). Duplicates under 20% are removed
-            automatically; higher ratios ask for confirmation (important for cyber event data).
-            Missing targets are dropped: the target is never imputed.
+            2. Drop empty or constant columns, empty rows, and almost-empty rows.
+            Few duplicates are removed. Many duplicates: you choose. Empty targets are dropped, never filled.
           </Typography>
-          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>3. Split</Typography>
           <Typography variant="body2" paragraph>
-            Default 80/20 (90/10 for very large datasets). Stratified if the target looks like
-            classification; otherwise random. Time-like columns trigger a warning only.
+            3. Split about 80% train / 20% test (90/10 if the table is very large).
+            Stratified split if the target is a class, otherwise random.
           </Typography>
-          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>4. Imputation (anti-leakage)</Typography>
           <Typography variant="body2" paragraph>
-            Mean / median / mode are chosen per column. Statistics are computed on TRAIN only,
-            then applied to TRAIN and TEST. Never fitted on the full dataset.
+            4. Fill missing values (mean, median, or most frequent). Values come from train, then are applied to train and test.
           </Typography>
-          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>5. Balance (train only)</Typography>
-          <Typography variant="body2" paragraph>
-            If classes are imbalanced, oversampling or undersampling is applied to TRAIN only.
-            The test set stays representative of real data.
-          </Typography>
-          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>6. Validation report</Typography>
           <Typography variant="body2">
-            Final counts, what was removed, imputation choices, and leakage-safe checks.
+            5. If classes are very uneven, only train is rebalanced. Test stays as it is.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button
             variant="contained"
             onClick={() => setHowOpen(false)}
-            sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c45f05" } }}
+            sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" }, textTransform: "none", borderRadius: "2px", boxShadow: "none" }}
           >
             Got it
           </Button>

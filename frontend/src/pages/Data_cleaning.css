@@ -1,20 +1,20 @@
 :root {
   --primary: #384850;
-  --primary-dark: #003d54;
+  --primary-dark: #384850;
   --accent: #DE6B06;
   --accent-dark: #c55a05;
   --neutral: #DDDEDF;
   --neutral-dark: #c8c9ca;
-  --success: #28a745;
-  --danger: #dc3545;
-  --warning: #ffc107;
-  --info: #17a2b8;
-  --light: #f8f9fa;
-  --dark: #343a40;
+  --success: #384850;
+  --danger: #b42318;
+  --warning: #DE6B06;
+  --info: #384850;
+  --light: #f3f4f5;
+  --dark: #384850;
   --white: #ffffff;
-  --border-radius: 8px;
-  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --transition: all 0.3s ease;
+  --border-radius: 2px;
+  --shadow: none;
+  --transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 /* Container Principal */
@@ -36,9 +36,8 @@
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
   background: #ffffff;
-  border: 1px solid var(--neutral);
-  border-left: 4px solid var(--accent);
-  border-radius: 12px;
+  border: 1px solid #c8c9ca;
+  border-radius: 2px;
 }
 
 .header-title-section {
@@ -69,7 +68,7 @@
 }
 
 .help-button:hover {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.08);
 }
 
 .reset-button {
@@ -116,7 +115,7 @@
 }
 
 .delete-selected-button:hover {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.08);
 }
 
 .delete-selected-button:disabled {
@@ -149,7 +148,7 @@
 }
 
 .back-button:hover {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.08);
 }
 
 .next-button {
@@ -195,7 +194,7 @@
 
 .duplicated-stat-card {
   border-color: var(--primary);
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.08);
 }
 
 .empty-stat-value {
@@ -424,7 +423,7 @@
 }
 
 .dialog-button:hover {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.08);
 }
 
 .confirm-button {
@@ -568,36 +567,31 @@
   }
 }
 
-/* Animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.data_cleaning-container .MuiAlert-icon,
+.clean-dialog .MuiAlert-icon {
+  display: none;
 }
 
-.data_cleaning-container {
-  animation: fadeInUp 0.6s ease-out;
+.clean-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
 }
 
-.action-toolbar {
-  animation: fadeInUp 0.4s ease-out 0.2s both;
+.clean-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
 }
 
-.stats-grid {
-  animation: fadeInUp 0.4s ease-out 0.3s both;
+.clean-dialog .MuiDialogTitle-root .MuiIconButton-root {
+  color: #fff;
 }
 
-.data-quality-section {
-  animation: fadeInUp 0.4s ease-out 0.4s both;
-}
-
-.data-grid-container {
-  animation: fadeInUp 0.4s ease-out 0.5s both;
+.clean-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca !important;
+  border-radius: 2px !important;
 }
 
 /* Focus States */
@@ -1543,7 +1537,7 @@ color: #ffffff;
 }
 
 .data-grid .MuiDataGrid-cell--editing {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.08);
 }
 
 .help-dialog-title {
@@ -1724,7 +1718,7 @@ color: #ffffff;
     background-color: rgba(0, 80, 111, 0.2);
   }
   100% {
-    background-color: rgba(0, 80, 111, 0.1);
+    background-color: rgba(56, 72, 80, 0.08);
   }
 }
 

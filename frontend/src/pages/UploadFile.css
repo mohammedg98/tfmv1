@@ -1,21 +1,21 @@
 /* UploadFile.css */
 :root {
   --primary: #384850;
-  --primary-dark: #003d54;
+  --primary-dark: #384850;
   --accent: #DE6B06;
   --accent-dark: #c55a05;
   --neutral: #DDDEDF;
   --neutral-dark: #c8c9ca;
-  --success: #28a745;
-  --danger: #dc3545;
-  --warning: #ffc107;
-  --info: #17a2b8;
-  --light: #f8f9fa;
-  --dark: #343a40;
+  --success: #384850;
+  --danger: #b42318;
+  --warning: #DE6B06;
+  --info: #384850;
+  --light: #f3f4f5;
+  --dark: #384850;
   --white: #ffffff;
-  --border-radius: 8px;
-  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --transition: all 0.3s ease;
+  --border-radius: 2px;
+  --shadow: none;
+  --transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 /* Container Principal */
@@ -23,6 +23,8 @@
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+  background: #f3f4f5;
+  min-height: calc(100vh - 80px);
 }
 
 /* Titre Principal */
@@ -67,7 +69,7 @@
 }
 
 .upload-area:hover {
-  background-color: rgba(0, 80, 111, 0.05);
+  background-color: rgba(56, 72, 80, 0.05);
   border-color: var(--primary-dark);
 }
 
@@ -79,8 +81,6 @@
 
 .upload-button:hover {
   background-color: var(--accent-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(222, 107, 6, 0.3);
 }
 
 .upload-supported-formats {
@@ -96,7 +96,13 @@
 }
 
 .upload-progress-bar {
-  background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  background-color: #DDDEDF;
+  height: 8px;
+  border-radius: 0;
+}
+
+.upload-progress-bar .MuiLinearProgress-bar {
+  background-color: #384850;
 }
 
 .upload-progress-text {
@@ -109,9 +115,9 @@
 /* Carte d'Information du Fichier */
 .file-info-card {
   margin-top: 1.5rem;
-  border-left: 4px solid var(--primary);
-  box-shadow: var(--shadow);
-  border-radius: var(--border-radius);
+  border: 1px solid #c8c9ca;
+  box-shadow: none;
+  border-radius: 2px;
 }
 
 .file-info-header {
@@ -208,7 +214,7 @@
 }
 
 .delete-button:hover {
-  background-color: rgba(220, 53, 69, 0.1);
+  background-color: rgba(180, 35, 24, 0.08);
   border-color: var(--danger);
 }
 
@@ -224,7 +230,16 @@
 }
 
 .add-button:hover {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.1);
+}
+
+.rename-columns-button {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.rename-columns-button:hover {
+  background-color: rgba(56, 72, 80, 0.1);
 }
 
 .save-button {
@@ -234,17 +249,14 @@
 
 .save-button:hover {
   background-color: var(--accent-dark);
-  transform: translateY(-1px);
 }
 
 /* Data Grid */
 .data-grid-container {
   height: 500px;
-  width: '100%';
+  width: 100%;
   margin-top: 1rem;
-  border-radius: var(--border-radius);
   overflow: hidden;
-  box-shadow: var(--shadow);
 }
 
 .data-grid-container .MuiDataGrid-root {
@@ -257,24 +269,49 @@
 }
 
 .data-grid-container .MuiDataGrid-columnHeaders {
-  background-color: rgba(0, 80, 111, 0.1);
-  border-bottom: 2px solid var(--primary);
+  background-color: #e8e9ea;
+  border-bottom: 1px solid #c8c9ca;
   color: var(--primary);
   font-weight: 600;
 }
 
 .data-grid-container .MuiDataGrid-row:hover {
-  background-color: rgba(0, 80, 111, 0.05);
+  background-color: rgba(56, 72, 80, 0.05);
 }
 
-/* Modals et Dialogs */
-.upload-dialog {
-  border-radius: var(--border-radius);
+/* Modals et Dialogs — class is on Paper (PaperProps), same as dashboard */
+.upload-dialog,
+.limit-dialog,
+.saving-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
 }
 
-.upload-dialog .MuiDialog-paper {
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
+.upload-dialog .MuiDialogTitle-root,
+.limit-dialog .MuiDialogTitle-root,
+.saving-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
+}
+
+.upload-dialog .MuiDialogTitle-root .dialog-header,
+.upload-dialog .MuiDialogTitle-root .dialog-title,
+.limit-dialog .MuiDialogTitle-root .limit-header,
+.saving-dialog .MuiDialogTitle-root .saving-header {
+  color: #fff;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.upload-dialog .MuiAlert-standardInfo,
+.upload-dialog .MuiAlert-standardWarning,
+.limit-dialog .MuiAlert-standardInfo,
+.limit-dialog .MuiAlert-standardWarning,
+.column-selection-modal .MuiAlert-standardInfo,
+.column-selection-modal .MuiAlert-standardWarning {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
 }
 
 .dialog-header {
@@ -301,7 +338,7 @@
 }
 
 .dialog-table .MuiTableHead-root {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.1);
 }
 
 .dialog-table .MuiTableCell-head {
@@ -310,7 +347,7 @@
 }
 
 .dialog-table .MuiTableRow-root:hover {
-  background-color: rgba(0, 80, 111, 0.05);
+  background-color: rgba(56, 72, 80, 0.05);
 }
 
 .dialog-preview-box {
@@ -338,18 +375,12 @@
 }
 
 /* Alertes */
-.info-alert {
-  background-color: rgba(0, 80, 111, 0.1);
-  color: var(--primary);
-  border: 1px solid var(--primary);
-  border-radius: var(--border-radius);
-}
-
+.info-alert,
 .warning-alert {
-  background-color: rgba(255, 193, 7, 0.1);
-  color: var(--warning);
-  border: 1px solid var(--warning);
-  border-radius: var(--border-radius);
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca;
+  border-radius: 2px;
 }
 
 .error-alert {
@@ -442,7 +473,7 @@
 }
 
 .cancel-button:hover {
-  background-color: rgba(0, 80, 111, 0.1);
+  background-color: rgba(56, 72, 80, 0.1);
 }
 
 .confirm-button {
@@ -460,17 +491,14 @@
 }
 
 /* Dialog de Sauvegarde */
-.saving-dialog .MuiDialog-paper {
+.saving-dialog {
   background-color: var(--white);
   background-image: none;
   opacity: 1;
-  border-top: 4px solid var(--accent);
-  border-radius: var(--border-radius);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
 .saving-dialog .MuiBackdrop-root {
-  background-color: rgba(0, 0, 0, 0.55);
+  background-color: rgba(0, 0, 0, 0.45);
 }
 
 .saving-header {
@@ -484,14 +512,18 @@
 }
 
 .saving-progress {
-  height: 10px;
-  border-radius: 5px;
+  height: 8px;
+  border-radius: 0;
   background-color: var(--neutral);
 }
 
+.saving-progress .MuiLinearProgress-bar {
+  background-color: #384850;
+}
+
 .saving-progress-bar {
-  background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
-  border-radius: 5px;
+  background: #384850;
+  border-radius: 0;
 }
 
 .saving-progress-text {
@@ -501,15 +533,10 @@
   margin-top: 0.5rem;
 }
 
-/* Dialog de Limite */
-.limit-dialog .MuiDialog-paper {
-  border-top: 4px solid var(--accent);
-}
-
 .limit-header {
   display: flex;
   align-items: center;
-  color: var(--danger);
+  color: inherit;
 }
 
 .limit-icon {
@@ -518,12 +545,12 @@
 }
 
 .go-to-dashboard-button {
-  background-color: var(--success);
+  background-color: #384850;
   color: white;
 }
 
 .go-to-dashboard-button:hover {
-  background-color: #218838;
+  background-color: #2a3942;
 }
 
 /* Popup Modal */
@@ -534,20 +561,32 @@
   transform: translate(-50%, -50%);
   width: 500px;
   background-color: var(--white);
-  box-shadow: var(--shadow);
-  border-radius: var(--border-radius);
-  padding: 2rem;
+  border: 1px solid #c8c9ca;
+  border-radius: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
+  background: #384850;
+  color: #ffffff;
+  padding: 12px 16px;
+}
+
+.modal-header .MuiTypography-root {
+  color: #ffffff;
 }
 
 .modal-close-button {
-  color: var(--primary);
+  color: #ffffff;
+}
+
+.modal-body {
+  padding: 1.5rem 2rem 2rem;
 }
 
 /* États Responsive */
@@ -613,33 +652,9 @@
     height: 400px;
   }
   
-  .upload-dialog .MuiDialog-paper {
+  .upload-dialog {
     margin: 0.5rem;
   }
-}
-
-/* Animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.upload-file-container {
-  animation: fadeInUp 0.6s ease-out;
-}
-
-.file-info-card {
-  animation: fadeInUp 0.4s ease-out 0.2s both;
-}
-
-.data-preview-section {
-  animation: fadeInUp 0.4s ease-out 0.4s both;
 }
 
 /* États de Focus Améliorés */

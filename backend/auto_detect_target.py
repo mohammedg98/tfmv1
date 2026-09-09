@@ -1,8 +1,8 @@
 """
 Auto-detect a likely target column (SQL aggregations + samples only).
 
-Does NOT train models and does NOT persist the choice — the frontend only
-pre-fills Target & Type; save remains on user Confirm via save-target-column.
+Does NOT train models and does NOT persist the choice. The frontend only
+pre-fills Target column; save remains on user Confirm via save-target-column.
 """
 
 from __future__ import annotations
@@ -84,8 +84,11 @@ def _append_log(job_id: str, message: str):
     job = auto_target_jobs.get(job_id)
     if not job:
         return
+    text = (message or "").strip()
+    if not text:
+        return
     ts = datetime.now().strftime("%H:%M:%S")
-    job["logs"].append(f"[{ts}] {message}")
+    job["logs"].append(f"[{ts}] {text}")
 
 
 def _clip(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
@@ -163,12 +166,6 @@ def register_auto_detect_target_routes(
 
     def _run_job(job_id: str, table_name: str, user_id: str):
         try:
-            _append_log(job_id, f"Job started for dataset '{table_name}'.")
-            _append_log(
-                job_id,
-                "Goal: find which column looks most like a prediction target "
-                "(what you want the model to learn), without changing your data.",
-            )
             with get_db_connection() as conn:
                 cur = conn.cursor()
                 cur.execute(
@@ -196,13 +193,9 @@ def register_auto_detect_target_routes(
                     raise RuntimeError("No analyzable columns found")
 
                 n_cols = len(columns_info)
-                _append_log(job_id, "")
-                _append_log(job_id, f"STEP A — Column profiling ({n_cols} columns)")
-                _append_log(
-                    job_id,
-                    "  For each column we look at: data type, how many unique values, "
-                    "missing values, and whether it looks like an ID / email / IP / etc.",
-                )
+                _append_log(job_id, f"dataset: {table_name}")
+                _append_log(job_id, f"1. profile columns (n={n_cols}, skip id and split_type)")
+                _append_log(job_id, "   fields: type, unique count, missing %, id-like values")
 
                 profiles: List[Dict[str, Any]] = []
                 for idx, (col_name, pg_type) in enumerate(columns_info, start=1):
@@ -214,43 +207,34 @@ def register_auto_detect_target_routes(
                     if n_cols <= 12 or idx == 1 or idx == n_cols or idx % 5 == 0:
                         _append_log(
                             job_id,
-                            f"  [{idx}/{n_cols}] '{col_name}': type={profile['column_type']}, "
-                            f"unique={profile['distinct_count']}, "
+                            f"   [{idx}/{n_cols}] {col_name}  type={profile['column_type']}  "
+                            f"unique={profile['distinct_count']}  "
                             f"missing={profile['missing_ratio']*100:.0f}%",
                         )
 
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP B — Dataset context")
                 domain, cyber_hits = _detect_domain(profiles)
+                _append_log(job_id, "2. context")
                 if domain == "cybersecurity_network":
+                    extra = ", ".join(cyber_hits[:6])
+                    if len(cyber_hits) > 6:
+                        extra += "..."
                     _append_log(
                         job_id,
-                        f"  Context looks like network / cybersecurity "
-                        f"({len(cyber_hits)} related column names: "
-                        f"{', '.join(cyber_hits[:6])}{'…' if len(cyber_hits) > 6 else ''}).",
+                        f"   network/security names: {len(cyber_hits)} ({extra})",
                     )
-                    _append_log(
-                        job_id,
-                        "  Extra weight will be given to names like attack_type, malware, threat, label…",
-                    )
+                    _append_log(job_id, "   name bonus uses attack_type, malware, threat, label, ...")
                 else:
-                    _append_log(
-                        job_id,
-                        "  Context = general ML dataset (no strong network/cyber column-name pattern).",
-                    )
-                    _append_log(
-                        job_id,
-                        "  A known target-like name (label, class, target…) is a bonus if present; "
-                        "columns without such a name can still score high from structure "
-                        "(class count, type, uniqueness).",
-                    )
+                    _append_log(job_id, "   general (fewer than 2 network/security column names)")
 
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP C — Scoring each column as a possible target")
+                _append_log(job_id, "3. score each column")
                 _append_log(
                     job_id,
-                    "  Score is structure-first (class count, type, position, penalties). "
-                    "A matching name only adds a bonus — it is never required.",
+                    "   score = 0.40*nunique + 0.25*type + 0.25*name + extras, then clip to [0,1]",
+                )
+                _append_log(
+                    job_id,
+                    "   extras: first/last col, cyber name +0.15, only class-col +0.35; "
+                    "penalties for constant, id, sequential, missing, text, date",
                 )
                 scored = []
                 for i, p in enumerate(profiles):
@@ -282,12 +266,12 @@ def register_auto_detect_target_routes(
                     only["score"] = _clip(before + 0.35)
                     only["reasons"] = list(only.get("reasons") or [])
                     only["reasons"].append(
-                        "only low-cardinality class-like column among mostly feature columns"
+                        "only class-like column among features"
                     )
                     _append_log(
                         job_id,
-                        f"  Bonus: '{only['column_name']}' is the only class-like column "
-                        f"({only['distinct_count']} classes) → score {before:.2f} → {only['score']:.2f}",
+                        f"   only class-like column: {only['column_name']} "
+                        f"({only['distinct_count']} classes)  {before:.2f} -> {only['score']:.2f}",
                     )
 
                 scored.sort(key=lambda x: x["score"], reverse=True)
@@ -297,28 +281,21 @@ def register_auto_detect_target_routes(
                 if low:
                     _append_log(
                         job_id,
-                        f"  {len(low)} columns look like plain features (score < 0.15) — skipped in detail.",
+                        f"   skip detail for {len(low)} columns with score < 0.15",
                     )
                 for c in notable[:12]:
-                    why = "; ".join(c["reasons"][:4]) if c["reasons"] else "weak / mixed signals"
+                    why = "; ".join(c["reasons"][:4]) if c["reasons"] else "weak signal"
                     _append_log(
                         job_id,
-                        f"  '{c['column_name']}' → {why} → score {c['score']:.2f}",
+                        f"   {c['column_name']}: {why}  score={c['score']:.2f}",
                     )
                 if scored:
                     _append_log(
                         job_id,
-                        f"  Current leader: '{scored[0]['column_name']}' "
-                        f"(score {scored[0]['score']:.2f})",
+                        f"   best so far: {scored[0]['column_name']}  score={scored[0]['score']:.2f}",
                     )
 
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP D — Leakage / duplicate check")
-                _append_log(
-                    job_id,
-                    "  We check whether another column copies the top candidate almost exactly "
-                    "(that would unfairly help a model).",
-                )
+                _append_log(job_id, "4. duplicate check vs best column")
                 leakage_col = None
                 if scored and scored[0]["score"] >= 0.40:
                     leakage_col = _find_potential_leakage(
@@ -327,39 +304,30 @@ def register_auto_detect_target_routes(
                     if leakage_col:
                         _append_log(
                             job_id,
-                            f"  Warning: '{leakage_col}' looks nearly identical to "
-                            f"'{scored[0]['column_name']}' (possible leakage).",
+                            f"   warn: {leakage_col} matches {scored[0]['column_name']} on ~98% of a sample",
                         )
                     else:
-                        _append_log(job_id, "  No strong duplicate of the top candidate found.")
+                        _append_log(job_id, "   no near-duplicate found")
                 else:
-                    _append_log(job_id, "  Skipped (no strong candidate yet).")
+                    _append_log(job_id, "   skipped (best score < 0.40)")
 
-                _append_log(job_id, "")
-                _append_log(job_id, "STEP E — Final decision")
+                _append_log(job_id, "5. decision")
                 result = _decide(scored, domain, leakage_col)
                 decision = result["decision"]
                 if decision == "single_target":
                     _append_log(
                         job_id,
-                        f"  Clear supervised target: '{result.get('target')}' "
-                        f"(confidence {result.get('score', 0)*100:.0f}%).",
+                        f"   pick {result.get('target')}  score={result.get('score', 0)*100:.0f}%",
                     )
                 elif decision == "ambiguous":
                     names = ", ".join(
                         f"{c['column_name']} ({c['score']*100:.0f}%)"
                         for c in (result.get("candidates") or [])[:3]
                     )
-                    _append_log(
-                        job_id,
-                        f"  Several plausible targets — please choose one: {names}",
-                    )
+                    _append_log(job_id, f"   close scores, choose one: {names}")
                 else:
-                    _append_log(
-                        job_id,
-                        "  No reliable target found — unsupervised learning may fit better.",
-                    )
-                _append_log(job_id, "Analysis complete. Nothing was saved yet — confirm in the dialog.")
+                    _append_log(job_id, "   no column looks like a target (unsupervised)")
+                _append_log(job_id, "done. not saved until Confirm")
 
                 auto_target_jobs[job_id]["status"] = "done"
                 auto_target_jobs[job_id]["result"] = result
@@ -573,7 +541,7 @@ def register_auto_detect_target_routes(
 
         if mapped in ("categorical", "boolean") and 2 <= distinct <= 50:
             cardinality_score = 0.9
-            reasons.append(f"good class count for classification ({distinct} classes)")
+            reasons.append(f"nunique={distinct} in [2,50]")
         elif (
             mapped == "numeric"
             and unique_ratio > 0.9
@@ -581,13 +549,13 @@ def register_auto_detect_target_routes(
             and not p["id_name_pattern"]
         ):
             cardinality_score = 0.7
-            reasons.append("many distinct numbers (possible regression target)")
+            reasons.append("high nunique numeric")
         else:
             cardinality_score = 0.2
 
         # Prefer last/first column slightly more when it is class-like (common dataset layout)
         if mapped in ("categorical", "boolean") and 2 <= distinct <= 20 and (index == 0 or index == n_cols - 1):
-            reasons.append("often the label column is placed first or last")
+            reasons.append("first/last + class-like")
 
         cyber_match = False
         if domain == "cybersecurity_network":
@@ -613,7 +581,7 @@ def register_auto_detect_target_routes(
 
         constant_penalty = -1.0 if p["is_constant"] else 0.0
         if constant_penalty:
-            reasons.append("constant column (heavy penalty)")
+            reasons.append("constant")
 
         id_like = (
             p["is_uuid_like"]
@@ -625,7 +593,7 @@ def register_auto_detect_target_routes(
         )
         id_penalty = -0.6 if id_like else 0.0
         if id_penalty:
-            reasons.append("looks like an identifier / network address")
+            reasons.append("id-like")
 
         if p["is_sequential_numeric"] and p["id_name_pattern"]:
             sequential_penalty = -0.4
@@ -648,7 +616,7 @@ def register_auto_detect_target_routes(
 
         date_penalty = -0.3 if mapped == "date" else 0.0
         if date_penalty:
-            reasons.append("date column (unlikely target)")
+            reasons.append("date")
 
         # Structure-first rubric:
         # - No predefined name match must NOT create a large score hole.
@@ -667,7 +635,7 @@ def register_auto_detect_target_routes(
         )
         name_bonus = 0.25 * name_score
         if name_score <= 0 and mapped in ("categorical", "boolean") and 2 <= distinct <= 50:
-            reasons.append("no known target-like name (not a problem — structure still counts)")
+            reasons.append("name: no match")
 
         score = _clip(structural + name_bonus)
         return score, reasons
@@ -796,8 +764,6 @@ def register_auto_detect_target_routes(
             "bdName": table,
             "started_at": datetime.now().isoformat(),
         }
-        _append_log(job_id, "Job queued.")
-
         # Same pattern as active_trainings: daemon thread, return immediately
         t = threading.Thread(
             target=_run_job,

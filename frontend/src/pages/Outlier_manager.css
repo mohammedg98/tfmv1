@@ -1,21 +1,39 @@
+.outlier-dialog {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #c8c9ca;
+}
+
+.outlier-dialog .MuiDialogTitle-root {
+  background: #384850;
+  color: #fff;
+}
+
+.outlier-alert {
+  background-color: #e8e9ea !important;
+  color: #384850 !important;
+  border: 1px solid #c8c9ca !important;
+  border-radius: 2px !important;
+}
+
 /* Outlier_manager.css */
 :root {
   --primary: #384850;
-  --primary-dark: #003d54;
+  --primary-dark: #2a3942;
   --accent: #DE6B06;
   --accent-dark: #c55a05;
   --neutral: #DDDEDF;
   --neutral-dark: #c8c9ca;
-  --success: #28a745;
-  --danger: #dc3545;
-  --warning: #ffc107;
-  --info: #17a2b8;
-  --light: #f8f9fa;
-  --dark: #343a40;
+  --success: #384850;
+  --danger: #b42318;
+  --warning: #DE6B06;
+  --info: #384850;
+  --light: #f3f4f5;
+  --dark: #384850;
   --white: #ffffff;
-  --border-radius: 8px;
-  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --transition: all 0.3s ease;
+  --border-radius: 2px;
+  --shadow: none;
+  --transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 /* Styles généraux */
@@ -58,7 +76,6 @@
 
 .button:hover {
   background-color: var(--accent-dark);
-  transform: translateY(-1px);
 }
 
 .button:disabled {

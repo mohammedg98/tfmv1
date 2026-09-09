@@ -233,7 +233,15 @@ def register_anomaly_routes(
 
             check_stop()
 
-            if request.use_scaling:
+            # One-Class SVM (noyau RBF/kernel) dépend fortement de la mise à
+            # l'échelle des features — jamais laissé à l'utilisateur, toujours
+            # forcé côté backend (défense en profondeur, même si l'API est
+            # appelée directement sans passer par l'UI).
+            effective_use_scaling = (
+                True if algo == "one_class_svm" else request.use_scaling
+            )
+
+            if effective_use_scaling:
                 scaler = StandardScaler()
                 X_train_s = scaler.fit_transform(X_train.values)
                 X_test_s = (
@@ -245,7 +253,6 @@ def register_anomaly_routes(
                 scaler = None
                 X_train_s = X_train.values
                 X_test_s = X_test.values if X_test is not None and len(X_test) else None
-
             check_stop()
 
             if algo == "isolation_forest":
@@ -367,7 +374,7 @@ def register_anomaly_routes(
 
             params_used: Dict[str, Any] = {
                 "algorithm": algo,
-                "use_scaling": request.use_scaling,
+                "use_scaling": effective_use_scaling,
                 "random_state": request.random_state,
             }
             if algo == "isolation_forest":

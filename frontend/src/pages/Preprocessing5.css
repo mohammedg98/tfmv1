@@ -1,0 +1,53 @@
+.container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .title {
+    margin-bottom: 20px;
+    font-weight: bold;
+  }
+  
+  .section {
+    margin-bottom: 30px;
+  }
+  
+  .section-title {
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  
+  .graph-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .button-group {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .button {
+    text-transform: none;
+    padding: 8px 16px;
+  }
+  
+  .alert {
+    margin-bottom: 20px;
+  }
+  
+  .modifications-log {
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 5px;
+  }
+  
+  .modifications-log-title {
+    margin-bottom: 10px;
+  }
+  
+  .modifications-log-item {
+    padding: 5px 0;
+  }

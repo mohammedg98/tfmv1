@@ -164,7 +164,7 @@ function DatasetCheckpointControls({
       )}
 
       {showReset && (
-        <Tooltip title="Restore the working dataset from the shared reset checkpoint (handles column changes).">
+        <Tooltip title="Restore this step to how it started.">
           <span>
             <Button
               variant="contained"

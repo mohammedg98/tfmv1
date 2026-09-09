@@ -55,13 +55,18 @@ function Signup() {
         state: { message: "Account created successfully. Please log in." },
       });
     } catch (err) {
+      const status = err.response?.status;
       const detail = err.response?.data?.detail;
-      if (err.response?.status === 400 && detail) {
+      if (status === 429) {
+        setError("Too many attempts. Please try again in a few minutes.");
+      } else if (status === 409) {
         setError(
           typeof detail === "string"
             ? detail
-            : "This email is already registered. Please use a different email or log in."
+            : "An account with this email already exists. Please log in."
         );
+      } else if (status === 400 && typeof detail === "string") {
+        setError(detail);
       } else {
         setError("Registration failed. Please try again.");
       }

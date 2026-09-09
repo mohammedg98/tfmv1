@@ -1,16 +1,15 @@
 .admin-panel {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: #f3f4f5;
   padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* Header Styles */
 .admin-header {
   background: white;
   padding: 24px 32px;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #c8c9ca;
+  box-shadow: none;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -29,18 +28,14 @@
 }
 
 .admin-icon {
-  color: rgb(0, 80, 111);
+  color: #384850;
 }
 
 .admin-title h1 {
   margin: 0;
-  color: #1a202c;
+  color: #384850;
   font-size: 28px;
   font-weight: 700;
-  background: linear-gradient(135deg, rgb(0, 80, 111) 0%, #2d3748 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .admin-welcome {
@@ -61,16 +56,16 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #f7fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  background: #e8e9ea;
+  border-radius: 2px;
+  border: 1px solid #c8c9ca;
   font-size: 14px;
   font-weight: 600;
-  color: #2d3748;
+  color: #384850;
 }
 
 .stat-item svg {
-  color: rgb(0, 80, 111);
+  color: #384850;
 }
 
 .admin-actions {
@@ -83,25 +78,23 @@
 .upload-btn, .export-btn, .refresh-btn, .logout-btn {
   padding: 10px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 2px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .upload-btn {
-  background: rgb(0, 80, 111);
+  background: #384850;
   color: white;
 }
 
 .upload-btn:hover {
-  background: rgb(0, 60, 91);
-  transform: translateY(-1px);
+  background: #2a3942;
 }
 
 .export-btn {
@@ -132,13 +125,13 @@
 }
 
 .logout-btn {
-  background: #e53e3e;
+  background: #b42318;
   color: white;
   min-width: 96px;
 }
 
 .logout-btn:hover {
-  background: #c53030;
+  background: #8a1a12;
 }
 
 /* Main Content */
@@ -152,11 +145,11 @@
 .admin-tabs {
   display: flex;
   background: white;
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 8px;
   margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: none;
+  border: 1px solid #c8c9ca;
   gap: 4px;
 }
 
@@ -165,7 +158,7 @@
   padding: 16px 20px;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 2px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -173,15 +166,13 @@
   gap: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: #718096;
-  transition: all 0.3s ease;
-  position: relative;
+  color: #7a858c;
 }
 
 .tab-btn.active {
-  background: rgb(0, 80, 111);
+  background: #384850;
   color: white;
-  box-shadow: 0 2px 8px rgba(0, 80, 111, 0.3);
+  box-shadow: none;
 }
 
 .tab-btn:hover:not(.active) {
@@ -192,7 +183,7 @@
 .tab-count {
   background: rgba(255, 255, 255, 0.2);
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: 2px;
   font-size: 12px;
   font-weight: 600;
 }
@@ -210,10 +201,10 @@
 .search-bar {
   position: relative;
   background: white;
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: none;
+  border: 1px solid #c8c9ca;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -302,7 +293,7 @@
 /* Table Styles */
 .admin-content {
   background: white;
-  border-radius: 12px;
+  border-radius: 2px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e2e8f0;
   overflow: hidden;
@@ -336,7 +327,9 @@
 
 .admin-table {
   width: 100%;
+  min-width: 1100px;
   border-collapse: collapse;
+  table-layout: auto;
 }
 
 .admin-table th {
@@ -355,6 +348,7 @@
   border-bottom: 1px solid #f7fafc;
   color: #4a5568;
   font-size: 14px;
+  vertical-align: middle;
 }
 
 .table-row:hover {
@@ -387,9 +381,6 @@
 
 /* Specific column styles */
 .user-name, .dataset-name, .model-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-weight: 600;
   color: #1a202c;
 }
@@ -401,6 +392,12 @@
 .user-date, .dataset-date, .model-date {
   color: #718096;
   white-space: nowrap;
+}
+
+.col-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .user-id {
@@ -510,7 +507,7 @@
   width: 32px;
   height: 32px;
   border: 3px solid #e2e8f0;
-  border-top: 3px solid rgb(0, 80, 111);
+  border-top: 3px solid rgb(56, 72, 80);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
@@ -609,12 +606,6 @@
     padding: 12px 8px;
   }
   
-  .user-name, .dataset-name, .model-name {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-  
   .delete-btn {
     padding: 6px 8px;
     font-size: 11px;
@@ -675,7 +666,7 @@
 .overview-kpi {
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -710,7 +701,7 @@
 .overview-chart-card {
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 18px;
 }
 
@@ -750,7 +741,7 @@
 
 .overview-bar-fill {
   height: 100%;
-  background: rgb(0, 80, 111);
+  background: rgb(56, 72, 80);
   border-radius: 999px;
 }
 
@@ -806,7 +797,7 @@
 .dataset-info-editor {
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 20px;
   display: flex;
   flex-direction: column;

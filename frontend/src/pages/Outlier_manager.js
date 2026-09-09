@@ -29,7 +29,6 @@ import {
   Divider,
 } from "@mui/material";
 import Plot from "react-plotly.js";
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import DeleteForever from '@mui/icons-material/DeleteForever';
 import AutoFixHigh from '@mui/icons-material/AutoFixHigh';
@@ -38,13 +37,6 @@ import WarningIcon from '@mui/icons-material/Warning';
 import InfoIcon from '@mui/icons-material/Info';
 import SaveIcon from '@mui/icons-material/Save';
 import ClearIcon from '@mui/icons-material/Clear';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import ScatterPlotIcon from '@mui/icons-material/ScatterPlot';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import TuneIcon from '@mui/icons-material/Tune';
-import SearchIcon from '@mui/icons-material/Search';
-import TableChartIcon from '@mui/icons-material/TableChart';
 import { backendUrl } from "../config";
 import "./Outlier_manager.css";
 
@@ -60,29 +52,29 @@ const debounce = (func, wait) => {
 // ==================== STYLE CONSTANTS ====================
 const COLORS = {
   primary: '#384850',
-  primaryDark: '#003d54',
+  primaryDark: '#2a3942',
   accent: '#DE6B06',
   accentDark: '#c55a05',
-  success: '#28a745',
-  danger: '#dc3545',
+  success: '#384850',
+  danger: '#b42318',
   neutral: '#DDDEDF',
   white: '#ffffff',
-  dark: '#343a40',
-  bgLight: '#f8f9fa',
-  bgSection: '#f4f6f8',
+  dark: '#384850',
+  bgLight: '#f3f4f5',
+  bgSection: '#e8e9ea',
 };
 
 const sectionStyle = {
   background: COLORS.white,
-  borderRadius: '10px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+  borderRadius: '2px',
+  boxShadow: 'none',
   border: `1px solid ${COLORS.neutral}`,
   mb: 3,
   overflow: 'hidden',
 };
 
 const sectionHeaderStyle = {
-  background: `linear-gradient(90deg, ${COLORS.primary} 0%, #4a6572 100%)`,
+  background: COLORS.primary,
   px: 2.5,
   py: 1.5,
   display: 'flex',
@@ -97,7 +89,6 @@ const sectionBodyStyle = {
 // Reusable section header component
 const SectionHeader = ({ icon, title, infoTitle, infoContent, badge }) => (
   <Box sx={sectionHeaderStyle}>
-    {icon && <Box sx={{ color: 'rgba(255,255,255,0.8)', display: 'flex' }}>{icon}</Box>}
     <Typography variant="subtitle1" sx={{ color: COLORS.white, fontWeight: 700, flex: 1 }}>
       {title}
     </Typography>
@@ -126,13 +117,13 @@ const SectionHeader = ({ icon, title, infoTitle, infoContent, badge }) => (
 // Step indicator for guiding users
 const WorkflowSteps = ({ currentStep }) => {
   const steps = [
-    { label: 'Select Column', icon: <TableChartIcon fontSize="small" /> },
-    { label: 'Choose Method', icon: <TuneIcon fontSize="small" /> },
-    { label: 'Detect Outliers', icon: <SearchIcon fontSize="small" /> },
-    { label: 'Apply Actions', icon: <AutoFixHigh fontSize="small" /> },
+    { label: 'Select column' },
+    { label: 'Choose method' },
+    { label: 'Detect' },
+    { label: 'Apply actions' },
   ];
   return (
-    <Box sx={{ display: 'flex', gap: 0, mb: 3, borderRadius: '10px', overflow: 'hidden', border: `1px solid ${COLORS.neutral}` }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0, mb: 3, border: `1px solid ${COLORS.neutral}`, borderRadius: '2px' }}>
       {steps.map((step, idx) => {
         const isActive = currentStep === idx;
         const isDone = currentStep > idx;
@@ -145,22 +136,12 @@ const WorkflowSteps = ({ currentStep }) => {
             gap: 0.75,
             py: 1.2,
             px: 1,
-            background: isActive
-              ? `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.accentDark} 100%)`
-              : isDone
-                ? `linear-gradient(135deg, ${COLORS.primary} 0%, #4a6572 100%)`
-                : COLORS.bgSection,
+            background: isActive ? COLORS.accent : isDone ? COLORS.primary : COLORS.white,
             borderRight: idx < steps.length - 1 ? `1px solid ${COLORS.neutral}` : 'none',
-            transition: 'all 0.3s ease',
           }}>
-            <Box sx={{ color: isActive || isDone ? COLORS.white : COLORS.primary, display: 'flex', opacity: isDone ? 0.8 : 1 }}>
-              {isDone ? <CheckCircleOutlineIcon fontSize="small" /> : step.icon}
-            </Box>
             <Typography variant="caption" sx={{
               fontWeight: isActive ? 700 : 500,
               color: isActive || isDone ? COLORS.white : COLORS.primary,
-              display: { xs: 'none', sm: 'block' },
-              letterSpacing: '0.02em',
             }}>
               {step.label}
             </Typography>
@@ -1024,57 +1005,41 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
     return (
       <Paper sx={{ ...sectionStyle, mb: 3 }}>
         <SectionHeader
-          icon={<BarChartIcon />}
           title="Descriptive Statistics"
-          infoTitle="About These Statistics"
-          infoContent=" ALL statistics are calculated EXCLUSIVELY on the TRAINING split to prevent data leakage. This ensures unbiased outlier detection and valid model evaluation."
+          infoTitle="These numbers"
+          infoContent="They are computed only on training rows. Test rows are not used, so later scoring on test stays honest."
         />
         <Box sx={sectionBodyStyle}>
-          {/* Train Only Badge */}
-          <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2, bgcolor: '#e3f2fd' }}>
+          <Alert severity="info" icon={false} className="outlier-alert" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>📊 Training Data Only:</strong> Mean, median, standard deviation, and quartiles are all computed from the 
-              <strong style={{ color: COLORS.accent, margin: '0 4px' }}>training split only</strong>.
-              This prevents data leakage from the test set.
+              These figures use the training rows only. The test rows are left aside on purpose.
             </Typography>
           </Alert>
           
-          <Grid container spacing={2}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             {[
-              { label: 'Sample Size (Train)', value: stats.sampleSize.toLocaleString() },
-              { label: 'Mean (Train)', value: stats.mean.toFixed(4) },
-              { label: 'Median (Train)', value: stats.median.toFixed(4) },
-              { label: 'Std Deviation (Train)', value: stats.stdDev.toFixed(4) },
-              { label: 'Minimum (Train)', value: stats.min.toFixed(4) },
-              { label: 'Maximum (Train)', value: stats.max.toFixed(4) },
-              { label: 'Q1 - 25th pct (Train)', value: stats.q1.toFixed(4) },
-              { label: 'Q3 - 75th pct (Train)', value: stats.q3.toFixed(4) },
+              { label: 'Sample size (train)', value: stats.sampleSize.toLocaleString() },
+              { label: 'Mean (train)', value: stats.mean.toFixed(4) },
+              { label: 'Median (train)', value: stats.median.toFixed(4) },
+              { label: 'Std deviation (train)', value: stats.stdDev.toFixed(4) },
+              { label: 'Minimum (train)', value: stats.min.toFixed(4) },
+              { label: 'Maximum (train)', value: stats.max.toFixed(4) },
+              { label: 'Q1, 25th percentile (train)', value: stats.q1.toFixed(4) },
+              { label: 'Q3, 75th percentile (train)', value: stats.q3.toFixed(4) },
             ].map(({ label, value }) => (
-              <Grid item xs={6} sm={3} key={label}>
-                <Box sx={{
-                  textAlign: 'center',
-                  p: 1.5,
-                  borderRadius: '8px',
-                  background: COLORS.bgSection,
-                  borderLeft: `3px solid ${COLORS.accent}`,
-                }}>
-                  <Typography variant="h6" sx={{ color: COLORS.primary, fontWeight: 700, fontSize: '1.1rem' }}>
-                    {value}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: COLORS.dark, opacity: 0.7 }}>
-                    {label}
-                  </Typography>
-                </Box>
-              </Grid>
+              <Box key={label} sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 2,
+                py: 0.75,
+                px: 1,
+                borderBottom: '1px solid #c8c9ca',
+              }}>
+                <Typography variant="body2" sx={{ color: COLORS.primary }}>{label}</Typography>
+                <Typography variant="body2" sx={{ color: COLORS.primary, fontWeight: 700 }}>{value}</Typography>
+              </Box>
             ))}
-          </Grid>
-          
-          <Alert severity="success" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-               <strong>Best Practice:</strong> All outlier detection parameters are derived from training data only.
-              Test data will never influence the detection thresholds, ensuring valid model evaluation.
-            </Typography>
-          </Alert>
+          </Box>
         </Box>
       </Paper>
     );
@@ -1200,15 +1165,14 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
           variant="contained"
           color="primary"
           onClick={() => setOpenVisualizationDialog(true)}
-          startIcon={<BarChartIcon />}
           disabled={loading.visualization || resetting || isBooleanColumn}
-          sx={{ minWidth: '200px', background: `linear-gradient(135deg, ${COLORS.primary} 0%, #4a6572 100%)` }}
+          sx={{ minWidth: '200px', background: COLORS.primary, boxShadow: 'none', borderRadius: '2px' }}
         >
           {loading.visualization ? "Loading..." : "Show Advanced Visualizations"}
         </Button>
         <InfoButton
-          title="Data Visualizations"
-          content="Visualizations are generated from ALL data (not just the current page) to give you an accurate view of the distribution."
+          title="Charts"
+          content="Charts use every row, not only the page you see in the table."
         />
       </Box>
     );
@@ -1222,20 +1186,17 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
     const visualizations = [
       {
         title: "Histogram",
-        icon: <BarChartIcon />,
-        description: "Shows the frequency distribution of values across the entire dataset",
+        description: "How often each range of values appears.",
         component: renderHistogram()
       },
       {
-        title: "Box Plot",
-        icon: <ShowChartIcon />,
-        description: "Displays the statistical distribution with quartiles, median, and outliers",
+        title: "Box plot",
+        description: "Median, quartiles, and extreme points.",
         component: renderBoxplot()
       },
       {
-        title: "Scatter Plot",
-        icon: <ScatterPlotIcon />,
-        description: "Shows individual data points to visualize the spread of values",
+        title: "Scatter",
+        description: "Each point is one value, so you see the spread.",
         component: renderScatterplot()
       }
     ];
@@ -1244,11 +1205,10 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
     const handlePrev = () => setActiveVisualization(prev => (prev - 1 + visualizations.length) % visualizations.length);
 
     return (
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth scroll="paper">
-        <DialogTitle sx={{ bgcolor: COLORS.primary, color: COLORS.white }}>
+      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth scroll="paper" PaperProps={{ className: "outlier-dialog" }}>
+        <DialogTitle>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center" gap={1}>
-              {visualizations[activeVisualization].icon}
               <span>Visualizations for <strong>{columnName}</strong></span>
             </Box>
             <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -1258,8 +1218,6 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
         </DialogTitle>
 
         <DialogContent dividers>
-          <StatisticsCard />
-
           <Box mb={2}>
             <Typography variant="h6">{visualizations[activeVisualization].title}</Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -1306,19 +1264,22 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
         <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
           <Box sx={{ display: 'flex', gap: 1 }}>
             {visualizations.map((viz, index) => (
-              <Tooltip key={index} title={viz.title}>
-                <IconButton
-                  onClick={() => setActiveVisualization(index)}
-                  sx={{
-                    bgcolor: activeVisualization === index ? 'primary.main' : 'grey.200',
-                    color: activeVisualization === index ? 'white' : 'grey.700',
-                    '&:hover': { bgcolor: activeVisualization === index ? 'primary.dark' : 'grey.300' }
-                  }}
-                  size="small"
-                >
-                  {viz.icon}
-                </IconButton>
-              </Tooltip>
+              <Button
+                key={index}
+                size="small"
+                variant={activeVisualization === index ? "contained" : "outlined"}
+                onClick={() => setActiveVisualization(index)}
+                sx={{
+                  textTransform: 'none',
+                  borderRadius: '2px',
+                  boxShadow: 'none',
+                  bgcolor: activeVisualization === index ? COLORS.primary : undefined,
+                  borderColor: COLORS.primary,
+                  color: activeVisualization === index ? '#fff' : COLORS.primary,
+                }}
+              >
+                {viz.title}
+              </Button>
             ))}
           </Box>
           <Button onClick={onClose} variant="contained" color="primary">Close</Button>
@@ -1329,128 +1290,47 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
 
   // ==================== DIALOGUE D'AIDE ====================
   const HelpDialog = ({ open, onClose }) => (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ bgcolor: COLORS.primary, color: 'white' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <HelpOutlineIcon />
-          <Typography variant="h5">Guide: Outliers (univariate)</Typography>
-        </Box>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ className: "outlier-dialog" }}>
+      <DialogTitle>
+        <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>Guide: Outliers (one column)</Typography>
       </DialogTitle>
       <DialogContent dividers>
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>How to use this page in 4 easy steps:</strong> Select a numeric column → Choose a detection method → Click "Detect Outliers" → Apply actions on detected outliers.
-          </Typography>
-        </Alert>
-
-        <Typography variant="body1" paragraph>
-          This page helps you find and fix extreme values (outliers) in your numerical columns.
-          You can visualize data distributions, choose how outliers should be detected, and decide what to do with them: one by one or all at once.
+        <Typography variant="body2" paragraph>
+          An outlier is an extreme number, far from the rest of the column. This page finds them in one numeric column at a time, then lets you delete the row, replace the value, or transform it.
         </Typography>
-        <Typography variant="h6" gutterBottom sx={{ color: COLORS.primary, borderBottom: `2px solid ${COLORS.accent}`, pb: 0.5, mt: 2 }}>
-          📊 Why Training Data Only?
+        <Typography variant="body2" paragraph>
+          How to run it: pick a numeric column, pick a method, click Detect Outliers, then use the buttons on each row (or the bulk buttons).
         </Typography>
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <Typography variant="body2">
-            <strong>Data Leakage Prevention:</strong> All statistics (mean, median, IQR, etc.) and outlier detection 
-            are performed <strong>exclusively on the training split</strong>. This ensures:
-            <ul style={{ marginTop: '8px', marginBottom: '4px' }}>
-              <li>Test data never influences detection thresholds</li>
-              <li>Model evaluation remains valid and unbiased</li>
-              <li>Production deployment works correctly with unseen data</li>
-              <li>You can trust your model's performance metrics</li>
-            </ul>
-            Test set outliers are <strong>identified but NEVER modified</strong>: they remain as real-world challenges for your model.
-          </Typography>
-        </Alert>
-
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          <Typography variant="body2">
-            <strong>⚠️ Boolean Columns:</strong> Boolean columns (True/False, 0/1) cannot be used for outlier detection 
-            because they only contain two values. They are automatically blocked by the system.
-          </Typography>
-        </Alert>
-
-        <Typography variant="h6" gutterBottom sx={{ color: COLORS.primary, mt: 2, borderBottom: `2px solid ${COLORS.accent}`, pb: 0.5 }}>
-          Step-by-Step Guide
+        <Typography variant="body2" paragraph>
+          Thresholds (mean, median, IQR) are computed on the training set only, then used to flag values. Test rows can be shown as outliers but they are never changed. That way the test set stays a real check for the model.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          True/false columns cannot be used here: they only have two values.
         </Typography>
 
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {[
-            {
-              step: '1',
-              title: 'Select a Column',
-              body: 'Use the dropdown to pick a numeric column. Only numeric columns can be analyzed. Boolean and non-numeric ones are automatically blocked.'
-            },
-            {
-              step: '2',
-              title: 'Choose a Detection Method',
-              body: (
-                <>
-                  <strong>Z-Score:</strong> Flags values more than 3 std deviations from the mean. Good for normally distributed data.<br />
-                  <strong>IQR:</strong> Flags values outside Q1−1.5×IQR and Q3+1.5×IQR. Good for skewed data.<br />
-                  <strong>Modified Z-Score:</strong> Uses median + MAD, more robust to existing outliers.
-                </>
-              )
-            },
-            {
-              step: '3',
-              title: 'Detect Outliers',
-              body: 'Click "Detect Outliers" to run the analysis. A table of detected outliers will appear below with action buttons on each row.'
-            },
-            {
-              step: '4',
-              title: 'Apply Actions',
-              body: (
-                <>
-                  <strong>🗑 Delete:</strong> Removes the row permanently.<br />
-                  <strong>🔧 Replace:</strong> Replaces the value with the training set median.<br />
-                  <strong>⚡ Transform:</strong> Applies a mathematical transformation (Log, Sqrt, or Box-Cox). The transform type selector is always next to the transform button.
-                </>
-              )
-            },
-          ].map(({ step, title, body }) => (
-            <Grid item xs={12} sm={6} key={step}>
-              <Paper sx={{ p: 2, bgcolor: COLORS.bgSection, borderLeft: `4px solid ${COLORS.accent}`, height: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <Box sx={{
-                    width: 28, height: 28, borderRadius: '50%',
-                    bgcolor: COLORS.accent, color: COLORS.white,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 700, fontSize: '0.85rem', flexShrink: 0,
-                  }}>
-                    {step}
-                  </Box>
-                  <Typography variant="subtitle1" fontWeight="bold">{title}</Typography>
-                </Box>
-                <Typography variant="body2" sx={{ lineHeight: 1.6 }}>{body}</Typography>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-
-        <Typography variant="h6" gutterBottom sx={{ color: COLORS.primary, borderBottom: `2px solid ${COLORS.accent}`, pb: 0.5 }}>
-          Bulk Actions vs Individual Actions
+        <Typography variant="subtitle1" sx={{ color: COLORS.primary, fontWeight: 700, mt: 2, mb: 1 }}>
+          Methods
         </Typography>
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          <Typography variant="body2">
-            <strong>⚠️ Important: Training Data Only:</strong> Outlier detection and all modifications 
-            (delete, replace, transform) are applied <strong>exclusively to the TRAINING split</strong>.
-            Test data remains unchanged to prevent data leakage and ensure valid model evaluation.
-          </Typography>
-        </Alert>
-
-        <Typography variant="h6" gutterBottom sx={{ color: COLORS.primary, borderBottom: `2px solid ${COLORS.accent}`, pb: 0.5 }}>
-          Performance Notes
+        <Typography variant="body2" paragraph>
+          Z-Score: flags values more than 3 standard deviations from the mean. Fits data that looks roughly bell-shaped.
         </Typography>
-        <Alert severity="info">
-          <Typography variant="body2">
-            • Data loads page by page: the full table is never loaded at once.<br />
-            • Detection parameters (mean, median, IQR) are calculated on the <strong>training split only</strong> to prevent data leakage.<br />
-            • Visualizations use all data but are cached after the first load.<br />
-            • Bulk actions run as single SQL queries for maximum speed.
-          </Typography>
-        </Alert>
+        <Typography variant="body2" paragraph>
+          IQR: flags values outside Q1 minus 1.5 times IQR and Q3 plus 1.5 times IQR. Better when the column is skewed.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Modified Z-Score: uses the median and MAD, so a few already-extreme values do not pull the threshold.
+        </Typography>
+
+        <Typography variant="subtitle1" sx={{ color: COLORS.primary, fontWeight: 700, mt: 2, mb: 1 }}>
+          Actions
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Delete removes the row. Replace puts the training median in that cell. Transform applies Log, Sqrt, or Box-Cox (the type is next to the button).
+          The same actions exist in bulk for every unmodified outlier on train.
+        </Typography>
+        <Typography variant="body2">
+          Data loads page by page. Charts use all data but are cached after the first load. Bulk actions run as one SQL query.
+        </Typography>
       </DialogContent>
       <DialogActions>
         <Button
@@ -1459,7 +1339,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
           variant="contained"
           fullWidth
           size="large"
-          sx={{ backgroundColor: COLORS.primary, textTransform: 'none', fontWeight: 700, '&:hover': { backgroundColor: '#003c56' } }}
+          sx={{ backgroundColor: COLORS.primary, textTransform: 'none', fontWeight: 700, '&:hover': { backgroundColor: '#2a3942' } }}
         >
           Got it
         </Button>
@@ -1555,8 +1435,8 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
     };
 
     return (
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ bgcolor: COLORS.primary, color: COLORS.white }}>
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ className: "outlier-dialog" }}>
+        <DialogTitle>
           <SaveIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
           Save Dataset Copy
         </DialogTitle>
@@ -1687,7 +1567,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
           )}
 
           {localSuccess && (
-            <Alert severity="success" sx={{ mt: 2 }}>{localSuccess}</Alert>
+            <Alert severity="success" icon={false} className="outlier-alert" sx={{ mt: 2 }}>{localSuccess}</Alert>
           )}
         </DialogContent>
 
@@ -1743,8 +1623,8 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
         console.warn("⚠️ Checkpoint save failed:", error);
       }
 
-      navigate("/data_preparation", {
-        state: { bdName, initialTab: 3, processedData: processedData || rows, columns }
+      navigate("/data_transformation", {
+        state: { bdName, processedData: processedData || rows, columns }
       });
 
     } catch (error) {
@@ -1805,9 +1685,9 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
         justifyContent: 'space-between',
         mb: 3,
         p: 2,
-        background: `linear-gradient(90deg, ${COLORS.primary} 0%, #4a6572 100%)`,
-        borderRadius: '10px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        background: COLORS.primary,
+        borderRadius: '2px',
+        boxShadow: 'none',
         flexWrap: 'wrap',
         gap: 1.5,
       }}>
@@ -1819,8 +1699,8 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
               <Button
                 variant="contained"
                 startIcon={<ArrowBackIos sx={{ fontSize: '14px' }} />}
-                onClick={() => navigate("/data_preparation", {
-                  state: { bdName, initialTab: 2, processedData: rows, columns: data?.columns }
+                onClick={() => navigate("/data_cleaning", {
+                  state: { bdName, processedData: rows, columns: data?.columns }
                 })}
                 disabled={resetting || loading.action}
                 sx={{
@@ -1849,10 +1729,9 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
-            startIcon={<HelpOutlineIcon />}
             onClick={() => setOpenHelpDialog(true)}
             disabled={resetting}
-            sx={{ color: COLORS.white, borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: COLORS.white } }}
+            sx={{ color: COLORS.white, borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: COLORS.white }, borderRadius: '2px' }}
           >
             Help
           </Button>
@@ -1897,7 +1776,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
 
       {/* ===== SUCCESS / MODIFICATION PROTECTION ALERT ===== */}
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
+        <Alert severity="success" icon={false} className="outlier-alert" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
           {success}
         </Alert>
       )}
@@ -1905,11 +1784,12 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
       {modificationHistory.length > 0 && (
         <Alert
           severity="info"
+          icon={false}
+          className="outlier-alert"
           sx={{ mb: 2 }}
-          icon={<LockIcon />}
         >
           <Typography variant="body2">
-            <strong>Modification Protection Active:</strong> {modificationHistory.length} cell{modificationHistory.length > 1 ? 's have' : ' has'} been modified and locked against further changes.
+            <strong>These cells are locked:</strong> {modificationHistory.length} value{modificationHistory.length > 1 ? 's have' : ' has'} already been changed and will not be changed again.
           </Typography>
         </Alert>
       )}
@@ -1920,11 +1800,11 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
       {/* ===== SECTION 1: DATA PREVIEW ===== */}
       <Paper sx={sectionStyle}>
         <SectionHeader
-          icon={<TableChartIcon />}
+          icon={undefined}
           title="Data Preview"
           badge={rowCount ? `${rowCount.toLocaleString()} rows` : undefined}
           infoTitle="Data Table"
-          infoContent="Your dataset is displayed here with server-side pagination. All columns including 'id' are shown. You don't need to scroll through all data: just select a column below to start analysis."
+          infoContent="The table loads page by page. Pick a numeric column below to start."
         />
         <Box sx={sectionBodyStyle}>
           <div style={{ height: 380, width: '100%' }}>
@@ -1952,7 +1832,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
       {/* ===== SECTION 2: COLUMN SELECTION ===== */}
       <Paper sx={sectionStyle}>
         <SectionHeader
-          icon={<TableChartIcon />}
+          icon={undefined}
           title="Step 1: Select a Column for Analysis"
           infoTitle="Column Selection"
           infoContent="Choose a numeric column to analyze for outliers. Boolean columns (True/False) are automatically blocked. Columns used for train/test splitting are also disabled."
@@ -2036,25 +1916,20 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
           )}
 
           {isBooleanColumn && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              <strong>❌ Boolean Column Detected:</strong> {columnTypeError || "Boolean columns cannot be used for outlier detection."}
-              <br />
-              <Typography variant="body2" sx={{ mt: 0.5 }}>
-                Please select a numeric column with continuous or discrete numerical values.
-              </Typography>
+            <Alert severity="error" icon={false} className="outlier-alert" sx={{ mt: 2 }}>
+              <strong>True/false column:</strong> {columnTypeError || "Outlier detection needs a numeric column, not true/false."}
             </Alert>
           )}
 
           {selectedColumn !== null && !isNumericColumn && !isBooleanColumn && !loading.columnType && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              <strong>Non-numeric column selected.</strong> Outlier analysis requires a numeric column. 
-              Please choose a different column.
+            <Alert severity="warning" icon={false} className="outlier-alert" sx={{ mt: 2 }}>
+              This column is not numeric. Pick a numeric column to find outliers.
             </Alert>
           )}
 
           {selectedColumn !== null && isNumericColumn && !isBooleanColumn && !loading.columnType && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              ✅ Numeric column detected. Statistics and visualizations are loading below.
+            <Alert severity="success" icon={false} className="outlier-alert" sx={{ mt: 2 }}>
+              This column is numeric.
             </Alert>
           )}
         </Box>
@@ -2069,10 +1944,9 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
           {/* Visualization */}
           <Paper sx={sectionStyle}>
             <SectionHeader
-              icon={<BarChartIcon />}
               title="Data Visualization"
-              infoTitle="Data Visualization"
-              infoContent="Visualizations are computed from ALL rows (not just the current page) to give you a complete view of the distribution. Use these to understand the shape of data before choosing a detection method."
+              infoTitle="Charts"
+              infoContent="Charts use every row, not only the current table page. Look at them before you pick a detection method."
             />
             <Box sx={sectionBodyStyle}>
               {renderVisualizationButton()}
@@ -2082,17 +1956,16 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
           {/* ===== SECTION 3: METHOD SELECTION ===== */}
           <Paper sx={sectionStyle}>
             <SectionHeader
-              icon={<TuneIcon />}
               title="Step 2: Choose a Detection Method"
               infoTitle="Detection Methods"
               infoContent="Each method uses different math to define what counts as an outlier. IQR is recommended as a first try because it works well for skewed data. Use Modified Z-Score for data that already has some outliers."
             />
             <Box sx={sectionBodyStyle}>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                <Typography variant="body2">
-                  <strong>Tip:</strong> If you're unsure, start with <strong>IQR</strong>. It's the most robust method for most real-world datasets.
-                </Typography>
-              </Alert>
+                <Alert severity="info" icon={false} className="outlier-alert" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    If you are not sure, start with IQR. It works well on most tables.
+                  </Typography>
+                </Alert>
 
               <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>Detection Method</InputLabel>
@@ -2117,13 +1990,12 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
                   border: `1px solid ${COLORS.neutral}`,
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                    <TuneIcon fontSize="small" sx={{ color: COLORS.accent }} />
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      Sensitivity Threshold
+                      Sensitivity
                     </Typography>
                     <InfoButton
                       title="Threshold Setting"
-                      content="The threshold controls how strict outlier detection is. A lower value (2.5) detects more outliers; a higher value (4.5) detects fewer. The default of 3.5 works well in most cases."
+                      content="Lower (2.5) flags more rows. Higher (4.5) flags fewer. 3.5 is a good start."
                     />
                   </Box>
                   <FormControl fullWidth size="small">
@@ -2149,7 +2021,6 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
           {/* ===== SECTION 4: DETECT BUTTON ===== */}
           <Paper sx={sectionStyle}>
             <SectionHeader
-              icon={<SearchIcon />}
               title="Step 3: Run Outlier Detection"
               infoTitle="Detect Outliers"
               infoContent="Click to scan your entire dataset using the selected method. Parameters (mean, median, IQR) are calculated on the training split only to avoid data leakage. Results are paginated for performance."
@@ -2169,10 +2040,10 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
                 variant="contained"
                 onClick={() => detectOutliers(0)}
                 disabled={!isNumericColumn || isBooleanColumn || !outlierMethod || loading.outliers || resetting}
-                startIcon={loading.outliers ? <CircularProgress size={16} color="inherit" /> : <SearchIcon />}
+                startIcon={loading.outliers ? <CircularProgress size={16} color="inherit" /> : undefined}
                 size="large"
                 sx={{
-                  background: `linear-gradient(135deg, ${COLORS.primary} 0%, #4a6572 100%)`,
+                  background: COLORS.primary,
                   fontWeight: 700,
                   px: 4,
                   py: 1.2,
@@ -2307,14 +2178,13 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
                 {/* ===== BULK ACTIONS ===== */}
                 <Divider sx={{ mb: 2.5 }}>
                   <Typography variant="caption" sx={{ px: 1, color: COLORS.accent, fontWeight: 700, letterSpacing: '0.05em' }}>
-                    BULK ACTIONS: Apply to all {unmodifiedCount} unmodified outliers in TRAINING data only
+                    BULK ACTIONS: apply to all {unmodifiedCount} unchanged outliers in training rows
                   </Typography>
                 </Divider>
 
-                <Alert severity="info" sx={{ mb: 2 }}>
+                <Alert severity="info" icon={false} className="outlier-alert" sx={{ mb: 2 }}>
                   <Typography variant="caption">
-                    🔒 <strong>Test data protection:</strong> These actions only affect rows in the training split. 
-                    Test set outliers are never modified to prevent data leakage.
+                    These buttons change training rows only. Test rows stay as they are, so the later test remains a real check.
                   </Typography>
                 </Alert>
 
@@ -2378,9 +2248,8 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
                       pb: 0.5,
                       bgcolor: 'rgba(156,39,176,0.06)',
                     }}>
-                      <TuneIcon fontSize="small" sx={{ color: 'secondary.main' }} />
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'secondary.main', letterSpacing: '0.04em' }}>
-                        TRANSFORMATION TYPE
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: COLORS.primary }}>
+                        Transform type
                       </Typography>
                     </Box>
                     <Box sx={{ px: 1.5, pb: 0.5 }}>
@@ -2424,7 +2293,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
       {modificationsLog.length > 0 && (
         <Paper sx={sectionStyle} className="modifications-log">
           <SectionHeader
-            icon={<CheckCircleOutlineIcon />}
+            icon={undefined}
             title="Session Modifications Log"
             badge={`${modificationsLog.length}`}
             infoTitle="Modifications Log"
@@ -2446,7 +2315,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
       {modifiedRows.length > 0 && (
         <Paper sx={sectionStyle}>
           <SectionHeader
-            icon={<CheckCircleOutlineIcon />}
+            icon={undefined}
             title="Modification Results"
             badge={`${modifiedRows.length}`}
             infoTitle="Modification Results"
@@ -2502,15 +2371,15 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
 
       {/* ===== BOTTOM NAV ===== */}
       {!embedded && (
-      <Paper sx={{ p: 2, background: `linear-gradient(90deg, ${COLORS.bgSection} 0%, ${COLORS.white} 100%)`, border: `1px solid ${COLORS.neutral}`, borderRadius: '10px' }}>
+      <Paper sx={{ p: 2, background: COLORS.white, border: `1px solid ${COLORS.neutral}`, borderRadius: '2px', boxShadow: 'none' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Tooltip title="Back to Clean · Split · Impute">
             <span>
               <Button
                 variant="contained"
                 startIcon={<ArrowBackIos sx={{ fontSize: '14px' }} />}
-                onClick={() => navigate("/data_preparation", {
-                  state: { bdName, initialTab: 2, processedData: rows, columns: data?.columns }
+                onClick={() => navigate("/data_cleaning", {
+                  state: { bdName, processedData: rows, columns: data?.columns }
                 })}
                 disabled={resetting || loading.action}
                 sx={{ bgcolor: COLORS.accent, '&:hover': { bgcolor: COLORS.accentDark }, fontWeight: 600 }}

@@ -1,0 +1,450 @@
+/* Target_selection.css */
+:root {
+  --primary: #384850;
+  --primary-dark: #003d54;
+  --accent: #DE6B06;
+  --accent-dark: #c55a05;
+  --neutral: #DDDEDF;
+  --neutral-dark: #c8c9ca;
+  --success: #28a745;
+  --danger: #dc3545;
+  --warning: #ffc107;
+  --info: #17a2b8;
+  --light: #f8f9fa;
+  --dark: #343a40;
+  --white: #ffffff;
+  --border-radius: 8px;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s ease;
+}
+
+/* Container Principal */
+.preprocessing-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Titre Principal */
+.preprocessing-title {
+  font-weight: bold;
+  color: var(--primary);
+  margin-bottom: 2rem;
+}
+
+/* Header */
+.preprocessing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.help-button {
+  color: var(--primary);
+}
+
+/* Stepper */
+.preprocessing-stepper {
+  margin-bottom: 2rem;
+}
+
+.preprocessing-stepper .MuiStepLabel-root {
+  color: var(--primary);
+}
+
+.preprocessing-stepper .MuiStepIcon-root.Mui-completed {
+  color: var(--accent);
+}
+
+.preprocessing-stepper .MuiStepIcon-root.Mui-active {
+  color: var(--primary);
+}
+
+.step-content {
+  margin-top: 1rem;
+}
+
+.step-description {
+  margin-bottom: 1rem;
+  color: var(--dark);
+}
+
+/* Form Controls */
+.target-form {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.target-select .MuiOutlinedInput-root {
+  border-radius: var(--border-radius);
+}
+
+.target-select .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary);
+}
+
+.target-select .MuiInputLabel-root {
+  color: var(--primary);
+}
+
+/* Menu Items */
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.type-chip {
+  font-size: 0.7rem;
+}
+
+.type-chip.numeric {
+  background-color: var(--primary);
+  color: white;
+}
+
+.type-chip.categorical {
+  background-color: var(--accent);
+  color: white;
+}
+
+/* Buttons */
+.details-button {
+  color: var(--primary);
+  margin-top: 0.5rem;
+}
+
+.step-actions {
+  margin-bottom: 1rem;
+  margin-top: 1rem;
+}
+
+.continue-button {
+  background-color: var(--accent);
+  color: white;
+  margin-top: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.continue-button:hover {
+  background-color: var(--accent-dark);
+  transform: translateY(-1px);
+}
+
+.back-button {
+  margin-top: 0.5rem;
+  margin-right: 0.5rem;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.back-button:hover {
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+/* Cards */
+.preview-card {
+  margin-bottom: 2rem;
+  border: 1px solid var(--neutral);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.preview-chip {
+  margin-left: 0.5rem;
+  background-color: var(--primary);
+  color: white;
+}
+
+/* Table */
+.preview-table {
+  max-height: 440px;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+.preview-table .MuiTableHead-root {
+  background-color: rgba(0, 80, 111, 0.1);
+}
+
+.table-header-cell {
+  font-weight: bold;
+  background-color: var(--neutral);
+  color: var(--dark);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.table-header-cell:hover {
+  background-color: var(--neutral-dark);
+}
+
+.table-header-cell.target {
+  background-color: var(--primary);
+  color: white;
+}
+
+.table-header-cell.target:hover {
+  background-color: var(--primary-dark);
+}
+
+.table-cell-content {
+  display: flex;
+  align-items: center;
+}
+
+.table-info-icon {
+  font-size: 16px;
+  margin-left: 0.25rem;
+}
+
+.table-cell.target {
+  background-color: rgba(0, 80, 111, 0.1);
+  font-weight: bold;
+}
+
+.null-value {
+  color: var(--danger);
+  font-style: italic;
+}
+
+/* Alerts */
+.error-alert {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background-color: rgba(220, 53, 69, 0.1);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--border-radius);
+}
+
+.warning-alert {
+  margin-bottom: 1rem;
+  background-color: rgba(255, 193, 7, 0.1);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: var(--border-radius);
+}
+
+.info-alert {
+  background-color: rgba(0, 80, 111, 0.1);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--border-radius);
+}
+
+/* Dialogs */
+.help-dialog .MuiDialog-paper,
+.column-dialog .MuiDialog-paper {
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  color: var(--primary);
+  border-bottom: 1px solid var(--neutral);
+  padding-bottom: 1rem;
+}
+
+.dialog-icon {
+  margin-right: 0.5rem;
+  color: var(--primary);
+}
+
+.dialog-content {
+  margin-top: 0.5rem;
+}
+
+.dialog-list {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.dialog-list li {
+  margin-bottom: 0.5rem;
+}
+
+.dialog-actions {
+  padding-top: 1rem;
+  border-top: 1px solid var(--neutral);
+}
+
+/* Column Details Grid */
+.column-details-grid {
+  margin-top: 0.5rem;
+}
+
+.detail-item {
+  margin-bottom: 1rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.detail-value {
+  color: var(--dark);
+}
+
+.sample-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.sample-chip {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+/* Loading State */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  flex-direction: column;
+}
+
+.loading-text {
+  margin-top: 1rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* Error State */
+.error-container {
+  padding: 2rem;
+  text-align: center;
+}
+
+.error-title {
+  color: var(--danger);
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  margin-bottom: 1.5rem;
+  color: var(--dark);
+}
+
+/* Analytics Info */
+.analytics-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+.analytics-icon {
+  margin-right: 0.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .preprocessing-container {
+    padding: 1rem;
+  }
+  
+  .preprocessing-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .menu-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .type-chip {
+    margin-top: 0.25rem;
+  }
+  
+  .step-actions {
+    flex-direction: column;
+  }
+  
+  .continue-button,
+  .back-button {
+    width: 100%;
+    margin: 0.25rem 0;
+  }
+  
+  .preview-table {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .preprocessing-container {
+    padding: 0.5rem;
+  }
+  
+  .preprocessing-title {
+    font-size: 1.5rem;
+  }
+  
+  .column-details-grid .MuiGrid-item {
+    width: 100%;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.preprocessing-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.preview-card {
+  animation: fadeInUp 0.4s ease-out 0.2s both;
+}
+
+/* Focus States */
+button:focus-visible,
+.MuiSelect-root:focus-visible,
+.MuiMenuItem-root:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+.preview-table::-webkit-scrollbar {
+  width: 6px;
+}
+
+.preview-table::-webkit-scrollbar-track {
+  background: var(--neutral);
+  border-radius: 3px;
+}
+
+.preview-table::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+.preview-table::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}

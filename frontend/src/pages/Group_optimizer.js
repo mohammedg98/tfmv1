@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import './Group_optimizer.css';
-import SaveIcon from '@mui/icons-material/Save';
 
 import { 
   Box,
@@ -41,22 +40,8 @@ import { backendUrl } from "../config";
 import { normalizeDatasetName, validateDatasetNameInput } from "../utils/datasetName";
 import DatasetCheckpointControls from "../components/DatasetCheckpointControls";
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import HelpIcon from '@mui/icons-material/Help';
-import TableChartIcon from '@mui/icons-material/TableChart';
-import InfoIcon from '@mui/icons-material/Info';
-import AnalyticsIcon from '@mui/icons-material/Analytics';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import DatasetIcon from '@mui/icons-material/Dataset';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import SaveAltIcon from '@mui/icons-material/SaveAlt';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import CloseIcon from '@mui/icons-material/Close';
 
 function Group_optimizer({ embedded = false, onCheckpointReset }) {
@@ -450,10 +435,10 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
       setSelectedValues(allVals);
       setSelectAllGlobal(true);
       setSelectAll(true);
-      setSuccess(`Selected all ${allVals.length} matching values across the dataset`);
+      setSuccess(`Selected ${allVals.length} matching values (all pages)`);
       setTimeout(() => setSuccess(""), 4000);
     } catch (err) {
-      setReplaceError(err.response?.data?.detail || "Could not select all values");
+      setReplaceError(err.response?.data?.detail || "Could not select the values");
     } finally {
       setLoadingValues(false);
     }
@@ -556,7 +541,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
         }
       );
       
-      setSuccess(`Successfully replaced ${response.data.affected_rows} rows!`);
+      setSuccess(`Replaced ${response.data.affected_rows} rows.`);
       setHasChanges(true);
       setSelectedValues([]);
       setNewValue("");
@@ -606,7 +591,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
         }
       );
       
-      setSuccess(`Successfully deleted ${response.data.deleted_rows} rows!`);
+      setSuccess(`Deleted ${response.data.deleted_rows} rows.`);
       setHasChanges(true);
       setSelectedValues([]);
       setReplaceError("");
@@ -658,7 +643,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
       );
       
       if (resetResponse.data.status === "success") {
-        setSuccess("Database reset successfully! Refreshing data...");
+        setSuccess("Database reset. Reloading...");
         setHasChanges(false);
         
         await loadColumnStats(selectedColumn);
@@ -699,7 +684,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
       );
       
       if (response.data.status === "success") {
-        setSuccess(`Dataset copy "${normalizedName}" ${response.data.action} successfully!`);
+        setSuccess(`Saved copy "${normalizedName}" (${response.data.action}).`);
         setSaveDialogOpen(false);
         setNameConflict(false);
         setTimeout(() => setSuccess(""), 5000);
@@ -759,10 +744,9 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
 
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      navigate("/data_preparation", {
+      navigate("/data_cleaning", {
         state: {
           bdName,
-          initialTab: 2,
           columns: datasetInfo.columns,
           idsReset: resetSuccess
         }
@@ -801,9 +785,8 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
             <Tooltip title="View full dataset">
               <Button 
                 variant="outlined"
-                startIcon={<TableChartIcon />} 
                 onClick={() => setTableDialogOpen(true)}
-                sx={{ height: 40, textTransform: 'none', borderColor: '#384850', color: '#384850', fontWeight: 600 }}
+                sx={{ height: 40, textTransform: 'none', borderColor: '#384850', color: '#384850', fontWeight: 600, borderRadius: '2px', boxShadow: 'none' }}
               >
                 View Dataset
               </Button>
@@ -812,12 +795,11 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
             <Tooltip title="Help guide">
               <Button 
                 variant="outlined"
-                startIcon={<HelpIcon />} 
                 onClick={() => {
                   setAutoHelpOpened(true);
                   setHelpOpen(true);
                 }}
-                sx={{ height: 40, textTransform: 'none', borderColor: '#384850', color: '#384850', fontWeight: 600 }}
+                sx={{ height: 40, textTransform: 'none', borderColor: '#384850', color: '#384850', fontWeight: 600, borderRadius: '2px', boxShadow: 'none' }}
               >
                 Help
               </Button>
@@ -829,7 +811,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
               disabled={loadingAction}
               showSave={false}
               onResetSuccess={async (msg) => {
-                setSuccess(msg || "Database reset successfully!");
+                setSuccess(msg || "Database reset.");
                 setHasChanges(false);
                 if (selectedColumn) await loadColumnStats(selectedColumn);
                 onCheckpointReset?.();
@@ -842,10 +824,9 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
             <Tooltip title="Continue to Clean · Split · Impute">
               <Button 
                 variant="contained"
-                endIcon={<ArrowForwardIcon />} 
                 onClick={handleContinue}
                 disabled={loadingAction}
-                sx={{ height: 40, textTransform: 'none', backgroundColor: '#384850', '&:hover': { backgroundColor: '#2c383f' } }}
+                sx={{ height: 40, textTransform: 'none', backgroundColor: '#384850', '&:hover': { backgroundColor: '#2a3942' }, borderRadius: '2px', boxShadow: 'none' }}
               >
                 Continue
               </Button>
@@ -856,44 +837,41 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
 
       {/* Status messages */}
       {error && (
-        <Alert severity="error" className="status-alert" onClose={() => setError("")}>
-          <ErrorIcon sx={{ mr: 1 }} />
+        <Alert severity="error" icon={false} className="status-alert" onClose={() => setError("")}>
           {error}
         </Alert>
       )}
       
       {success && (
-        <Alert severity="success" className="status-alert" onClose={() => setSuccess("")}>
-          <CheckCircleIcon sx={{ mr: 1 }} />
+        <Alert severity="success" icon={false} className="status-alert" onClose={() => setSuccess("")}>
           {success}
         </Alert>
       )}
 
       {/* Dataset Info Bar - margins réduites */}
-      <Paper className="dataset-info-bar" elevation={2}>
+      <Paper className="dataset-info-bar" elevation={0}>
         <Grid container spacing={1} alignItems="center">
           <Grid item>
             <Chip 
-              icon={<DatasetIcon />} 
               label={`Dataset: ${bdName}`} 
-              sx={{ backgroundColor: 'rgba(222, 107, 6, 0.1)', color: '#DE6B06', fontWeight: 500 }}
+              sx={{ backgroundColor: '#e8e9ea', color: '#384850', fontWeight: 500, borderRadius: '2px' }}
               size="small"
             />
           </Grid>
           <Grid item>
             <Chip 
-              icon={<InfoIcon />} 
               label={`${datasetInfo.totalRows.toLocaleString()} rows`} 
               variant="outlined"
               size="small"
+              sx={{ borderColor: '#c8c9ca', color: '#384850', borderRadius: '2px' }}
             />
           </Grid>
           <Grid item>
             <Chip 
-              icon={<TableChartIcon />} 
               label={`${datasetInfo.columns?.length || 0} columns`} 
               variant="outlined"
               size="small"
+              sx={{ borderColor: '#c8c9ca', color: '#384850', borderRadius: '2px' }}
             />
           </Grid>
         </Grid>
@@ -903,10 +881,9 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
       <Grid container spacing={2} className="main-content">
         {/* Left Panel - Column Selection & Stats */}
         <Grid item xs={12} md={4}>
-          <Card className="left-panel-card">
+          <Card className="left-panel-card" elevation={0}>
             <CardContent>
               <Typography variant="h6" className="panel-title">
-                <ShowChartIcon sx={{ mr: 1 }} />
                 Column Analysis
               </Typography>
               
@@ -998,15 +975,16 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                         <Button
                           fullWidth
                           variant="outlined"
-                          startIcon={<VisibilityIcon />}
                           onClick={() => handleOpenPreview(selectedColumn)}
                           sx={{ 
                             mb: 1,
-                            borderColor: '#DE6B06',
-                            color: '#DE6B06',
+                            borderColor: '#384850',
+                            color: '#384850',
+                            borderRadius: '2px',
+                            textTransform: 'none',
                             '&:hover': {
-                              borderColor: '#c55a05',
-                              backgroundColor: 'rgba(222, 107, 6, 0.1)'
+                              borderColor: '#384850',
+                              backgroundColor: 'rgba(56, 72, 80, 0.08)'
                             }
                           }}
                         >
@@ -1023,10 +1001,9 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
 
         {/* Right Panel - Value Distribution & Actions */}
         <Grid item xs={12} md={8}>
-          <Card className="right-panel-card">
+          <Card className="right-panel-card" elevation={0}>
             <CardContent>
               <Typography variant="h6" className="panel-title">
-                <DatasetIcon sx={{ mr: 1 }} />
                 Value Distribution: {selectedColumn || 'Select a column'}
               </Typography>
               
@@ -1090,7 +1067,9 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                             sx={{ 
                               height: '40px',
                               backgroundColor: '#DE6B06',
-                              '&:hover': { backgroundColor: '#c55a05' }
+                              '&:hover': { backgroundColor: '#c55a05' },
+                              borderRadius: '2px',
+                              boxShadow: 'none',
                             }}
                           >
                             <FilterAltIcon />
@@ -1107,7 +1086,6 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                         disabled={!searchTerm && !minValue && !maxValue && !minPct && !maxPct}
                         sx={{ height: '40px' }}
                       >
-                        <RefreshIcon sx={{ mr: 1 }} />
                         Reset
                       </Button>
                     </Grid>
@@ -1124,7 +1102,6 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                         value={minPct}
                         onChange={(e) => setMinPct(e.target.value)}
                         inputProps={{ min: 0, max: 100, step: 0.1 }}
-                        helperText="e.g. 1 = at least 1% of rows"
                       />
                     </Grid>
                     <Grid item xs={12} sm={3}>
@@ -1136,7 +1113,6 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                         value={maxPct}
                         onChange={(e) => setMaxPct(e.target.value)}
                         inputProps={{ min: 0, max: 100, step: 0.1 }}
-                        helperText="e.g. 1 = at most 1% of rows (rare)"
                       />
                     </Grid>
                     <Grid item xs={12} sm={3}>
@@ -1152,7 +1128,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                     </Grid>
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption" color="text.secondary">
-                        Filter values by how frequent they are, then use Select All + Replace or Delete.
+                        Filter values by how often they appear, then select and Replace or Delete.
                       </Typography>
                     </Grid>
                   </Grid>
@@ -1162,7 +1138,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                       <TableHead>
                         <TableRow>
                           <TableCell padding="checkbox" width="50px">
-                            <Tooltip title="Select ALL matching values across every page (not just this page)">
+                            <Tooltip title="Select every matching value, including other pages">
                               <Checkbox
                               checked={selectAll || selectAllGlobal}
                               onChange={handleSelectAll}
@@ -1172,7 +1148,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                             />
                             </Tooltip>
                           </TableCell>
-                          <TableCell>Value {selectAllGlobal && <Chip size="small" label="all pages" color="warning" sx={{ ml: 1 }} />}</TableCell>
+                          <TableCell>Value {selectAllGlobal && <Chip size="small" label="all pages" sx={{ ml: 1, backgroundColor: '#e8e9ea', color: '#384850', borderRadius: '2px' }} />}</TableCell>
                           <TableCell align="right" width="120px">Count</TableCell>
                           <TableCell align="right" width="100px">Percentage</TableCell>
                         </TableRow>
@@ -1268,7 +1244,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                     </Typography>
                     
                     {replaceError && (
-                      <Alert severity="error" sx={{ mb: 2 }} onClose={() => setReplaceError("")}>
+                      <Alert severity="error" icon={false} className="group-alert" sx={{ mb: 2 }} onClose={() => setReplaceError("")}>
                         {replaceError}
                       </Alert>
                     )}
@@ -1294,7 +1270,10 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                           sx={{ 
                             height: '40px',
                             backgroundColor: '#DE6B06',
-                            '&:hover': { backgroundColor: '#c55a05' }
+                            '&:hover': { backgroundColor: '#c55a05' },
+                            borderRadius: '2px',
+                            boxShadow: 'none',
+                            textTransform: 'none',
                           }}
                         >
                           {loadingAction ? <CircularProgress size={24} /> : 'Replace'}
@@ -1308,7 +1287,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                           onClick={handleDeleteRows}
                           disabled={selectedValues.length === 0 || loadingAction}
                           startIcon={<DeleteIcon />}
-                          sx={{ height: '40px' }}
+                          sx={{ height: '40px', backgroundColor: '#b42318', '&:hover': { backgroundColor: '#8f1c13' }, borderRadius: '2px', boxShadow: 'none', textTransform: 'none' }}
                         >
                           {loadingAction ? <CircularProgress size={24} /> : 'Delete Rows'}
                         </Button>
@@ -1318,9 +1297,8 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
                 </>
               ) : (
                 <Box sx={{ textAlign: 'center', py: 5 }}>
-                  <InfoIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
                   <Typography color="textSecondary">
-                    Select a column to analyze its value distribution
+                    Select a column to see its values
                   </Typography>
                 </Box>
               )}
@@ -1337,10 +1315,10 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
         onClose={() => setTableDialogOpen(false)} 
         maxWidth="xl"
         fullWidth
+        PaperProps={{ className: "group-dialog" }}
       >
-        <DialogTitle sx={{ backgroundColor: '#384850', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6" sx={{ color: 'white', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TableChartIcon />
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
             Dataset Preview: {bdName}
           </Typography>
           <IconButton onClick={() => setTableDialogOpen(false)} sx={{ color: 'white' }}>
@@ -1370,10 +1348,9 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
         onClose={() => setPreviewDialogOpen(false)} 
         maxWidth="md"
         fullWidth
-        className="dialog"
+        PaperProps={{ className: "group-dialog" }}
       >
-        <DialogTitle className="dialog-title">
-          <VisibilityIcon sx={{ mr: 1 }} />
+        <DialogTitle>
           Column Preview: {previewColumn}
         </DialogTitle>
         <DialogContent dividers>
@@ -1456,11 +1433,11 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
         onClose={() => setHelpOpen(false)} 
         maxWidth="md"
         fullWidth
+        PaperProps={{ className: "group-dialog" }}
       >
-        <DialogTitle sx={{ backgroundColor: '#384850', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6" sx={{ color: 'white', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
-            <HelpIcon />
-            Guide: Groups (optional)
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+            Guide: Groups
           </Typography>
           <IconButton onClick={() => setHelpOpen(false)} sx={{ color: 'white' }}>
             <CloseIcon />
@@ -1469,53 +1446,50 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
         <DialogContent sx={{ p: 3 }}>
           <Box sx={{ p: 0 }}>
             <Typography variant="body1" paragraph>
-              <strong>What is this page for?</strong>
+              <strong>What this page does</strong>
             </Typography>
             <Typography variant="body2" paragraph>
-              Clean up and organize values in a column: fix inconsistent labels, replace or delete values,
-              filter by frequency, and group rare categories into &quot;Other&quot;.
+              Clean values in one column: fix messy labels, group rare categories, or drop rows.
+              You can search, filter by how often a value appears, then replace or delete.
             </Typography>
 
             <Typography variant="body1" paragraph mt={2}>
-              <strong>Select All</strong>
+              <strong>Select</strong>
             </Typography>
             <Typography variant="body2" paragraph>
-              Select All selects <strong>every matching value across all pages</strong> (not only the current page),
-              then Replace / Delete applies to the full selection.
+              Tick the boxes next to the values you want. The checkbox in the table header selects
+              every matching value, including those on other pages, not only the page you see.
+              Replace and Delete always use that selection.
             </Typography>
 
             <Typography variant="body1" paragraph mt={2}>
-              <strong>Frequency % filter</strong>
+              <strong>Frequency %</strong>
             </Typography>
             <Typography variant="body2" paragraph>
-              Use Min / Max frequency % to keep only values that appear less (or more) often than a share of the dataset.
-              Example: Max = 1% to list rare values, then Select All + Replace with &quot;Other&quot;.
+              Min / Max frequency % keeps values that appear at least / at most that share of the rows.
+              Example: Max = 1% lists rare values. Select them, then Replace with &quot;Other&quot;.
             </Typography>
 
             <Divider sx={{ my: 2 }} />
 
             <Typography variant="h6" gutterBottom sx={{ color: '#384850', fontWeight: 700 }}>
-              Step by Step
+              Step by step
             </Typography>
             
             <Typography variant="body2" paragraph>
-              <strong>1. Choose a Column</strong><br />
-              Pick a column on the left. Stats show totals, unique values, and for numeric columns min/max/mean.
+              <strong>1. Choose a column</strong><br />
+              Pick a column on the left. You get totals, unique values, and for numeric columns min / max / mean.
             </Typography>
 
             <Typography variant="body2" paragraph>
               <strong>2. Find values</strong><br />
-              Search, range filter (numeric), or Min/Max frequency %. Check boxes, or Select All for every matching value.
+              Search, use a numeric range, or Min / Max frequency %. Then select the values you want to change.
             </Typography>
 
             <Typography variant="body2" paragraph>
               <strong>3. Act</strong><br />
-              Replace or Delete selected values.
+              Replace or Delete the selected values.
             </Typography>
-
-            <Alert severity="info" sx={{ mt: 3 }}>
-              Changes apply to the full dataset in the database. Use Reset to restore the stage start state.
-            </Alert>
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -1547,10 +1521,9 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
         }} 
         maxWidth="sm"
         fullWidth
-        className="dialog"
+        PaperProps={{ className: "group-dialog" }}
       >
-        <DialogTitle className="dialog-title">
-          <SaveIcon sx={{ mr: 1 }} />
+        <DialogTitle>
           Save Dataset Copy
         </DialogTitle>
         <DialogContent dividers>
@@ -1575,7 +1548,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
           />
           
           {nameConflict && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
+            <Alert severity="warning" icon={false} className="group-alert" sx={{ mb: 2 }}>
               <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
                 Name already exists
               </Typography>
@@ -1605,7 +1578,7 @@ function Group_optimizer({ embedded = false, onCheckpointReset }) {
           )}
           
           {datasetLimitReached && (
-            <Alert severity="error">
+            <Alert severity="error" icon={false} className="group-alert">
               You have reached the maximum dataset limit (10/10).
               Please delete some datasets from your dashboard.
             </Alert>

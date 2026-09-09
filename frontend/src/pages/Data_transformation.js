@@ -3,10 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import moment from "moment";
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import { LinearProgress, Backdrop, Fade } from "@mui/material";
 import Chip from '@mui/material/Chip';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close';
 
 import {FormControlLabel, Checkbox,
@@ -37,6 +35,7 @@ import {FormControlLabel, Checkbox,
   ListSubheader,
 } from "@mui/material";
 import { backendUrl } from "../config";
+import "./Data_transformation.css";
 import { normalizeDatasetName, validateDatasetNameInput } from "../utils/datasetName";
 import DatasetCheckpointControls from "../components/DatasetCheckpointControls";
 
@@ -44,13 +43,9 @@ import { DataGrid } from "@mui/x-data-grid";
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import SaveIcon from '@mui/icons-material/Save';
 import SearchIcon from '@mui/icons-material/Search';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import ScatterPlotIcon from '@mui/icons-material/ScatterPlot';
-import BubbleChartIcon from '@mui/icons-material/BubbleChart';
 import OutlierManagerDialog from '../components/OutlierManagerDialog';
 import AutoTransformDialog from '../components/AutoTransformDialog';
 import ClearIcon from '@mui/icons-material/Clear';
-import SchoolIcon from '@mui/icons-material/School';
 
 const colorPalette = {
   primary: '#384850',
@@ -229,8 +224,8 @@ useEffect(() => {
 
 // Method Help Dialog Component
 const MethodHelpDialog = () => (
-  <Dialog open={methodHelpDialogOpen} onClose={handleCloseMethodHelp}>
-    <DialogTitle sx={{ bgcolor: colorPalette.primary, color: 'white' }}>
+  <Dialog open={methodHelpDialogOpen} onClose={handleCloseMethodHelp} PaperProps={{ className: "transform-dialog" }}>
+    <DialogTitle>
       <Typography variant="h6">{currentMethodHelp?.label || "Method Help"}</Typography>
     </DialogTitle>
     <DialogContent dividers>
@@ -262,214 +257,71 @@ const MethodHelpDialog = () => (
 
 // Unified Help Dialog Component
 const HelpDialog = ({ open, onClose }) => {
-  const [showWelcomeTour, setShowWelcomeTour] = useState(false);
-
-  if (showWelcomeTour) {
-    return (
-      <Dialog
-        open={open}
-        onClose={() => {
-          setShowWelcomeTour(false);
-          onClose();
-        }}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: { borderRadius: 3, overflow: 'hidden' }
-        }}
-      >
-        <Box sx={{ bgcolor: colorPalette.primary, p: 3, textAlign: 'center', color: 'white' }}>
-          <SchoolIcon sx={{ fontSize: 48, mb: 1 }} />
-          <Typography variant="h5" fontWeight="bold">Welcome to Data Transformation</Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9, mt: 1 }}>Prepare your data for machine learning</Typography>
-        </Box>
-
-        <DialogContent sx={{ p: 0 }}>
-          <Box sx={{ p: 3, borderBottom: `1px solid ${colorPalette.neutral}` }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: colorPalette.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>1</Box>
-              <Typography variant="h6" fontWeight="bold">Pick a column</Typography>
-            </Box>
-            <Typography variant="body1" color="text.secondary" sx={{ ml: 7 }}>Choose a method for that column, then Apply. Or use Apply All / Auto Transform.</Typography>
-          </Box>
-
-          <Box sx={{ p: 3, borderBottom: `1px solid ${colorPalette.neutral}` }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: colorPalette.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>2</Box>
-              <Typography variant="h6" fontWeight="bold">Match method to type</Typography>
-            </Box>
-            <Typography variant="body1" color="text.secondary" sx={{ ml: 7 }}>Numerical, categorical, boolean, text, and date each have their own methods. At most one date column may remain for Time Series validation.</Typography>
-          </Box>
-
-          <Box sx={{ p: 3, borderBottom: `1px solid ${colorPalette.neutral}` }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: colorPalette.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>3</Box>
-              <Typography variant="h6" fontWeight="bold">Optional tools</Typography>
-            </Box>
-            <Typography variant="body1" color="text.secondary" sx={{ ml: 7 }}>Extract from text, delete a column, clean empty rows, then open Outliers if needed before Train Model.</Typography>
-          </Box>
-        </DialogContent>
-
-        <DialogActions sx={{ p: 3, bgcolor: colorPalette.neutral, justifyContent: 'center' }}>
-          <Button variant="contained" onClick={() => setShowWelcomeTour(false)} sx={{ bgcolor: colorPalette.primary, px: 4, '&:hover': { bgcolor: '#003c56' } }}>Got it</Button>
-        </DialogActions>
-      </Dialog>
-    );
-  }
-
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-      <DialogTitle sx={{ bgcolor: '#384850', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ className: "transform-dialog" }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
-          Guide: Data Transformation
+          Guide: Transform
         </Typography>
         <IconButton onClick={onClose} sx={{ color: 'white' }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      <DialogContent dividers sx={{ p: 0 }}>
-        <Alert severity="info" sx={{ m: 3, mb: 0 }}>
-          <Typography variant="body2">
-            <strong>How to use:</strong> pick a column, choose a method, click Apply. Use Auto Transform for a bulk pass, or Extract from text for patterns.
-          </Typography>
-        </Alert>
+      <DialogContent dividers>
+        <Typography variant="body2" paragraph>
+          Models need numbers. This page turns each column into numbers, one column at a time.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Look at the cards below. Each card is one column. Open Method, pick one option, click Apply.
+          Only that column changes. If you chose a method on several cards, Apply All does them all in one go.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Auto Transform does this for every column automatically. You can still change columns by hand after.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Extract from text is different. Use it when a cell is a sentence and you want a piece of it
+          (for example a weight like 10 kg inside a message). Open Extract from text, choose the column,
+          pick or write a pattern, click Test, check the preview, then Apply. That creates a new column.
+        </Typography>
 
-        <Box sx={{ p: 3, borderBottom: `1px solid ${colorPalette.neutral}` }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: colorPalette.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>1</Box>
-            <Typography variant="h6" fontWeight="bold">Per column</Typography>
-          </Box>
-          <Typography variant="body1" color="text.secondary" sx={{ ml: 7 }}>
-            Methods depend on column type. Apply one column at a time, or Apply All for pending methods.
-          </Typography>
-        </Box>
+        <Typography variant="subtitle1" sx={{ color: '#384850', fontWeight: 700, mt: 2, mb: 1 }}>
+          Which method to pick
+        </Typography>
+        <Typography variant="body2" paragraph>
+          If the column is a measurement (length, count, score): Standardization puts values around 0.
+          MinMax squeezes them between 0 and 1. Log is for columns where a few values are much larger than the others.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          If the column is words or labels (tcp, udp, red, blue): One-Hot creates one yes/no column per word.
+          Label replaces each word by a number. Use One-Hot when there are not too many different words.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          If the column is true/false: Binary writes 1 and 0. Invert swaps them.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          If the column is free text: Frequency replaces each text by how often it appears.
+          If you need a value hidden inside the text, use Extract from text first.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          If the column is a date: you may keep one date if later, in Train Model, you want to split by time.
+          Extra date columns should be deleted. A kept date is not used like a normal feature.
+          You can also encode a date with Frequency, like text.
+        </Typography>
 
-        <Box sx={{ p: 3, borderBottom: `1px solid ${colorPalette.neutral}` }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: colorPalette.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>2</Box>
-            <Typography variant="h6" fontWeight="bold">Auto Transform</Typography>
-          </Box>
-          <Typography variant="body1" color="text.secondary" sx={{ ml: 7 }}>
-            Profiles columns and applies safe encodings. For dates: keep one for Time Series validation, or delete them.
-          </Typography>
-        </Box>
-
-        <Box sx={{ p: 3, borderBottom: `1px solid ${colorPalette.neutral}` }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: colorPalette.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>3</Box>
-            <Typography variant="h6" fontWeight="bold">Next</Typography>
-          </Box>
-          <Typography variant="body1" color="text.secondary" sx={{ ml: 7 }}>
-            Remove empty rows if needed, optionally open Outliers, then go to Train Model when columns are ready.
-          </Typography>
-        </Box>
-
-        <Divider />
-
-        <Box sx={{ p: 3, bgcolor: '#f8f9fa' }}>
-          <Typography variant="h6" gutterBottom sx={{ color: colorPalette.primary, fontWeight: 'bold' }}>
-            Available Transformations by Column Type
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, bgcolor: 'white' }}>
-                <Typography variant="subtitle2" fontWeight="bold" color={colorPalette.primary}>
-                   Numerical Columns
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  • <strong>Standardization</strong>: mean 0, std 1<br />
-                  • <strong>MinMax</strong>: scale to [0, 1]<br />
-                  • <strong>Log</strong>: log(1+x) for skew
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, bgcolor: 'white' }}>
-                <Typography variant="subtitle2" fontWeight="bold" color={colorPalette.primary}>
-                   Categorical Columns
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  • <strong>One-Hot</strong>: binary columns per category<br />
-                  • <strong>Label</strong>: numeric codes per category
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, bgcolor: 'white' }}>
-                <Typography variant="subtitle2" fontWeight="bold" color={colorPalette.primary}>
-                   Boolean Columns
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  • <strong>Binary</strong>: true/false to 1/0<br />
-                  • <strong>Invert</strong>: true→0, false→1
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, bgcolor: 'white' }}>
-                <Typography variant="subtitle2" fontWeight="bold" color={colorPalette.primary}>
-                   Text Columns
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  • <strong>Frequency</strong>: value replaced by count / n
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, bgcolor: 'white' }}>
-                <Typography variant="subtitle2" fontWeight="bold" color={colorPalette.primary}>
-                   Date Columns
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  • Leave as-is for optional Time Series validation in Train Model (at most one date).<br />
-                  • Or Frequency encoding, same as text.
-                </Typography>
-              </Paper>
-            </Grid>
-          </Grid>
-        </Box>
-
-        <Divider />
-
-        <Box sx={{ p: 3, bgcolor: '#f8f9fa' }}>
-          <Typography variant="subtitle1" fontWeight="bold" sx={{ color: colorPalette.primary, mb: 1 }}>
-             Additional Tools
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 1.5, bgcolor: 'white', textAlign: 'center' }}>
-                <DeleteSweepIcon sx={{ color: colorPalette.secondary }} />
-                <Typography variant="body2" fontWeight="bold">Delete Column</Typography>
-                <Typography variant="caption" color="text.secondary">Remove unwanted columns</Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 1.5, bgcolor: 'white', textAlign: 'center' }}>
-                <Typography variant="body2" fontWeight="bold">Extract from text</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Create columns from patterns in text. Test first, then apply.
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 1.5, bgcolor: 'white', textAlign: 'center' }}>
-                <DeleteSweepIcon sx={{ color: colorPalette.secondary }} />
-                <Typography variant="body2" fontWeight="bold">Clean Empty Rows</Typography>
-                <Typography variant="caption" color="text.secondary">Remove rows with empty values</Typography>
-              </Paper>
-            </Grid>
-          </Grid>
-        </Box>
-        
-       
+        <Typography variant="subtitle1" sx={{ color: '#384850', fontWeight: 700, mt: 2, mb: 1 }}>
+          Other buttons
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Delete a column removes that column. Clean empty rows removes rows that still have blanks.
+          Outlier Manager finds unusual numbers after the columns are ready.
+        </Typography>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button 
-          onClick={onClose} 
+        <Button
+          onClick={onClose}
           variant="contained"
           fullWidth
-          size="large"
-          sx={{ bgcolor: colorPalette.primary, '&:hover': { bgcolor: '#003c56' }, textTransform: 'none', fontWeight: 700 }}
+          sx={{ bgcolor: colorPalette.primary, '&:hover': { bgcolor: '#2a3942' }, textTransform: 'none', fontWeight: 700 }}
         >
           Got it
         </Button>
@@ -482,7 +334,7 @@ const HelpDialog = ({ open, onClose }) => {
 const LoadingOverlay = () => (
   <Backdrop sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.modal + 1 }} open={transformLoading}>
     <Fade in={transformLoading}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4, bgcolor: 'rgba(0,0,0,0.8)', borderRadius: 4, minWidth: 300 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4, bgcolor: 'rgba(56,72,80,0.95)', borderRadius: '2px', minWidth: 300 }}>
         <CircularProgress size={60} sx={{ color: colorPalette.secondary, mb: 3 }} />
         <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>Applying Transformations...</Typography>
         <Typography variant="body2" sx={{ color: '#ddd', textAlign: 'center' }}>This may take a few moments.<br />Please do not close the page.</Typography>
@@ -1772,16 +1624,9 @@ const renderExtractDialog = () => {
   };
 
   return (
-  <Dialog
-    open={extractDialogOpen}
-    onClose={() => setExtractDialogOpen(false)}
-    maxWidth="md"
-    fullWidth
-  >
+  <Dialog open={extractDialogOpen} onClose={() => setExtractDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ className: "transform-dialog" }}>
     <DialogTitle
       sx={{
-        bgcolor: '#384850',
-        color: 'white',
         py: 1.5,
         display: 'flex',
         alignItems: 'center',
@@ -2059,9 +1904,9 @@ const renderExtractDialog = () => {
       </Typography>
 
       {!selectedExtractColumn ? (
-        <Alert severity="info" sx={{ mb: 1.5 }}>Select a source column to preview its values.</Alert>
+        <Alert severity="info" icon={false} className="transform-alert" sx={{ mb: 1.5 }}>Select a source column to preview its values.</Alert>
       ) : sourcePreviewRows.length === 0 ? (
-        <Alert severity="warning" sx={{ mb: 1.5 }}>No non-empty values found in this column (on the current page).</Alert>
+        <Alert severity="warning" icon={false} className="transform-alert" sx={{ mb: 1.5 }}>No non-empty values found in this column (on the current page).</Alert>
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ mb: 1.5, maxHeight: 220 }}>
           <Table size="small" stickyHeader>
@@ -2241,8 +2086,9 @@ const renderRegexTutorialDialog = () => (
     onClose={() => setRegexTutorialOpen(false)}
     maxWidth="lg"
     fullWidth
+    PaperProps={{ className: "transform-dialog" }}
   >
-    <DialogTitle sx={{ bgcolor: '#384850', color: 'white', fontWeight: 700, py: 1.5 }}>
+    <DialogTitle sx={{ fontWeight: 700, py: 1.5 }}>
       How to extract values from a column
     </DialogTitle>
 
@@ -2515,7 +2361,7 @@ const renderRegexTutorialDialog = () => (
         </Typography>
       </Paper>
 
-      <Alert severity="info" sx={{ mb: 1 }}>
+      <Alert severity="info" icon={false} className="transform-alert" sx={{ mb: 1 }}>
         <Typography variant="body2">
           After writing a pattern: always click <strong>Test on all rows</strong>. Check the result table
           and the unmatched examples. Fix the pattern if match % is low, then Apply.
@@ -2682,8 +2528,7 @@ const transformableColumns = (state.columns || []).filter(
 const isColumnNumericCompatible = (col) => {
   const t = state.columnTypes[col];
   if (t === "numerical") return true;
-  if (t === "boolean") return true;
-  if (t === "categorical") {
+  if (t === "boolean" || t === "categorical") {
     const stats = state.columnStats?.[col];
     // Contenu numérique (is_numeric_content) ou stats min/max déjà présentes
     return !!(
@@ -3211,7 +3056,7 @@ const renderTransformationPanel = () => {
   );
 
   return (
-    <Paper elevation={2} sx={{ p: 3, mt: 3, borderRadius: 3 }}>
+    <Paper elevation={0} sx={{ p: 3, mt: 3, borderRadius: '2px', border: '1px solid #c8c9ca', boxShadow: 'none' }}>
       <Box
         sx={{
           display: 'flex',
@@ -3241,10 +3086,11 @@ const renderTransformationPanel = () => {
               variant="contained"
               onClick={applyAllTransforms}
               disabled={processing || pendingMethodsCount === 0}
-              startIcon={<AutoFixHighIcon />}
               sx={{
                 backgroundColor: colorPalette.secondary,
                 '&:hover': { backgroundColor: '#c55a05' },
+                boxShadow: 'none',
+                borderRadius: '2px',
               }}
             >
               Apply All ({pendingMethodsCount})
@@ -3280,7 +3126,7 @@ const renderTransformationPanel = () => {
                 variant="outlined"
                 sx={{
                   p: 2,
-                  borderRadius: 2,
+                  borderRadius: '2px',
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
@@ -3300,10 +3146,10 @@ const renderTransformationPanel = () => {
                     size="small"
                     sx={{
                       bgcolor:
-                        type === 'numerical' ? '#e3f2fd'
-                        : type === 'categorical' ? '#e8f5e9'
-                        : type === 'boolean' ? '#fff3e0'
-                        : type === 'date' ? '#fff4e5'
+                        type === 'numerical' ? '#e8e9ea'
+                        : type === 'categorical' ? '#e8e9ea'
+                        : type === 'boolean' ? '#e8e9ea'
+                        : type === 'date' ? '#e8e9ea'
                         : '#f0f0f0',
                       fontWeight: 600,
                     }}
@@ -3350,14 +3196,14 @@ const renderTransformationPanel = () => {
                 )}
 
                 {isDateType && (
-                  <Alert severity="info" sx={{ py: 0, fontSize: '0.78rem' }}>
+                  <Alert severity="info" icon={false} className="transform-alert" sx={{ py: 0, fontSize: '0.78rem' }}>
                     Date columns use the same methods as text. You can also leave them as-is
                     for optional <strong>Time Series</strong> validation in Create Model
                     (they are not used as normal features). Or use <strong>Extract from text</strong> above.
                   </Alert>
                 )}
                 {type === 'text' && (
-                  <Alert severity="info" sx={{ py: 0, fontSize: '0.78rem' }}>
+                  <Alert severity="info" icon={false} className="transform-alert" sx={{ py: 0, fontSize: '0.78rem' }}>
                     You can also use <strong>Extract with Regex</strong> above to pull patterns from this text column.
                   </Alert>
                 )}
@@ -3383,7 +3229,7 @@ const renderTransformationPanel = () => {
                         sx={{
                           backgroundColor: colorPalette.primary,
                           whiteSpace: 'nowrap',
-                          '&:hover': { backgroundColor: '#003d54' },
+                          '&:hover': { backgroundColor: '#2a3942' },
                         }}
                       >
                         Apply
@@ -3464,7 +3310,7 @@ const renderDataTable = () => {
 // a été remplacé par renderTransformationPanel() : une méthode + Apply par colonne, + Apply All.
 
 const renderDeleteDialog = () => (
-  <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+  <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} PaperProps={{ className: "transform-dialog" }}>
     <DialogTitle>Delete a column</DialogTitle>
     <DialogContent>
       <Typography paragraph>
@@ -3739,7 +3585,6 @@ return (
       <Box className="dp-tab-toolbar-actions">
         <Button
           variant="contained"
-          startIcon={<AutoFixHighIcon />}
           onClick={() => setOpenAutoTransform(true)}
           disabled={processing}
           sx={{
@@ -3747,16 +3592,16 @@ return (
             textTransform: 'none',
             fontWeight: 700,
             backgroundColor: '#DE6B06',
+            boxShadow: 'none',
+            borderRadius: '2px',
             '&:hover': { backgroundColor: '#c55a05' },
           }}
         >
           Auto Transform
         </Button>
 
-        <Tooltip title="View user guide">
-          <Button
+        <Button
             variant="outlined"
-            startIcon={<HelpOutlineIcon />}
             onClick={handleOpenHelp}
             sx={{
               height: 40,
@@ -3764,11 +3609,11 @@ return (
               borderColor: '#384850',
               color: '#384850',
               fontWeight: 600,
+              borderRadius: '2px',
             }}
           >
             Help
           </Button>
-        </Tooltip>
 
         <DatasetCheckpointControls
           bdName={bdName}
@@ -3786,9 +3631,9 @@ return (
 
     {!embedded && (
     <Box sx={{ mb: 2 }}>
-      <Alert severity="info" sx={{ mb: 2 }}>
+      <Alert severity="info" icon={false} className="transform-alert" sx={{ mb: 2 }}>
         <Typography variant="body2">
-          <strong>Working dataset:</strong> {bdName}
+          Working dataset: {bdName}
         </Typography>
       </Alert>
     </Box>
@@ -3796,30 +3641,25 @@ return (
 
     {!embedded && (
     <Box mt={4} display="flex" justifyContent="space-between">
-      <Tooltip title="Return to outlier management step">
         <Button
           variant="contained"
-          color="primary"
-          startIcon={<ArrowBackIos sx={{ fontSize: '16px' }} />}
           onClick={handleBackToOutlierManager}
           disabled={processing}
           sx={{
             minWidth: '220px',
             height: '40px',
-            backgroundColor: '#DE6B06',
+            backgroundColor: '#384850',
             fontWeight: '600',
             fontSize: '0.9rem',
+            boxShadow: 'none',
+            borderRadius: '2px',
             '&:hover': {
-              backgroundColor: '#c55a05',
-              transform: 'translateY(-1px)',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+              backgroundColor: '#2a3942',
             },
-            transition: 'all 0.2s ease-in-out'
           }}
         >
           {processing ? <CircularProgress size={20} /> : "Back to Outlier Manager"}
         </Button>
-      </Tooltip>
       
       <Button
         variant="contained"
@@ -3827,11 +3667,12 @@ return (
           await handleNavigateToModelSelection();
         }}
         disabled={processing}
-        endIcon={<ArrowForwardIos/>}
         sx={{
-          backgroundColor: '#338938ff',
+          backgroundColor: '#384850',
+          boxShadow: 'none',
+          borderRadius: '2px',
           '&:hover': {
-            backgroundColor: '#2e7d32'
+            backgroundColor: '#2a3942'
           }
         }}
       >
@@ -3844,13 +3685,6 @@ return (
     </Box>
     )}
     
-    <Box mb={3} mt={embedded ? 0 : 3}>
-      <Typography paragraph>
-        Apply numerical transformations to your data, detect outliers, or extract new fields.
-        Choose a method per column and click Apply: or run several at once with Apply All.
-      </Typography>
-    </Box>
-
     {/* Barre d'actions */}
     <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
     <Button
@@ -3866,7 +3700,7 @@ return (
       color="primary"
       onClick={handleOpenExtractDialog}
       sx={{ 
-        backgroundColor: '#f0f4f8',
+        backgroundColor: '#e8e9ea',
         borderColor: colorPalette.primary,
         color: colorPalette.primary,
         textTransform: 'none',
@@ -3883,7 +3717,6 @@ return (
     <Button
       variant="outlined"
       onClick={() => setOutlierDialog('v1')}
-      startIcon={<ScatterPlotIcon />}
       sx={{
         borderColor: colorPalette.secondary,
         color: colorPalette.secondary,
@@ -3907,7 +3740,6 @@ return (
           variant="outlined"
           onClick={() => setOutlierDialog('v2')}
           disabled={!allColumnsNumeric}
-          startIcon={<BubbleChartIcon />}
           sx={{
             borderColor: colorPalette.primary,
             color: colorPalette.primary,
@@ -4013,6 +3845,7 @@ return (
       }} 
       maxWidth="sm"
       fullWidth
+      PaperProps={{ className: "transform-dialog" }}
     >
       <DialogTitle>
         <SaveIcon sx={{ mr: 1, verticalAlign: 'middle' }} />

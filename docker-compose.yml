@@ -11,9 +11,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
   mongo:
     image: mongo:6
     restart: unless-stopped
@@ -24,8 +21,6 @@ services:
       MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     volumes:
       - mongodata:/data/db
-    ports:
-      - "27017:27017"
 
   backend:
     build:
@@ -36,8 +31,6 @@ services:
     depends_on:
       - postgres
       - mongo
-    ports:
-      - "8000:8000"
     volumes:
       - ./backend:/app/backend
     #command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

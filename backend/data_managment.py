@@ -3762,6 +3762,66 @@ def _sanitize_for_json(obj):
     if isinstance(obj, list):
         return [_sanitize_for_json(v) for v in obj]
     return obj
+def _register_active_training(
+    training_id,
+    *,
+    future,
+    user_id,
+    model_type,
+    request=None,
+    progress=None,
+):
+    """Register an async training job and emit a structured start log."""
+    start_time = datetime.now()
+    info = {
+        "future": future,
+        "user_id": user_id,
+        "start_time": start_time,
+        "model_type": model_type,
+        "completed": False,
+        "result": None,
+        "error": None,
+        "retrieved": False,
+    }
+    if progress is not None:
+        info["progress"] = progress
+    active_trainings[training_id] = info
+    try:
+        from backend.training_logger import log_training_started
+
+        request_summary = None
+        dataset = None
+        if request is not None:
+            try:
+                if hasattr(request, "dict"):
+                    request_summary = request.dict()
+                elif hasattr(request, "model_dump"):
+                    request_summary = request.model_dump()
+                elif isinstance(request, dict):
+                    request_summary = dict(request)
+            except Exception:
+                request_summary = {"repr": repr(request)[:500]}
+            if isinstance(request_summary, dict):
+                dataset = (
+                    request_summary.get("numerized_dataset_name")
+                    or request_summary.get("dataset_name")
+                    or request_summary.get("table_name")
+                )
+                # Drop huge / irrelevant request fields from the start log
+                for drop in ("model_object", "file", "data"):
+                    request_summary.pop(drop, None)
+        log_training_started(
+            training_id=training_id,
+            model_type=model_type,
+            user_id=user_id,
+            dataset=dataset,
+            request_summary=request_summary,
+        )
+    except Exception as e:
+        logger.warning(f"Training start logger failed for {training_id}: {e}")
+    return info
+
+
 def _safe_set_training_result(training_id, result):
     """Complete a training Future only if still pending (avoid CANCELLED InvalidStateError)."""
     info = active_trainings.get(training_id)
@@ -3772,6 +3832,18 @@ def _safe_set_training_result(training_id, result):
     info["result"] = result
     info["error"] = None
     register_pending_save_model(training_id, info.get("user_id"), result)
+    try:
+        from backend.training_logger import log_training_finished
+
+        log_training_finished(
+            training_id=training_id,
+            result=result if isinstance(result, dict) else {"raw": result},
+            start_time=info.get("start_time"),
+            model_type=info.get("model_type"),
+            user_id=info.get("user_id"),
+        )
+    except Exception as e:
+        logger.warning(f"Training logger failed for {training_id}: {e}")
     future = info.get("future")
     if future is not None and not future.done():
         try:
@@ -3784,6 +3856,19 @@ def _safe_set_training_error(training_id, error_msg, *, stopped=False):
     info = active_trainings.get(training_id)
     if not info:
         return
+    try:
+        from backend.training_logger import log_training_finished
+
+        log_training_finished(
+            training_id=training_id,
+            result=None,
+            start_time=info.get("start_time"),
+            model_type=info.get("model_type"),
+            user_id=info.get("user_id"),
+            error=error_msg,
+        )
+    except Exception as e:
+        logger.warning(f"Training logger failed for {training_id}: {e}")
     info["completed"] = True
     info["error"] = error_msg
     info["result"] = None if stopped else {
@@ -4691,17 +4776,14 @@ async def train_model(
         future = Future()
         
         training_stop_flags[training_id] = False
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'ridge',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False,
-            'progress': None,
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='ridge',
+            request=request,
+            progress=None,
+        )
         
         background_tasks.add_task(train_in_background)
         
@@ -7210,16 +7292,13 @@ async def train_logistic_regression(
         from concurrent.futures import Future
         future = Future()
         
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'logistic',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='logistic',
+            request=request,
+        )
         
         background_tasks.add_task(train_in_background)
         
@@ -8703,16 +8782,13 @@ async def train_random_forest(
         future = Future()
         
         # ✅ Initialiser avec completed=False et tous les champs
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'random_forest',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='random_forest',
+            request=request,
+        )
         
         # Lancer en arrière-plan
         background_tasks.add_task(train_in_background)
@@ -10135,16 +10211,13 @@ async def train_svm(
         from concurrent.futures import Future
         future = Future()
         
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'svm',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='svm',
+            request=request,
+        )
         
         background_tasks.add_task(train_in_background)
         
@@ -11522,16 +11595,13 @@ async def train_knn(
         from concurrent.futures import Future
         future = Future()
         
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'knn',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='knn',
+            request=request,
+        )
         
         background_tasks.add_task(train_in_background)
         
@@ -13122,16 +13192,13 @@ async def train_lightgbm(
         from concurrent.futures import Future
         future = Future()
         
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'lightgbm',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='lightgbm',
+            request=request,
+        )
         
         background_tasks.add_task(train_in_background)
         
@@ -15060,16 +15127,13 @@ async def train_mlp_pytorch(
         from concurrent.futures import Future
         future = Future()
         
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'mlp',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='mlp',
+            request=request,
+        )
         
         background_tasks.add_task(train_in_background)
         
@@ -15614,16 +15678,13 @@ async def train_kmeans(
         from concurrent.futures import Future
         future = Future()
         
-        active_trainings[training_id] = {
-            'future': future,
-            'user_id': current_user_id,
-            'start_time': datetime.now(),
-            'model_type': 'kmeans',
-            'completed': False,
-            'result': None,
-            'error': None,
-            'retrieved': False
-        }
+        _register_active_training(
+            training_id,
+            future=future,
+            user_id=current_user_id,
+            model_type='kmeans',
+            request=request,
+        )
         
         background_tasks.add_task(train_in_background)
         

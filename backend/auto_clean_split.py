@@ -43,7 +43,85 @@ ROW_HIGH_MISSING = 0.80             # row missing ratio → delete
 COL_HIGH_MISSING_DROP = 0.90        # feature with ≥90% missing + low info → drop
 IMBALANCE_MILD = 1.5
 IMBALANCE_STRONG = 10.0
-LARGE_TRAIN_FOR_UNDER = 50_000
+# Undersample only if balancing every class down to n_min still keeps
+# ≥ UNDER_KEEP_FRACTION of the train set (⇔ minority share ≥ fraction / k).
+# Absolute floor avoids tiny post-under sets on small trains.
+UNDER_KEEP_FRACTION = 0.50
+UNDER_MIN_POST_SIZE = 1000
+
+
+def choose_train_balance_method(class_counts: Dict[Any, int]) -> Dict[str, Any]:
+    """Decide none / oversampling / undersampling from train class counts.
+
+    Rules:
+      - max/min < IMBALANCE_MILD → none
+      - max/min ≥ IMBALANCE_STRONG → oversampling (extreme, with caution)
+      - else undersampling only if post-under size (k * n_min) keeps
+        ≥ UNDER_KEEP_FRACTION of train AND ≥ UNDER_MIN_POST_SIZE;
+        otherwise oversampling.
+    """
+    if not class_counts or len(class_counts) < 2:
+        return {
+            "method": "none",
+            "applied": False,
+            "reason": "need_at_least_two_classes",
+        }
+
+    vals = [int(v) for v in class_counts.values()]
+    n_train = sum(vals)
+    n_min = min(vals)
+    n_max = max(vals)
+    n_classes = len(vals)
+    ratio = (n_max / max(n_min, 1)) if n_train else 1.0
+    minority_share = (n_min / n_train) if n_train else 0.0
+    under_share_threshold = UNDER_KEEP_FRACTION / n_classes
+    post_under_size = n_classes * n_min
+
+    base = {
+        "ratio": ratio,
+        "n_classes": n_classes,
+        "n_train": n_train,
+        "n_min": n_min,
+        "minority_share": minority_share,
+        "under_share_threshold": under_share_threshold,
+        "post_under_size": post_under_size,
+    }
+
+    if ratio < IMBALANCE_MILD:
+        return {**base, "method": "none", "applied": False, "reason": "balanced"}
+
+    if ratio >= IMBALANCE_STRONG:
+        return {
+            **base,
+            "method": "oversampling",
+            "applied": True,
+            "extreme": True,
+            "reason": "extreme_imbalance",
+        }
+
+    can_under = (
+        minority_share + 1e-15 >= under_share_threshold
+        and post_under_size >= UNDER_MIN_POST_SIZE
+    )
+    if can_under:
+        return {
+            **base,
+            "method": "undersampling",
+            "applied": True,
+            "reason": "under_keeps_enough_train",
+        }
+
+    reason = (
+        "post_under_too_small"
+        if post_under_size < UNDER_MIN_POST_SIZE
+        else "under_would_drop_below_keep_fraction"
+    )
+    return {
+        **base,
+        "method": "oversampling",
+        "applied": True,
+        "reason": reason,
+    }
 
 
 class AutoCleanSplitStartBody(BaseModel):
@@ -440,42 +518,56 @@ def register_auto_clean_split_routes(
                 if supervised and problem_type == "classification" and target_column:
                     dist = get_class_distribution(cur, table_name, target_column, split_type="train")
                     if dist and len(dist) >= 2:
-                        vals = list(dist.values())
-                        ratio = (max(vals) / max(min(vals), 1)) if vals else 1.0
+                        decision = choose_train_balance_method(dist)
+                        ratio = float(decision.get("ratio") or 1.0)
+                        method = decision["method"]
                         _append_log(
                             job_id,
                             "   train classes: "
                             + ", ".join(f"{k}={v}" for k, v in list(dist.items())[:8]),
                         )
-                        _append_log(job_id, f"   max/min ratio: {ratio:.1f}:1")
-                        if ratio < IMBALANCE_MILD:
+                        _append_log(
+                            job_id,
+                            f"   max/min ratio: {ratio:.1f}:1 | "
+                            f"minority_share={decision.get('minority_share', 0):.3f} | "
+                            f"under_threshold={decision.get('under_share_threshold', 0):.3f} | "
+                            f"post_under≈{decision.get('post_under_size', 0):,}",
+                        )
+                        if method == "none":
                             _append_log(job_id, "   balanced, no resampling")
-                            balance_info = {"applied": False, "method": "none", "ratio": ratio}
-                        elif ratio >= IMBALANCE_STRONG:
-                            msg = (
-                                f"Extreme class imbalance ({ratio:.0f}:1). "
-                                "Applying oversampling on TRAIN with caution; review results."
-                            )
-                            report["warnings"].append(msg)
-                            _append_log(job_id, f"   strong imbalance {ratio:.0f}:1, oversample train")
+                            balance_info = {**decision, "applied": False, "method": "none"}
+                        elif method == "oversampling":
+                            if decision.get("extreme"):
+                                msg = (
+                                    f"Extreme class imbalance ({ratio:.0f}:1). "
+                                    "Applying oversampling on TRAIN with caution; review results."
+                                )
+                                report["warnings"].append(msg)
+                                _append_log(
+                                    job_id,
+                                    f"   strong imbalance {ratio:.0f}:1, oversample train",
+                                )
+                            else:
+                                _append_log(
+                                    job_id,
+                                    f"   mild imbalance → oversample train "
+                                    f"(reason={decision.get('reason')})",
+                                )
                             _run_async(apply_oversampling(conn, cur, table_name, target_column))
                             conn.commit()
-                            balance_info = {
-                                "applied": True,
-                                "method": "oversampling",
-                                "ratio": ratio,
-                                "extreme": True,
-                            }
+                            balance_info = {**decision, "applied": True, "method": "oversampling"}
                             _append_log(job_id, "   oversampling on train. test unchanged")
                         else:
-                            method = "undersampling" if train_n >= LARGE_TRAIN_FOR_UNDER else "oversampling"
-                            if method == "oversampling":
-                                _run_async(apply_oversampling(conn, cur, table_name, target_column))
-                            else:
-                                _run_async(apply_undersampling(conn, cur, table_name, target_column))
+                            _append_log(
+                                job_id,
+                                f"   mild imbalance → undersample train "
+                                f"(keeps ≥{UNDER_KEEP_FRACTION*100:.0f}% and "
+                                f"≥{UNDER_MIN_POST_SIZE} rows)",
+                            )
+                            _run_async(apply_undersampling(conn, cur, table_name, target_column))
                             conn.commit()
-                            balance_info = {"applied": True, "method": method, "ratio": ratio}
-                            _append_log(job_id, f"   {method} on train. test unchanged")
+                            balance_info = {**decision, "applied": True, "method": "undersampling"}
+                            _append_log(job_id, "   undersampling on train. test unchanged")
                     else:
                         _append_log(job_id, "   cannot read train class counts, skip balance")
                 else:

@@ -1,0 +1,31 @@
+{
+  "event": "training_started",
+  "training_id": "knn_1793030961_3cbb4bdf",
+  "algorithm": "knn",
+  "user_id": "6a7649c85389ffb49703be24",
+  "dataset": "tuandromd_copy_20261026_160844",
+  "started_at": "2026-10-26T16:09:21.223164+00:00",
+  "request": {
+    "numerized_dataset_name": "tuandromd_copy_20261026_160844",
+    "original_dataset_name": "tuandromd_copy_20261026_160844",
+    "model_type": "knn",
+    "n_neighbors": 5,
+    "weights": "uniform",
+    "algorithm": "auto",
+    "leaf_size": 30,
+    "p": 2,
+    "metric": "minkowski",
+    "use_scaling": false,
+    "validation_method": "holdout",
+    "n_repetitions": 10,
+    "final_training_on_all_data": false,
+    "cv_params": null,
+    "bootstrap_params": null,
+    "time_series_column": null,
+    "time_series_params": null,
+    "training_id": "knn_1793030961_3cbb4bdf",
+    "random_search": false,
+    "n_trials": 20,
+    "random_search_seed": 42
+  }
+}

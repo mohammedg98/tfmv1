@@ -1,0 +1,32 @@
+{
+  "event": "training_started",
+  "training_id": "logistic_1793030956_182084e0",
+  "algorithm": "logistic",
+  "user_id": "6a7649c85389ffb49703be24",
+  "dataset": "tuandromd_copy_20261026_160844",
+  "started_at": "2026-10-26T16:09:16.180558+00:00",
+  "request": {
+    "numerized_dataset_name": "tuandromd_copy_20261026_160844",
+    "original_dataset_name": "tuandromd_copy_20261026_160844",
+    "model_type": "logistic",
+    "penalty": "l2",
+    "solver": "lbfgs",
+    "max_iter": 1000,
+    "multi_class": "auto",
+    "class_weight": null,
+    "use_scaling": true,
+    "random_state": null,
+    "l1_ratio": null,
+    "validation_method": "holdout",
+    "cv_params": null,
+    "bootstrap_params": null,
+    "time_series_params": null,
+    "n_repetitions": 10,
+    "date_column": null,
+    "training_id": "logistic_1793030956_182084e0",
+    "random_search": false,
+    "n_trials": 20,
+    "random_search_seed": 42,
+    "C_search_space": null
+  }
+}

@@ -1,0 +1,9 @@
+# Keep summaries + PDF/MD; ignore bulky raw run dumps
+final_results.json
+pipeline_artifact.json
+run_summary.jsonl
+runner.log
+console.log
+tuand_train_logs.tgz
+*_start_*.json
+*_end_*.json

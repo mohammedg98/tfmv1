@@ -122,6 +122,8 @@ def register_auto_clean_split_routes(
                 "high_missing_rows": 0,
                 "duplicate_rows": 0,
                 "target_missing_rows": 0,
+                "rare_target_rows": 0,
+                "rare_target_values": [],
             },
             "split": {},
             "imputation": {"median": [], "mean": [], "mode": []},
@@ -269,6 +271,23 @@ def register_auto_clean_split_routes(
                         )
                     else:
                         _append_log(job_id, "   no empty target rows")
+
+                    # 2b2 rare target classes (dirty labels e.g. 40/111 in phishing data).
+                    # Keep classes with count >= max(5, 0.1% of rows); drop the rest so
+                    # stratified split + test metrics stay consistent and FI can be computed.
+                    n_rare, rare_vals = _drop_rare_target_classes(
+                        cur, conn, table_name, target_column
+                    )
+                    report["removed"]["rare_target_rows"] = n_rare
+                    report["removed"]["rare_target_values"] = rare_vals
+                    if n_rare:
+                        _append_log(
+                            job_id,
+                            f"   drop {n_rare:,} rows with rare target values "
+                            f"{rare_vals} on {target_column}",
+                        )
+                    else:
+                        _append_log(job_id, "   no rare target classes to drop")
 
                 # 2c completely empty rows + high-missing rows
                 row_thr = float(opts.get("row_missing_threshold") or ROW_HIGH_MISSING)
@@ -672,6 +691,46 @@ def register_auto_clean_split_routes(
             (table_name, table_name, user_id),
         )
         conn.commit()
+
+    def _drop_rare_target_classes(cur, conn, table_name, target_col):
+        """Drop rows whose target value is a dirty singleton/doubleton.
+
+        Only removes labels with count < 3 (almost always CSV/shift noise like
+        PhiUSIIL label=40/111). Legitimate rare multi-class labels (NSL-KDD
+        attacks with dozens of rows) are preserved.
+        Never drops a class if that would leave fewer than 2 classes overall.
+        """
+        cur.execute(
+            f"""
+            SELECT CAST("{target_col}" AS text) AS v, COUNT(*) AS c
+            FROM "{table_name}"
+            WHERE {_not_empty_expr(target_col)}
+            GROUP BY 1
+            ORDER BY 2 DESC
+            """
+        )
+        rows = cur.fetchall() or []
+        if len(rows) < 3:
+            return 0, []
+        min_keep = 3  # absolute: keep any class with ≥3 rows
+        keep = [r for r in rows if int(r[1]) >= min_keep]
+        rare = [r for r in rows if int(r[1]) < min_keep]
+        if not rare or len(keep) < 2:
+            return 0, []
+        rare_vals = [str(r[0]) for r in rare]
+        # Delete by text cast so mixed types (int labels + garbage) match safely
+        placeholders = ",".join(["%s"] * len(rare_vals))
+        cur.execute(
+            f"""
+            DELETE FROM "{table_name}"
+            WHERE {_not_empty_expr(target_col)}
+              AND CAST("{target_col}" AS text) IN ({placeholders})
+            """,
+            rare_vals,
+        )
+        n = cur.rowcount or 0
+        conn.commit()
+        return n, rare_vals
 
     def _delete_sparse_rows(cur, conn, table_name, feature_cols, target_col, thr):
         """Delete 100% empty rows and rows with missing_ratio >= thr (features only)."""

@@ -238,6 +238,73 @@ router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
 
 
+def safe_classification_report(y_true, y_pred, class_names=None, zero_division=0):
+    """classification_report that never crashes when test misses some train classes.
+
+    Passing target_names without labels= makes sklearn infer labels from y_true/y_pred
+    only; if train had more classes than the test fold, it raises ValueError and the
+    whole training job dies before feature_importance is attached (UI → "not found").
+    """
+    y_true_arr = np.asarray(y_true).ravel()
+    y_pred_arr = np.asarray(y_pred).ravel()
+    present = sorted(set(y_true_arr.tolist()) | set(y_pred_arr.tolist()))
+
+    if not present:
+        return classification_report(
+            y_true_arr,
+            y_pred_arr,
+            output_dict=True,
+            zero_division=zero_division,
+        )
+
+    if class_names is None:
+        return classification_report(
+            y_true_arr,
+            y_pred_arr,
+            labels=present,
+            output_dict=True,
+            zero_division=zero_division,
+        )
+
+    names = [str(c) for c in class_names]
+
+    # Pattern A: y is 0..n-1 indices into class_names (LabelEncoder style)
+    try:
+        as_int = [int(x) for x in present]
+        if (
+            names
+            and min(as_int) >= 0
+            and max(as_int) < len(names)
+            and set(as_int) <= set(range(len(names)))
+        ):
+            target_names = [names[i] for i in as_int]
+            return classification_report(
+                y_true_arr,
+                y_pred_arr,
+                labels=as_int,
+                target_names=target_names,
+                output_dict=True,
+                zero_division=zero_division,
+            )
+    except (TypeError, ValueError):
+        pass
+
+    # Pattern B: class_names are the raw y values themselves
+    name_by_val = {}
+    for c in class_names:
+        name_by_val[c] = str(c)
+        name_by_val[str(c)] = str(c)
+    target_names = [name_by_val.get(l, name_by_val.get(str(l), str(l))) for l in present]
+    return classification_report(
+        y_true_arr,
+        y_pred_arr,
+        labels=present,
+        target_names=target_names,
+        output_dict=True,
+        zero_division=zero_division,
+    )
+
+
 class SaveDataRequest(BaseModel):
     bdName: str
     columns: List[str]
@@ -6961,11 +7028,8 @@ async def train_logistic_with_stop_check(
             }
 
         # Classification report
-        classification_rep = classification_report(
-            y_test, y_pred, 
-            target_names=[str(c) for c in class_names],
-            output_dict=True,
-            zero_division=0
+        classification_rep = safe_classification_report(
+            y_test, y_pred, class_names=class_names, zero_division=0
         )
 
         # ==================== FEATURE IMPORTANCE ====================
@@ -8352,11 +8416,8 @@ async def train_random_forest_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
             
             test_metrics = {
@@ -9766,11 +9827,8 @@ async def train_svm_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
             
             test_metrics = {
@@ -11177,11 +11235,8 @@ async def train_knn_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
 
             roc_auc = None
@@ -12771,11 +12826,8 @@ async def train_lightgbm_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
 
             roc_auc = None
@@ -14800,11 +14852,8 @@ async def train_mlp_pytorch_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_labels, y_pred, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_labels, y_pred, class_names=class_names, zero_division=0
             )
 
             roc_auc = None

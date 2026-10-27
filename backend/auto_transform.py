@@ -95,6 +95,12 @@ def _looks_like_id(name: str, unique_ratio: float, distinct: int, n_rows: int) -
     return False
 
 
+_BINARY_OK_SQL = (
+    "LOWER(BTRIM(CAST(\"{col}\" AS text))) IN "
+    "('0','1','0.0','1.0','true','false','t','f','yes','no')"
+)
+
+
 def _already_binary_01(cur, table: str, col: str) -> bool:
     """True if non-null values are only 0/1 (numeric or text) — skip Binary Encoding."""
     try:
@@ -116,11 +122,48 @@ def _already_binary_01(cur, table: str, col: str) -> bool:
             if s.endswith(".0") and s[:-2].lstrip("+-").isdigit():
                 s = s[:-2]
             normed.add(s)
-        if normed <= {"0", "1"}:
+        if normed <= {"0", "1", "true", "false", "t", "f", "yes", "no"}:
             return True
         return False
     except Exception:
         return False
+
+
+def _mostly_binary_01(cur, table: str, col: str, min_share: float = 0.95) -> bool:
+    """True if ≥ min_share of non-null values are boolean-like 0/1 (dirty rare junk OK)."""
+    try:
+        ok_expr = _BINARY_OK_SQL.format(col=col)
+        cur.execute(
+            f"""
+            SELECT
+              COUNT(*) FILTER (WHERE {ok_expr}) AS ok_n,
+              COUNT(*) FILTER (WHERE NOT {_empty_expr(col)}) AS nn
+            FROM "{table}"
+            """
+        )
+        row = cur.fetchone() or (0, 0)
+        ok_n, nn = int(row[0] or 0), int(row[1] or 0)
+        if nn <= 0:
+            return False
+        return (ok_n / nn) >= min_share
+    except Exception:
+        return False
+
+
+def _nullify_non_binary_values(cur, conn, table: str, col: str) -> int:
+    """Set non 0/1-like values to NULL so binary encoding / leave-01 stays clean."""
+    ok_expr = _BINARY_OK_SQL.format(col=col)
+    cur.execute(
+        f"""
+        UPDATE "{table}"
+        SET "{col}" = NULL
+        WHERE NOT {_empty_expr(col)}
+          AND NOT ({ok_expr})
+        """
+    )
+    n = cur.rowcount or 0
+    conn.commit()
+    return n
 
 
 def register_auto_transform_routes(
@@ -374,8 +417,12 @@ def register_auto_transform_routes(
                 "reasons": ["Looks like an identifier (name + near-unique values)"],
             }
 
-        # --- Boolean ---
-        if mapped == "boolean" or p["pg_type"] in ("boolean", "bool"):
+        # --- Boolean (incl. dirty near-boolean with rare junk values) ---
+        if (
+            mapped == "boolean"
+            or p["pg_type"] in ("boolean", "bool")
+            or _mostly_binary_01(cur, table, col)
+        ):
             if _already_binary_01(cur, table, col):
                 return {
                     "column": col,
@@ -384,6 +431,19 @@ def register_auto_transform_routes(
                     "method": None,
                     "confidence": 0.95,
                     "reasons": ["Already 0/1 — skip Binary Encoding"],
+                }
+            # Rare non-0/1 junk (CSV shift / scrape noise) → nullify then binary
+            if _mostly_binary_01(cur, table, col):
+                return {
+                    "column": col,
+                    "role": "boolean",
+                    "action": "transform",
+                    "method": "binary",
+                    "coerce_non_binary_to_null": True,
+                    "confidence": 0.9,
+                    "reasons": [
+                        "Mostly 0/1 with rare junk values → nullify junk, then Binary Encoding"
+                    ],
                 }
             return {
                 "column": col,
@@ -729,6 +789,18 @@ def register_auto_transform_routes(
                         if keep_date_column in kept
                         else (kept[0] if kept else None)
                     )
+
+                # 2b nullify rare junk on mostly-boolean columns before binary encode
+                for d in decisions:
+                    if not d.get("coerce_non_binary_to_null"):
+                        continue
+                    col = d["column"]
+                    n_junk = _nullify_non_binary_values(cur, conn, table, col)
+                    if n_junk:
+                        _append_log(
+                            job_id,
+                            f"   nullify {n_junk:,} non-0/1 junk values on {col}",
+                        )
 
                 to_delete = [d["column"] for d in decisions if d["action"] == "delete"]
                 _append_log(job_id, "3. drop columns")

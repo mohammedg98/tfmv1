@@ -147,6 +147,10 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
   const [data, setData] = useState(null);
   const [zoomColumn, setZoomColumn] = useState(null);
   const [showAllDistributions, setShowAllDistributions] = useState(false);
+  const [fi, setFi] = useState(null);
+  const [fiError, setFiError] = useState("");
+  const [fiLoading, setFiLoading] = useState(false);
+  const [showAllFi, setShowAllFi] = useState(false);
 
   const loadEda = useCallback(async () => {
     if (!bdName) return;
@@ -166,9 +170,30 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
     }
   }, [bdName, hasValidSplit]);
 
+  const loadFi = useCallback(async () => {
+    if (!bdName) return;
+    setFiLoading(true);
+    setFiError("");
+    setShowAllFi(false);
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/feature-importance`,
+        { bdName },
+        { withCredentials: true }
+      );
+      setFi(res.data);
+    } catch (err) {
+      setFi(null);
+      setFiError(err.response?.data?.detail || "Feature importance failed");
+    } finally {
+      setFiLoading(false);
+    }
+  }, [bdName]);
+
   useEffect(() => {
     loadEda();
-  }, [loadEda]);
+    loadFi();
+  }, [loadEda, loadFi]);
 
   if (loading) {
     return (
@@ -185,7 +210,7 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
         severity="error"
         icon={false}
         className="eda-alert"
-        action={<Button color="inherit" size="small" onClick={loadEda}>Retry</Button>}
+        action={<Button color="inherit" size="small" onClick={() => { loadEda(); loadFi(); }}>Retry</Button>}
       >
         {error}
       </Alert>
@@ -214,7 +239,7 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
-            onClick={loadEda}
+            onClick={() => { loadEda(); loadFi(); }}
             sx={{
               height: 40,
               textTransform: "none",
@@ -265,6 +290,59 @@ function EdaTab({ bdName, hasValidSplit, targetColumn }) {
           </Box>
         ))}
       </Box>
+
+      <Accordion defaultExpanded sx={{ mb: 1, borderRadius: "2px", "&:before": { display: "none" } }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography>Feature importance</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          {fiLoading && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress size={18} sx={{ color: "#384850" }} />
+              <Typography variant="body2" sx={{ color: "#384850" }}>Computing…</Typography>
+            </Box>
+          )}
+          {!fiLoading && fiError && (
+            <Typography variant="body2" sx={{ color: "#384850" }}>{fiError}</Typography>
+          )}
+          {!fiLoading && fi && !fi.available && (
+            <Typography variant="body2" sx={{ color: "#384850" }}>{fi.reason}</Typography>
+          )}
+          {!fiLoading && fi && fi.available && (
+            <Box>
+              <Typography variant="body2" sx={{ color: "#384850", mb: 1 }}>
+                {fi.problem === "regression" ? "Mutual information, regression." : "Mutual information, classification."}
+                {" "}
+                {fi.scope === "train" ? "Train rows." : "All rows."}
+                {fi.sampled ? ` Sample of ${Number(fi.rows_used).toLocaleString()} rows.` : ` ${Number(fi.rows_used).toLocaleString()} rows.`}
+              </Typography>
+              {(showAllFi ? fi.features : fi.features.slice(0, 20)).map((f) => (
+                <Box key={f.name} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ width: 160, color: "#384850", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.name}>
+                    {f.name}
+                  </Typography>
+                  <Box sx={{ flex: 1, backgroundColor: "#e8e9ea", height: 8 }}>
+                    <Box sx={{ width: `${fi.max_score > 0 ? (f.score / fi.max_score) * 100 : 0}%`, backgroundColor: "#384850", height: "100%" }} />
+                  </Box>
+                  <Typography variant="caption" sx={{ width: 48, textAlign: "right", color: "#384850" }}>
+                    {Number(f.score).toFixed(3)}
+                  </Typography>
+                </Box>
+              ))}
+              {fi.features.length > 20 && (
+                <Button size="small" onClick={() => setShowAllFi((v) => !v)} sx={{ textTransform: "none", color: "#384850", mt: 1 }}>
+                  {showAllFi ? "Show less" : "Show all"}
+                </Button>
+              )}
+              {fi.skipped_count > 0 && (
+                <Typography variant="caption" sx={{ display: "block", mt: 1, color: "#384850" }}>
+                  {fi.skipped_count} columns skipped.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </AccordionDetails>
+      </Accordion>
 
       {/* Valeurs manquantes */}
       {data.missing_summary?.columns_with_missing?.length > 0 && (

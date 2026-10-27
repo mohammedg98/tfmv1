@@ -244,8 +244,20 @@ def main() -> None:
     log(f"After delete limit={lim} deleted={deleted}")
 
     predefined = SESSION.get(f"{BASE}/api/predefined-datasets", timeout=60).json().get("datasets") or []
-    names = [d["table_name"] for d in predefined]
-    log(f"PREDEFINED {names}")
+    available = {d["table_name"] for d in predefined}
+    # Prefer smaller / requested datasets first; full NSL-KDD last (heavy oversample)
+    preferred = [
+        "phiusiil_phishing_url_dataset",
+        "tuandromd",
+        "phishing_websites_uci",
+        "nslkdd_train_part",
+        "nslkdd",
+    ]
+    names = [n for n in preferred if n in available]
+    for n in available:
+        if n not in names:
+            names.append(n)
+    log(f"PREDEFINED order {names}")
 
     results = []
     for predef in names:

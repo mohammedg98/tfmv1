@@ -238,6 +238,73 @@ router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
 
 
+def safe_classification_report(y_true, y_pred, class_names=None, zero_division=0):
+    """classification_report that never crashes when test misses some train classes.
+
+    Passing target_names without labels= makes sklearn infer labels from y_true/y_pred
+    only; if train had more classes than the test fold, it raises ValueError and the
+    whole training job dies before feature_importance is attached (UI → "not found").
+    """
+    y_true_arr = np.asarray(y_true).ravel()
+    y_pred_arr = np.asarray(y_pred).ravel()
+    present = sorted(set(y_true_arr.tolist()) | set(y_pred_arr.tolist()))
+
+    if not present:
+        return classification_report(
+            y_true_arr,
+            y_pred_arr,
+            output_dict=True,
+            zero_division=zero_division,
+        )
+
+    if class_names is None:
+        return classification_report(
+            y_true_arr,
+            y_pred_arr,
+            labels=present,
+            output_dict=True,
+            zero_division=zero_division,
+        )
+
+    names = [str(c) for c in class_names]
+
+    # Pattern A: y is 0..n-1 indices into class_names (LabelEncoder style)
+    try:
+        as_int = [int(x) for x in present]
+        if (
+            names
+            and min(as_int) >= 0
+            and max(as_int) < len(names)
+            and set(as_int) <= set(range(len(names)))
+        ):
+            target_names = [names[i] for i in as_int]
+            return classification_report(
+                y_true_arr,
+                y_pred_arr,
+                labels=as_int,
+                target_names=target_names,
+                output_dict=True,
+                zero_division=zero_division,
+            )
+    except (TypeError, ValueError):
+        pass
+
+    # Pattern B: class_names are the raw y values themselves
+    name_by_val = {}
+    for c in class_names:
+        name_by_val[c] = str(c)
+        name_by_val[str(c)] = str(c)
+    target_names = [name_by_val.get(l, name_by_val.get(str(l), str(l))) for l in present]
+    return classification_report(
+        y_true_arr,
+        y_pred_arr,
+        labels=present,
+        target_names=target_names,
+        output_dict=True,
+        zero_division=zero_division,
+    )
+
+
 class SaveDataRequest(BaseModel):
     bdName: str
     columns: List[str]
@@ -6961,11 +7028,8 @@ async def train_logistic_with_stop_check(
             }
 
         # Classification report
-        classification_rep = classification_report(
-            y_test, y_pred, 
-            target_names=[str(c) for c in class_names],
-            output_dict=True,
-            zero_division=0
+        classification_rep = safe_classification_report(
+            y_test, y_pred, class_names=class_names, zero_division=0
         )
 
         # ==================== FEATURE IMPORTANCE ====================
@@ -8352,11 +8416,8 @@ async def train_random_forest_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
             
             test_metrics = {
@@ -9766,11 +9827,8 @@ async def train_svm_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
             
             test_metrics = {
@@ -11177,11 +11235,8 @@ async def train_knn_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
 
             roc_auc = None
@@ -12771,11 +12826,8 @@ async def train_lightgbm_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_encoded, y_pred_test, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_encoded, y_pred_test, class_names=class_names, zero_division=0
             )
 
             roc_auc = None
@@ -14800,11 +14852,8 @@ async def train_mlp_pytorch_with_stop_check(
                     'labels': [str(c) for c in class_names]
                 }
 
-            classification_rep = classification_report(
-                y_test_labels, y_pred, 
-                target_names=[str(c) for c in class_names],
-                output_dict=True,
-                zero_division=0
+            classification_rep = safe_classification_report(
+                y_test_labels, y_pred, class_names=class_names, zero_division=0
             )
 
             roc_auc = None
@@ -28082,6 +28131,287 @@ async def eda_analysis(
         raise HTTPException(500, f"DB error: {e.pgerror}")
     except Exception as e:
         raise HTTPException(500, f"EDA error: {str(e)}")
+
+
+@router.post("/feature-importance")
+async def feature_importance_eda(
+    request: dict,
+    current_user_id: str = Depends(get_current_user2),
+):
+    """
+    Mutual-information feature importance for the EDA tab.
+
+    Body: { "bdName": str }
+
+    Anti data-leakage: if split_type exists, only train rows are used.
+    Large tables are randomly sampled (cap) so the UI stays responsive.
+    High-cardinality text columns are skipped (counted in skipped_count).
+    """
+    try:
+        from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
+
+        bdName = str(request.get("bdName", "")).strip()
+        if not bdName:
+            raise HTTPException(400, "bdName is required")
+
+        table_name = bdName.lower()
+        max_rows = int(request.get("maxRows", 10000) or 10000)
+        max_rows = max(500, min(max_rows, 50000))
+        # Text / categorical: encode if unique count stays modest
+        max_cat_unique = int(request.get("maxCatUnique", 100) or 100)
+        max_cat_unique = max(5, min(max_cat_unique, 500))
+
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+
+            cur.execute(
+                """
+                SELECT target_column, model_type
+                FROM user_tables_metadata
+                WHERE table_name = %s AND owner_id = %s
+                """,
+                (table_name, current_user_id),
+            )
+            meta = cur.fetchone()
+            if not meta:
+                raise HTTPException(404, "Table not found or access denied")
+
+            target_column, model_type = meta[0], meta[1]
+            if not target_column or str(model_type or "").lower() == "unsupervised":
+                return {
+                    "available": False,
+                    "reason": "No target column saved for this dataset. Set a target first.",
+                }
+
+            # Case-insensitive match against physical columns
+            cur.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = %s
+                """,
+                (table_name,),
+            )
+            physical_cols = [r[0] for r in cur.fetchall()]
+            if not physical_cols:
+                raise HTTPException(404, "Table not found or access denied")
+
+            col_map = {c.lower(): c for c in physical_cols}
+            target_phys = col_map.get(str(target_column).lower())
+            if not target_phys:
+                return {
+                    "available": False,
+                    "reason": f"Target column '{target_column}' is missing from the table.",
+                }
+
+            has_split = "split_type" in col_map
+            scope = "train" if has_split else "all"
+            where_clause = " WHERE split_type = 'train'" if scope == "train" else ""
+
+            cur.execute(
+                sql.SQL("SELECT * FROM {}").format(sql.Identifier(table_name)).as_string(cur)
+                + where_clause
+            )
+            db_columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
+
+        df = pd.DataFrame(rows, columns=db_columns)
+        for sys_col in ("id", "split_type"):
+            if sys_col in df.columns:
+                df = df.drop(columns=[sys_col])
+
+        if target_phys not in df.columns:
+            # After dropping system cols, target should still be present
+            return {
+                "available": False,
+                "reason": f"Target column '{target_column}' is missing from the table.",
+            }
+
+        if len(df) == 0:
+            return {
+                "available": False,
+                "reason": "No rows available for feature importance"
+                + (" in the train split." if scope == "train" else "."),
+            }
+
+        y_raw = df[target_phys]
+        feature_cols = [c for c in df.columns if c != target_phys]
+        if not feature_cols:
+            return {
+                "available": False,
+                "reason": "No feature columns available besides the target.",
+            }
+
+        # Drop rows with missing target
+        valid_mask = y_raw.notna()
+        if valid_mask.sum() == 0:
+            return {
+                "available": False,
+                "reason": "Target column has no non-null values.",
+            }
+        df = df.loc[valid_mask].reset_index(drop=True)
+        y_raw = df[target_phys]
+
+        # Sample large tables (after target filter)
+        sampled = False
+        if len(df) > max_rows:
+            df = df.sample(n=max_rows, random_state=42).reset_index(drop=True)
+            y_raw = df[target_phys]
+            sampled = True
+
+        # Problem type: same adaptive unique-ratio heuristic as RF training
+        n_rows = len(df)
+        try:
+            pd.to_numeric(y_raw, errors="raise")
+            target_is_numeric = True
+        except (ValueError, TypeError):
+            target_is_numeric = False
+
+        unique_values = int(y_raw.nunique(dropna=True))
+        unique_ratio = (unique_values / max(n_rows, 1)) * 100.0
+        if n_rows <= 30:
+            threshold = 25.0
+        elif n_rows <= 100:
+            threshold = 15.0
+        else:
+            threshold = 5.0
+        is_classification = unique_ratio <= threshold
+        if not is_classification and not target_is_numeric:
+            # Non-numeric high-cardinality target cannot be regression
+            is_classification = True
+        problem = "classification" if is_classification else "regression"
+
+        if is_classification:
+            y = LabelEncoder().fit_transform(y_raw.astype(str))
+            if len(np.unique(y)) < 2:
+                return {
+                    "available": False,
+                    "reason": "Target has fewer than 2 classes after filtering.",
+                }
+        else:
+            y = pd.to_numeric(y_raw, errors="coerce").to_numpy(dtype=float)
+            if np.isnan(y).all():
+                return {
+                    "available": False,
+                    "reason": "Target cannot be converted to numeric for regression.",
+                }
+            # Drop NaN targets created by coerce (should be rare after notna filter)
+            keep = ~np.isnan(y)
+            if keep.sum() < 2:
+                return {
+                    "available": False,
+                    "reason": "Not enough numeric target values for regression.",
+                }
+            if not keep.all():
+                df = df.loc[keep].reset_index(drop=True)
+                y = y[keep]
+                n_rows = len(df)
+
+        # Build numeric feature matrix; skip unusable / high-card text
+        encoded = {}
+        skipped_count = 0
+        for col in feature_cols:
+            s = df[col]
+            if pd.api.types.is_bool_dtype(s) or pd.api.types.is_numeric_dtype(s):
+                num = pd.to_numeric(s, errors="coerce").astype("float64")
+                if num.notna().sum() == 0 or num.nunique(dropna=True) <= 1:
+                    skipped_count += 1
+                    continue
+                encoded[col] = num.fillna(num.median() if num.notna().any() else 0.0)
+                continue
+
+            # Try numeric coercion on text-like columns
+            cleaned = s.astype(str).str.replace(r"[$€£¥%,\s]", "", regex=True)
+            coerced = pd.to_numeric(cleaned, errors="coerce")
+            non_null = s.notna().sum()
+            success_ratio = (
+                (coerced.notna().sum() / non_null) if non_null > 0 else 0.0
+            )
+            if success_ratio > 0.8:
+                if coerced.nunique(dropna=True) <= 1:
+                    skipped_count += 1
+                    continue
+                encoded[col] = coerced.fillna(
+                    coerced.median() if coerced.notna().any() else 0.0
+                ).astype("float64")
+                continue
+
+            # Categorical encode if cardinality is modest
+            cat = s.astype(str).where(s.notna(), other="__missing__")
+            nunique = int(cat.nunique())
+            if nunique <= 1 or nunique > max_cat_unique:
+                skipped_count += 1
+                continue
+            codes, _ = pd.factorize(cat, sort=True)
+            encoded[col] = pd.Series(codes, index=df.index, dtype="float64")
+
+        if not encoded:
+            return {
+                "available": False,
+                "reason": "No usable feature columns for mutual information"
+                + (f" ({skipped_count} skipped)." if skipped_count else "."),
+                "skipped_count": skipped_count,
+            }
+
+        X = pd.DataFrame(encoded)
+        feature_names = list(X.columns)
+        X_arr = X.to_numpy(dtype=float)
+
+        # Constant columns after encode/impute
+        keep_cols = []
+        for i, name in enumerate(feature_names):
+            col_vals = X_arr[:, i]
+            if np.nanstd(col_vals) > 0 or len(np.unique(col_vals[~np.isnan(col_vals)])) > 1:
+                keep_cols.append(i)
+            else:
+                skipped_count += 1
+        if not keep_cols:
+            return {
+                "available": False,
+                "reason": "All features were constant after encoding.",
+                "skipped_count": skipped_count,
+            }
+        X_arr = X_arr[:, keep_cols]
+        feature_names = [feature_names[i] for i in keep_cols]
+
+        rng = 42
+        if is_classification:
+            scores = mutual_info_classif(
+                X_arr, y, discrete_features="auto", random_state=rng, n_neighbors=3
+            )
+        else:
+            scores = mutual_info_regression(
+                X_arr, y, discrete_features="auto", random_state=rng, n_neighbors=3
+            )
+
+        features = []
+        for name, score in zip(feature_names, scores):
+            val = float(score) if score == score else 0.0  # NaN → 0
+            if val < 0:
+                val = 0.0
+            features.append({"name": name, "score": val})
+        features.sort(key=lambda x: x["score"], reverse=True)
+        max_score = max((f["score"] for f in features), default=0.0)
+
+        return {
+            "available": True,
+            "problem": problem,
+            "scope": scope,
+            "sampled": sampled,
+            "rows_used": int(len(df)),
+            "features": features,
+            "max_score": float(max_score),
+            "skipped_count": int(skipped_count),
+            "target_column": target_phys,
+            "bdName": bdName,
+        }
+
+    except HTTPException:
+        raise
+    except psycopg2.Error as e:
+        raise HTTPException(500, f"DB error: {e.pgerror}")
+    except Exception as e:
+        raise HTTPException(500, f"Feature importance error: {str(e)}")
 
 
 def extract_with_format(value, date_format):

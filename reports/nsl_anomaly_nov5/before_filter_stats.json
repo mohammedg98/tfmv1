@@ -1,0 +1,744 @@
+{
+  "dataset": "nsl_only_train_anom_nov5",
+  "target": {
+    "target_column": "attack_type",
+    "model_type": "supervised",
+    "is_unsupervised": false
+  },
+  "types": {
+    "status": "success",
+    "bdName": "nsl_only_train_anom_nov5",
+    "column_types": [
+      {
+        "column_name": "duration",
+        "column_type": "numerical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 2981,
+          "type": "numerical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 42908.0,
+          "mean": 287.1446500440571,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "protocol_type",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 3,
+          "type": "categorical",
+          "is_numeric_content": false
+        }
+      },
+      {
+        "column_name": "service",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 70,
+          "type": "categorical",
+          "is_numeric_content": false
+        }
+      },
+      {
+        "column_name": "flag",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 11,
+          "type": "categorical",
+          "is_numeric_content": false
+        }
+      },
+      {
+        "column_name": "src_bytes",
+        "column_type": "numerical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 3341,
+          "type": "numerical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1379963888.0,
+          "mean": 45566.74300048423,
+          "median": 44.0
+        }
+      },
+      {
+        "column_name": "dst_bytes",
+        "column_type": "numerical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 9326,
+          "type": "numerical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1309937401.0,
+          "mean": 19779.114421344257,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "land",
+        "column_type": "boolean",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 2,
+          "type": "boolean",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.00019845522453224102,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "wrong_fragment",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 3,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 3.0,
+          "mean": 0.022687401268525795,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "urgent",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 4,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 3.0,
+          "mean": 0.00011113492573805498,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "hot",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 28,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 77.0,
+          "mean": 0.20440888126820828,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "num_failed_logins",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 6,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 5.0,
+          "mean": 0.0012224841831186047,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "logged_in",
+        "column_type": "boolean",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 2,
+          "type": "boolean",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.3957355941352512,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "num_compromised",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 88,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 7479.0,
+          "mean": 0.279250315543807,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "root_shell",
+        "column_type": "boolean",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 2,
+          "type": "boolean",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.0013415573178379495,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "su_attempted",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 3,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 2.0,
+          "mean": 0.0011034110483992602,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "num_root",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 82,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 7468.0,
+          "mean": 0.30219173949973405,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "num_file_creations",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 35,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 43.0,
+          "mean": 0.012669381534138267,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "num_shells",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 3,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 2.0,
+          "mean": 0.00041278686702706137,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "num_access_files",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 10,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 9.0,
+          "mean": 0.004096115834345455,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "num_outbound_cmds",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 1,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "is_host_login",
+        "column_type": "boolean",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 2,
+          "type": "boolean",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 7.938208981289641e-06,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "is_guest_login",
+        "column_type": "boolean",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 2,
+          "type": "boolean",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.009422654060790804,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "count",
+        "column_type": "numerical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 512,
+          "type": "numerical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 511.0,
+          "mean": 84.1075547934875,
+          "median": 14.0
+        }
+      },
+      {
+        "column_name": "srv_count",
+        "column_type": "numerical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 509,
+          "type": "numerical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 511.0,
+          "mean": 27.737888277646796,
+          "median": 8.0
+        }
+      },
+      {
+        "column_name": "serror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 89,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.284484532399803,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "srv_serror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 86,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.2824853738499539,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "rerror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 82,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.1199584831670282,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "srv_rerror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 62,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.12118326943075151,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "same_srv_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 101,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.6609276591015332,
+          "median": 1.0
+        }
+      },
+      {
+        "column_name": "diff_srv_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 95,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.06305263826378099,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "srv_diff_host_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 60,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.09732164828972001,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "dst_host_count",
+        "column_type": "numerical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 256,
+          "type": "numerical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 255.0,
+          "mean": 182.14894461511594,
+          "median": 255.0
+        }
+      },
+      {
+        "column_name": "dst_host_srv_count",
+        "column_type": "numerical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 256,
+          "type": "numerical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 255.0,
+          "mean": 115.65300500900987,
+          "median": 63.0
+        }
+      },
+      {
+        "column_name": "dst_host_same_srv_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 101,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.5212416946488445,
+          "median": 0.51
+        }
+      },
+      {
+        "column_name": "dst_host_diff_srv_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 101,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.08295110857089447,
+          "median": 0.02
+        }
+      },
+      {
+        "column_name": "dst_host_same_src_port_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 101,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.14837885896185962,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "dst_host_srv_diff_host_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 75,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.03254244957253707,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "dst_host_serror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 101,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.2844524620355061,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "dst_host_srv_serror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 100,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.278484516523367,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "dst_host_rerror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 101,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.11883181316631913,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "dst_host_srv_rerror_rate",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 101,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.12023989267541815,
+          "median": 0.0
+        }
+      },
+      {
+        "column_name": "attack_type",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 23,
+          "type": "categorical",
+          "is_numeric_content": false
+        }
+      },
+      {
+        "column_name": "difficulty_level",
+        "column_type": "categorical",
+        "stats": {
+          "total": 125973,
+          "non_null": 125973,
+          "distinct": 22,
+          "type": "categorical",
+          "is_numeric_content": true,
+          "min": 0.0,
+          "max": 21.0,
+          "mean": 19.50406039389393,
+          "median": 20.0
+        }
+      }
+    ]
+  },
+  "attack_type_values": {
+    "value_counts": [
+      {
+        "value": "normal",
+        "count": 67343
+      },
+      {
+        "value": "neptune",
+        "count": 41214
+      },
+      {
+        "value": "satan",
+        "count": 3633
+      },
+      {
+        "value": "ipsweep",
+        "count": 3599
+      },
+      {
+        "value": "portsweep",
+        "count": 2931
+      },
+      {
+        "value": "smurf",
+        "count": 2646
+      },
+      {
+        "value": "nmap",
+        "count": 1493
+      },
+      {
+        "value": "back",
+        "count": 956
+      },
+      {
+        "value": "teardrop",
+        "count": 892
+      },
+      {
+        "value": "warezclient",
+        "count": 890
+      },
+      {
+        "value": "pod",
+        "count": 201
+      },
+      {
+        "value": "guess_passwd",
+        "count": 53
+      },
+      {
+        "value": "buffer_overflow",
+        "count": 30
+      },
+      {
+        "value": "warezmaster",
+        "count": 20
+      },
+      {
+        "value": "land",
+        "count": 18
+      },
+      {
+        "value": "imap",
+        "count": 11
+      },
+      {
+        "value": "rootkit",
+        "count": 10
+      },
+      {
+        "value": "loadmodule",
+        "count": 9
+      },
+      {
+        "value": "ftp_write",
+        "count": 8
+      },
+      {
+        "value": "multihop",
+        "count": 7
+      },
+      {
+        "value": "phf",
+        "count": 4
+      },
+      {
+        "value": "perl",
+        "count": 3
+      },
+      {
+        "value": "spy",
+        "count": 2
+      }
+    ],
+    "total_distinct": 23,
+    "total_rows": 125973,
+    "page": 0,
+    "page_size": 500,
+    "has_more": false
+  }
+}

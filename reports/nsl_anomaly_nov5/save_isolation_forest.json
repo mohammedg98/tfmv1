@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "model_id": 48,
+  "model_path": "/app/saved_models/6a7649c85389ffb49703be24_nsl_iso_normal_nov5_20261105_201903.joblib",
+  "model_name": "nsl_iso_normal_nov5",
+  "db_name": "nsl_only_train_anom_nov5",
+  "framework": "sklearn",
+  "model_type": "anomaly",
+  "algorithm": "isolation_forest",
+  "has_visualization_data": false,
+  "saved_at": "2026-11-05T20:19:03.873129"
+}

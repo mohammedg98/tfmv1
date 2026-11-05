@@ -1,0 +1,615 @@
+{
+  "model_id": 48,
+  "tag": "isolation_forest",
+  "rows_in_file": 125973,
+  "rows_processed": 125973,
+  "rows_skipped": 0,
+  "n_anomaly": 56894,
+  "n_normal": 69079,
+  "chunks": 32,
+  "chunk_results": [
+    {
+      "chunk": 1,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2159,
+        "anomaly": 1841
+      },
+      "intrusion_rate": 0.46025,
+      "metrics": {
+        "n_anomaly": 1841,
+        "n_normal": 2159,
+        "anomaly_rate": 0.4602,
+        "score_min": -0.140491,
+        "score_mean": 0.018208,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 2,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2191,
+        "anomaly": 1809
+      },
+      "intrusion_rate": 0.45225,
+      "metrics": {
+        "n_anomaly": 1809,
+        "n_normal": 2191,
+        "anomaly_rate": 0.4522,
+        "score_min": -0.147269,
+        "score_mean": 0.021067,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 3,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2184,
+        "anomaly": 1816
+      },
+      "intrusion_rate": 0.454,
+      "metrics": {
+        "n_anomaly": 1816,
+        "n_normal": 2184,
+        "anomaly_rate": 0.454,
+        "score_min": -0.146542,
+        "score_mean": 0.019645,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 4,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1755,
+        "normal": 2245
+      },
+      "intrusion_rate": 0.43875,
+      "metrics": {
+        "n_anomaly": 1755,
+        "n_normal": 2245,
+        "anomaly_rate": 0.4387,
+        "score_min": -0.147373,
+        "score_mean": 0.022536,
+        "score_max": 0.151138
+      }
+    },
+    {
+      "chunk": 5,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1826,
+        "normal": 2174
+      },
+      "intrusion_rate": 0.4565,
+      "metrics": {
+        "n_anomaly": 1826,
+        "n_normal": 2174,
+        "anomaly_rate": 0.4565,
+        "score_min": -0.138651,
+        "score_mean": 0.020051,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 6,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2146,
+        "anomaly": 1854
+      },
+      "intrusion_rate": 0.4635,
+      "metrics": {
+        "n_anomaly": 1854,
+        "n_normal": 2146,
+        "anomaly_rate": 0.4635,
+        "score_min": -0.147269,
+        "score_mean": 0.019698,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 7,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2175,
+        "anomaly": 1825
+      },
+      "intrusion_rate": 0.45625,
+      "metrics": {
+        "n_anomaly": 1825,
+        "n_normal": 2175,
+        "anomaly_rate": 0.4562,
+        "score_min": -0.148137,
+        "score_mean": 0.019688,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 8,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2210,
+        "anomaly": 1790
+      },
+      "intrusion_rate": 0.4475,
+      "metrics": {
+        "n_anomaly": 1790,
+        "n_normal": 2210,
+        "anomaly_rate": 0.4475,
+        "score_min": -0.157496,
+        "score_mean": 0.02092,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 9,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2129,
+        "anomaly": 1871
+      },
+      "intrusion_rate": 0.46775,
+      "metrics": {
+        "n_anomaly": 1871,
+        "n_normal": 2129,
+        "anomaly_rate": 0.4677,
+        "score_min": -0.145641,
+        "score_mean": 0.016953,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 10,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2143,
+        "anomaly": 1857
+      },
+      "intrusion_rate": 0.46425,
+      "metrics": {
+        "n_anomaly": 1857,
+        "n_normal": 2143,
+        "anomaly_rate": 0.4642,
+        "score_min": -0.157496,
+        "score_mean": 0.018334,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 11,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1764,
+        "normal": 2236
+      },
+      "intrusion_rate": 0.441,
+      "metrics": {
+        "n_anomaly": 1764,
+        "n_normal": 2236,
+        "anomaly_rate": 0.441,
+        "score_min": -0.166036,
+        "score_mean": 0.021884,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 12,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2174,
+        "anomaly": 1826
+      },
+      "intrusion_rate": 0.4565,
+      "metrics": {
+        "n_anomaly": 1826,
+        "n_normal": 2174,
+        "anomaly_rate": 0.4565,
+        "score_min": -0.142639,
+        "score_mean": 0.01996,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 13,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2227,
+        "anomaly": 1773
+      },
+      "intrusion_rate": 0.44325,
+      "metrics": {
+        "n_anomaly": 1773,
+        "n_normal": 2227,
+        "anomaly_rate": 0.4432,
+        "score_min": -0.147409,
+        "score_mean": 0.021427,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 14,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1840,
+        "normal": 2160
+      },
+      "intrusion_rate": 0.46,
+      "metrics": {
+        "n_anomaly": 1840,
+        "n_normal": 2160,
+        "anomaly_rate": 0.46,
+        "score_min": -0.157087,
+        "score_mean": 0.019895,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 15,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1804,
+        "normal": 2196
+      },
+      "intrusion_rate": 0.451,
+      "metrics": {
+        "n_anomaly": 1804,
+        "n_normal": 2196,
+        "anomaly_rate": 0.451,
+        "score_min": -0.14694,
+        "score_mean": 0.019737,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 16,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2214,
+        "anomaly": 1786
+      },
+      "intrusion_rate": 0.4465,
+      "metrics": {
+        "n_anomaly": 1786,
+        "n_normal": 2214,
+        "anomaly_rate": 0.4465,
+        "score_min": -0.149146,
+        "score_mean": 0.019779,
+        "score_max": 0.150961
+      }
+    },
+    {
+      "chunk": 17,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2251,
+        "anomaly": 1749
+      },
+      "intrusion_rate": 0.43725,
+      "metrics": {
+        "n_anomaly": 1749,
+        "n_normal": 2251,
+        "anomaly_rate": 0.4373,
+        "score_min": -0.14694,
+        "score_mean": 0.022404,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 18,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1784,
+        "normal": 2216
+      },
+      "intrusion_rate": 0.446,
+      "metrics": {
+        "n_anomaly": 1784,
+        "n_normal": 2216,
+        "anomaly_rate": 0.446,
+        "score_min": -0.147373,
+        "score_mean": 0.020078,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 19,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1767,
+        "normal": 2233
+      },
+      "intrusion_rate": 0.44175,
+      "metrics": {
+        "n_anomaly": 1767,
+        "n_normal": 2233,
+        "anomaly_rate": 0.4417,
+        "score_min": -0.147409,
+        "score_mean": 0.022615,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 20,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2232,
+        "anomaly": 1768
+      },
+      "intrusion_rate": 0.442,
+      "metrics": {
+        "n_anomaly": 1768,
+        "n_normal": 2232,
+        "anomaly_rate": 0.442,
+        "score_min": -0.144777,
+        "score_mean": 0.023525,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 21,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2163,
+        "anomaly": 1837
+      },
+      "intrusion_rate": 0.45925,
+      "metrics": {
+        "n_anomaly": 1837,
+        "n_normal": 2163,
+        "anomaly_rate": 0.4592,
+        "score_min": -0.153576,
+        "score_mean": 0.019993,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 22,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2190,
+        "anomaly": 1810
+      },
+      "intrusion_rate": 0.4525,
+      "metrics": {
+        "n_anomaly": 1810,
+        "n_normal": 2190,
+        "anomaly_rate": 0.4525,
+        "score_min": -0.155737,
+        "score_mean": 0.020342,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 23,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2210,
+        "anomaly": 1790
+      },
+      "intrusion_rate": 0.4475,
+      "metrics": {
+        "n_anomaly": 1790,
+        "n_normal": 2210,
+        "anomaly_rate": 0.4475,
+        "score_min": -0.155373,
+        "score_mean": 0.020591,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 24,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2214,
+        "anomaly": 1786
+      },
+      "intrusion_rate": 0.4465,
+      "metrics": {
+        "n_anomaly": 1786,
+        "n_normal": 2214,
+        "anomaly_rate": 0.4465,
+        "score_min": -0.149146,
+        "score_mean": 0.022525,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 25,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1833,
+        "normal": 2167
+      },
+      "intrusion_rate": 0.45825,
+      "metrics": {
+        "n_anomaly": 1833,
+        "n_normal": 2167,
+        "anomaly_rate": 0.4582,
+        "score_min": -0.147409,
+        "score_mean": 0.020012,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 26,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1819,
+        "normal": 2181
+      },
+      "intrusion_rate": 0.45475,
+      "metrics": {
+        "n_anomaly": 1819,
+        "n_normal": 2181,
+        "anomaly_rate": 0.4547,
+        "score_min": -0.145996,
+        "score_mean": 0.019787,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 27,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1778,
+        "normal": 2222
+      },
+      "intrusion_rate": 0.4445,
+      "metrics": {
+        "n_anomaly": 1778,
+        "n_normal": 2222,
+        "anomaly_rate": 0.4445,
+        "score_min": -0.157153,
+        "score_mean": 0.021758,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 28,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2227,
+        "anomaly": 1773
+      },
+      "intrusion_rate": 0.44325,
+      "metrics": {
+        "n_anomaly": 1773,
+        "n_normal": 2227,
+        "anomaly_rate": 0.4432,
+        "score_min": -0.155373,
+        "score_mean": 0.021212,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 29,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2151,
+        "anomaly": 1849
+      },
+      "intrusion_rate": 0.46225,
+      "metrics": {
+        "n_anomaly": 1849,
+        "n_normal": 2151,
+        "anomaly_rate": 0.4622,
+        "score_min": -0.155373,
+        "score_mean": 0.019118,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 30,
+      "rows": 4000,
+      "class_distribution": {
+        "anomaly": 1820,
+        "normal": 2180
+      },
+      "intrusion_rate": 0.455,
+      "metrics": {
+        "n_anomaly": 1820,
+        "n_normal": 2180,
+        "anomaly_rate": 0.455,
+        "score_min": -0.142786,
+        "score_mean": 0.021047,
+        "score_max": 0.151138
+      }
+    },
+    {
+      "chunk": 31,
+      "rows": 4000,
+      "class_distribution": {
+        "normal": 2177,
+        "anomaly": 1823
+      },
+      "intrusion_rate": 0.45575,
+      "metrics": {
+        "n_anomaly": 1823,
+        "n_normal": 2177,
+        "anomaly_rate": 0.4557,
+        "score_min": -0.147409,
+        "score_mean": 0.020178,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 32,
+      "rows": 1973,
+      "class_distribution": {
+        "normal": 1102,
+        "anomaly": 871
+      },
+      "intrusion_rate": 0.4414597060314242,
+      "metrics": {
+        "n_anomaly": 871,
+        "n_normal": 1102,
+        "anomaly_rate": 0.4415,
+        "score_min": -0.133742,
+        "score_mean": 0.021285,
+        "score_max": 0.151153
+      }
+    }
+  ],
+  "class_distribution": {
+    "normal": 69079,
+    "anomaly": 56894
+  },
+  "score_min": -0.166036,
+  "score_max": 0.151153,
+  "score_sum": 2581.8633050000003,
+  "score_n": 125973,
+  "pipeline_applied": true,
+  "expected_columns": [
+    "duration",
+    "src_bytes",
+    "dst_bytes",
+    "land",
+    "wrong_fragment",
+    "urgent",
+    "hot",
+    "num_failed_logins",
+    "logged_in",
+    "num_compromised",
+    "root_shell",
+    "su_attempted",
+    "num_root",
+    "num_file_creations",
+    "num_shells",
+    "num_access_files",
+    "num_outbound_cmds",
+    "is_host_login",
+    "is_guest_login",
+    "count",
+    "srv_count",
+    "serror_rate",
+    "srv_serror_rate",
+    "rerror_rate",
+    "srv_rerror_rate",
+    "same_srv_rate",
+    "diff_srv_rate",
+    "srv_diff_host_rate",
+    "dst_host_count",
+    "dst_host_srv_count",
+    "dst_host_same_srv_rate",
+    "dst_host_diff_srv_rate",
+    "dst_host_same_src_port_rate",
+    "dst_host_srv_diff_host_rate",
+    "dst_host_serror_rate",
+    "dst_host_srv_serror_rate",
+    "dst_host_rerror_rate",
+    "dst_host_srv_rerror_rate",
+    "service",
+    "flag",
+    "protocol_type"
+  ],
+  "unexpected_columns_ignored": [
+    "difficulty_level"
+  ],
+  "has_target_column": true,
+  "target_column": "attack_type",
+  "anomaly_rate": 0.45163646178149286,
+  "score_mean": 0.020495370476213158
+}

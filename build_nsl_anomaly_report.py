@@ -57,6 +57,13 @@ def build_md() -> str:
     save_ocs = load("save_one_class_svm.json") or {}
     pred_iso = load("predict_full_isolation_forest.json") or {}
     pred_ocs = load("predict_full_one_class_svm.json") or {}
+    eval_iso = load("eval_vs_attacks_isolation_forest.json") or {}
+    eval_ocs = load("eval_vs_attacks_one_class_svm.json") or {}
+    eval_sum = load("eval_vs_attacks_summary.json") or {}
+    if not eval_iso and isinstance(eval_sum.get("isolation_forest"), dict):
+        eval_iso = eval_sum["isolation_forest"]
+    if not eval_ocs and isinstance(eval_sum.get("one_class_svm"), dict):
+        eval_ocs = eval_sum["one_class_svm"]
 
     lines: list[str] = []
     lines.append("# Rapport détaillé — NSL-KDD only-train · détection d'anomalies\n")
@@ -70,6 +77,7 @@ def build_md() -> str:
     lines.append("| Dataset CSV (Use Model) | `nsl_only_train_csv_nov5` (copie brute non modifiée) |")
     lines.append("| Target | `attack_type` |")
     lines.append("| Algorithmes | Isolation Forest + One-Class SVM |")
+    lines.append("| Éval ground-truth | attaque (`attack_type != normal`) vs anomalie prédite |")
     lines.append(f"| Date | {datetime.now(MADRID).strftime('%Y-%m-%d %H:%M %Z')} |")
     lines.append("")
 
@@ -87,6 +95,10 @@ def build_md() -> str:
     lines.append("9. Nouvelle copie predefined unmodified → `nsl_only_train_csv_nov5`")
     lines.append("10. Télécharger CSV tel quel (`/api/download-dataset-csv`)")
     lines.append("11. Use Model → predict-batch sur le CSV avec les 2 modèles sauvegardés")
+    lines.append(
+        "12. Évaluation ground-truth : comparer prédictions anomalie vs vraies attaques "
+        "(`attack_type != normal`) → accuracy / precision / recall / F1 / etc."
+    )
     lines.append("")
 
     lines.append("## 3. Stats AVANT preprocessing\n")
@@ -207,23 +219,62 @@ def build_md() -> str:
         pred_ocs,
     )
 
-    lines.append("## 7. Synthèse comparative\n")
-    lines.append("| Modèle | Durée train | Contam./nu | Anomaly rate (train normals) | Anomaly rate (CSV full) | Anomalies CSV |")
-    lines.append("|---|---:|---:|---:|---:|---:|")
+    def eval_block(title: str, e: dict):
+        if not e:
+            lines.append(f"### {title}\n")
+            lines.append("Métriques non disponibles.\n")
+            return
+        lines.append(f"### {title}\n")
+        lines.append("| Métrique | Valeur |")
+        lines.append("|---|---:|")
+        lines.append(f"| n (lignes) | **{e.get('n')}** |")
+        lines.append(f"| support_attack (y_true+) | {e.get('support_attack')} |")
+        lines.append(f"| support_normal (y_true-) | {e.get('support_normal')} |")
+        lines.append(f"| predicted_anomaly | {e.get('predicted_anomaly')} |")
+        lines.append(f"| predicted_normal | {e.get('predicted_normal')} |")
+        lines.append(f"| TP / FP / TN / FN | {e.get('tp')} / {e.get('fp')} / {e.get('tn')} / {e.get('fn')} |")
+        lines.append(f"| **Accuracy** | **{fmt(e.get('accuracy'))}** |")
+        lines.append(f"| **Precision** | **{fmt(e.get('precision'))}** |")
+        lines.append(f"| **Recall (sensibilité)** | **{fmt(e.get('recall'))}** |")
+        lines.append(f"| Specificity | {fmt(e.get('specificity'))} |")
+        lines.append(f"| **F1** | **{fmt(e.get('f1'))}** |")
+        lines.append(f"| FPR | {fmt(e.get('false_positive_rate'))} |")
+        lines.append(f"| FNR | {fmt(e.get('false_negative_rate'))} |")
+        lines.append(f"| score_mean (vraies attaques) | {fmt(e.get('score_mean_true_attack'))} |")
+        lines.append(f"| score_mean (vrais normal) | {fmt(e.get('score_mean_true_normal'))} |")
+        lines.append("")
+
+    lines.append("## 7. Évaluation ground-truth (attaque vs anomalie prédite)\n")
+    lines.append(
+        "Définition positive : **y_true** = `attack_type != normal` (vraie attaque) ; "
+        "**y_pred** = modèle a prédit anomalie. "
+        "Évalué sur les **125973** lignes du CSV brut (Use Model).\n"
+    )
+    eval_block("Isolation Forest (model_id 48)", eval_iso)
+    eval_block("One-Class SVM (model_id 49)", eval_ocs)
+
+    lines.append("## 8. Synthèse comparative\n")
+    lines.append(
+        "| Modèle | Durée train | Contam./nu | Anomaly rate CSV | "
+        "Accuracy | Precision | Recall | F1 |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|")
     iso_m = ((iso.get("result") or {}).get("metrics") or {})
     ocs_m = ((ocs.get("result") or {}).get("metrics") or {})
     lines.append(
         f"| Isolation Forest | {fmt_dur(iso.get('duration_seconds'))} | contamination=0.05 | "
-        f"{fmt((iso_m.get('train') or {}).get('anomaly_rate'))} | "
-        f"{fmt(pred_iso.get('anomaly_rate'))} | {pred_iso.get('n_anomaly')} |"
+        f"{fmt(pred_iso.get('anomaly_rate'))} | "
+        f"**{fmt(eval_iso.get('accuracy'))}** | **{fmt(eval_iso.get('precision'))}** | "
+        f"**{fmt(eval_iso.get('recall'))}** | **{fmt(eval_iso.get('f1'))}** |"
     )
     lines.append(
         f"| One-Class SVM | {fmt_dur(ocs.get('duration_seconds'))} | nu=0.05 | "
-        f"{fmt((ocs_m.get('train') or {}).get('anomaly_rate'))} | "
-        f"{fmt(pred_ocs.get('anomaly_rate'))} | {pred_ocs.get('n_anomaly')} |"
+        f"{fmt(pred_ocs.get('anomaly_rate'))} | "
+        f"**{fmt(eval_ocs.get('accuracy'))}** | **{fmt(eval_ocs.get('precision'))}** | "
+        f"**{fmt(eval_ocs.get('recall'))}** | **{fmt(eval_ocs.get('f1'))}** |"
     )
     lines.append("")
-    lines.append("## 8. Interprétation\n")
+    lines.append("## 9. Interprétation\n")
     lines.append(
         "- Les modèles sont entraînés **uniquement sur du trafic normal** (one-class / anomaly setting)."
     )
@@ -238,7 +289,13 @@ def build_md() -> str:
         "ce qui est cohérent avec la présence d'attaques dans le fichier brut."
     )
     lines.append(
-        "- OCSVM est plus agressif que Isolation Forest sur ce CSV (plus d'anomalies déclarées)."
+        f"- Contre la vérité terrain : Isolation Forest est plus précis "
+        f"(acc={fmt(eval_iso.get('accuracy'))}, F1={fmt(eval_iso.get('f1'))}, "
+        f"FPR={fmt(eval_iso.get('false_positive_rate'))}) ; "
+        f"One-Class SVM détecte plus d'attaques "
+        f"(recall={fmt(eval_ocs.get('recall'))}) au prix de plus de faux positifs "
+        f"(FPR={fmt(eval_ocs.get('false_positive_rate'))}, "
+        f"precision={fmt(eval_ocs.get('precision'))})."
     )
     lines.append("")
     lines.append(f"*Généré le {datetime.now(MADRID).strftime('%Y-%m-%d %H:%M:%S %Z')}*\n")

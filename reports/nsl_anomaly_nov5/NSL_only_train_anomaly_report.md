@@ -11,7 +11,8 @@
 | Dataset CSV (Use Model) | `nsl_only_train_csv_nov5` (copie brute non modifiée) |
 | Target | `attack_type` |
 | Algorithmes | Isolation Forest + One-Class SVM |
-| Date | 2026-11-05 22:26 CET |
+| Éval ground-truth | attaque (`attack_type != normal`) vs anomalie prédite |
+| Date | 2026-11-05 23:13 CET |
 
 ## 2. Pipeline effectué (étape par étape)
 
@@ -28,6 +29,7 @@
 9. Nouvelle copie predefined unmodified → `nsl_only_train_csv_nov5`
 10. Télécharger CSV tel quel (`/api/download-dataset-csv`)
 11. Use Model → predict-batch sur le CSV avec les 2 modèles sauvegardés
+12. Évaluation ground-truth : comparer prédictions anomalie vs vraies attaques (`attack_type != normal`) → accuracy / precision / recall / F1 / etc.
 
 ## 3. Stats AVANT preprocessing
 
@@ -213,18 +215,62 @@ Non disponible / non pertinente ici : après filtre, train+test ne contiennent q
 
 Note Use Model : le CSV contient encore toutes les classes d'attaque + `difficulty_level`. Le pipeline sauvegardé (label/one-hot) est réappliqué ; `difficulty_level` est ignoré ; `attack_type` n'est **pas** utilisé comme feature.
 
-## 7. Synthèse comparative
+## 7. Évaluation ground-truth (attaque vs anomalie prédite)
 
-| Modèle | Durée train | Contam./nu | Anomaly rate (train normals) | Anomaly rate (CSV full) | Anomalies CSV |
-|---|---:|---:|---:|---:|---:|
-| Isolation Forest | 4.1s | contamination=0.05 | 0.0500 | 0.4516 | 56894 |
-| One-Class SVM | 1m 16s | nu=0.05 | 0.0499 | 0.5518 | 69507 |
+Définition positive : **y_true** = `attack_type != normal` (vraie attaque) ; **y_pred** = modèle a prédit anomalie. Évalué sur les **125973** lignes du CSV brut (Use Model).
 
-## 8. Interprétation
+### Isolation Forest (model_id 48)
+
+| Métrique | Valeur |
+|---|---:|
+| n (lignes) | **125973** |
+| support_attack (y_true+) | 58630 |
+| support_normal (y_true-) | 67343 |
+| predicted_anomaly | 56894 |
+| predicted_normal | 69079 |
+| TP / FP / TN / FN | 53325 / 3569 / 63774 / 5305 |
+| **Accuracy** | **0.9296** |
+| **Precision** | **0.9373** |
+| **Recall (sensibilité)** | **0.9095** |
+| Specificity | 0.9470 |
+| **F1** | **0.9232** |
+| FPR | 0.0530 |
+| FNR | 0.0905 |
+| score_mean (vraies attaques) | -0.0697 |
+| score_mean (vrais normal) | 0.0991 |
+
+### One-Class SVM (model_id 49)
+
+| Métrique | Valeur |
+|---|---:|
+| n (lignes) | **125973** |
+| support_attack (y_true+) | 58630 |
+| support_normal (y_true-) | 67343 |
+| predicted_anomaly | 69507 |
+| predicted_normal | 56466 |
+| TP / FP / TN / FN | 57104 / 12403 / 54940 / 1526 |
+| **Accuracy** | **0.8894** |
+| **Precision** | **0.8216** |
+| **Recall (sensibilité)** | **0.9740** |
+| Specificity | 0.8158 |
+| **F1** | **0.8913** |
+| FPR | 0.1842 |
+| FNR | 0.0260 |
+| score_mean (vraies attaques) | -44.1465 |
+| score_mean (vrais normal) | 12.2660 |
+
+## 8. Synthèse comparative
+
+| Modèle | Durée train | Contam./nu | Anomaly rate CSV | Accuracy | Precision | Recall | F1 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Isolation Forest | 4.1s | contamination=0.05 | 0.4516 | **0.9296** | **0.9373** | **0.9095** | **0.9232** |
+| One-Class SVM | 1m 16s | nu=0.05 | 0.5518 | **0.8894** | **0.8216** | **0.9740** | **0.8913** |
+
+## 9. Interprétation
 
 - Les modèles sont entraînés **uniquement sur du trafic normal** (one-class / anomaly setting).
 - Sur le split interne (aussi 100% normal), le taux d'anomalies ≈ contamination/nu (~5%) : ce sont des faux positifs attendus sur le profil normal.
 - Sur le CSV complet (normal + attaques), le taux d'anomalies monte fortement (IF ≈ 45.2%, OCSVM ≈ 55.2%), ce qui est cohérent avec la présence d'attaques dans le fichier brut.
-- OCSVM est plus agressif que Isolation Forest sur ce CSV (plus d'anomalies déclarées).
+- Contre la vérité terrain : Isolation Forest est plus précis (acc=0.9296, F1=0.9232, FPR=0.0530) ; One-Class SVM détecte plus d'attaques (recall=0.9740) au prix de plus de faux positifs (FPR=0.1842, precision=0.8216).
 
-*Généré le 2026-11-05 22:26:25 CET*
+*Généré le 2026-11-05 23:13:15 CET*

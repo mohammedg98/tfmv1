@@ -1,0 +1,192 @@
+{
+  "n": 22544,
+  "tp": 8735,
+  "fp": 675,
+  "tn": 9036,
+  "fn": 4098,
+  "accuracy": 0.7882806955287438,
+  "precision": 0.9282678002125399,
+  "recall": 0.6806670303124757,
+  "specificity": 0.9304911955514366,
+  "f1": 0.7854156363799848,
+  "false_positive_rate": 0.06950880444856349,
+  "false_negative_rate": 0.31933296968752434,
+  "support_attack": 12833,
+  "support_normal": 9711,
+  "predicted_anomaly": 9410,
+  "predicted_normal": 13134,
+  "anomaly_rate": 0.41740596167494676,
+  "model_id": 48,
+  "tag": "isolation_forest",
+  "dataset": "kddtest",
+  "csv_file": "/root/tfmv1/backend/training_logs/nsl_anomaly_pipeline_nov5/artifacts/kddtest.csv",
+  "chunks": 6,
+  "chunk_size": 4000,
+  "definition": {
+    "y_true_positive": "attack_type != normal (true attack)",
+    "y_pred_positive": "model predicted anomaly"
+  },
+  "score_min": -0.150109,
+  "score_mean": 0.0306264608321504,
+  "score_max": 0.151153,
+  "score_mean_true_attack": -0.030744802150705214,
+  "score_mean_true_normal": 0.11172803820409843,
+  "chunk_summaries": [
+    {
+      "chunk": 1,
+      "rows": 4000,
+      "tp": 1556,
+      "fp": 136,
+      "tn": 1580,
+      "fn": 728,
+      "class_distribution": {
+        "anomaly": 1692,
+        "normal": 2308
+      },
+      "metrics": {
+        "kind": "anomaly",
+        "has_ground_truth": false,
+        "n_rows": 4000,
+        "n_evaluated": 0,
+        "target_column": "attack_type",
+        "hint": "The target column in the file is display-only. Isolation Forest / One-Class SVM do not use accuracy, precision, recall or F1.",
+        "n_anomaly": 1692,
+        "n_normal": 2308,
+        "anomaly_rate": 0.423,
+        "score_min": -0.146542,
+        "score_mean": 0.029391,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 2,
+      "rows": 4000,
+      "tp": 1564,
+      "fp": 113,
+      "tn": 1563,
+      "fn": 760,
+      "class_distribution": {
+        "normal": 2323,
+        "anomaly": 1677
+      },
+      "metrics": {
+        "kind": "anomaly",
+        "has_ground_truth": false,
+        "n_rows": 4000,
+        "n_evaluated": 0,
+        "target_column": "attack_type",
+        "hint": "The target column in the file is display-only. Isolation Forest / One-Class SVM do not use accuracy, precision, recall or F1.",
+        "n_anomaly": 1677,
+        "n_normal": 2323,
+        "anomaly_rate": 0.4193,
+        "score_min": -0.147373,
+        "score_mean": 0.030158,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 3,
+      "rows": 4000,
+      "tp": 1494,
+      "fp": 123,
+      "tn": 1667,
+      "fn": 716,
+      "class_distribution": {
+        "normal": 2383,
+        "anomaly": 1617
+      },
+      "metrics": {
+        "kind": "anomaly",
+        "has_ground_truth": false,
+        "n_rows": 4000,
+        "n_evaluated": 0,
+        "target_column": "attack_type",
+        "hint": "The target column in the file is display-only. Isolation Forest / One-Class SVM do not use accuracy, precision, recall or F1.",
+        "n_anomaly": 1617,
+        "n_normal": 2383,
+        "anomaly_rate": 0.4042,
+        "score_min": -0.146542,
+        "score_mean": 0.033547,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 4,
+      "rows": 4000,
+      "tp": 1581,
+      "fp": 103,
+      "tn": 1593,
+      "fn": 723,
+      "class_distribution": {
+        "anomaly": 1684,
+        "normal": 2316
+      },
+      "metrics": {
+        "kind": "anomaly",
+        "has_ground_truth": false,
+        "n_rows": 4000,
+        "n_evaluated": 0,
+        "target_column": "attack_type",
+        "hint": "The target column in the file is display-only. Isolation Forest / One-Class SVM do not use accuracy, precision, recall or F1.",
+        "n_anomaly": 1684,
+        "n_normal": 2316,
+        "anomaly_rate": 0.421,
+        "score_min": -0.150109,
+        "score_mean": 0.02979,
+        "score_max": 0.151153
+      }
+    },
+    {
+      "chunk": 5,
+      "rows": 4000,
+      "tp": 1563,
+      "fp": 120,
+      "tn": 1606,
+      "fn": 711,
+      "class_distribution": {
+        "normal": 2317,
+        "anomaly": 1683
+      },
+      "metrics": {
+        "kind": "anomaly",
+        "has_ground_truth": false,
+        "n_rows": 4000,
+        "n_evaluated": 0,
+        "target_column": "attack_type",
+        "hint": "The target column in the file is display-only. Isolation Forest / One-Class SVM do not use accuracy, precision, recall or F1.",
+        "n_anomaly": 1683,
+        "n_normal": 2317,
+        "anomaly_rate": 0.4208,
+        "score_min": -0.14694,
+        "score_mean": 0.030439,
+        "score_max": 0.150928
+      }
+    },
+    {
+      "chunk": 6,
+      "rows": 2544,
+      "tp": 977,
+      "fp": 80,
+      "tn": 1027,
+      "fn": 460,
+      "class_distribution": {
+        "normal": 1487,
+        "anomaly": 1057
+      },
+      "metrics": {
+        "kind": "anomaly",
+        "has_ground_truth": false,
+        "n_rows": 2544,
+        "n_evaluated": 0,
+        "target_column": "attack_type",
+        "hint": "The target column in the file is display-only. Isolation Forest / One-Class SVM do not use accuracy, precision, recall or F1.",
+        "n_anomaly": 1057,
+        "n_normal": 1487,
+        "anomaly_rate": 0.4155,
+        "score_min": -0.14135,
+        "score_mean": 0.030324,
+        "score_max": 0.151153
+      }
+    }
+  ]
+}

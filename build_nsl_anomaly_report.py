@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Detailed MD+PDF report for NSL only-train anomaly pipeline."""
+"""Detailed MD+PDF report for NSL only-train anomaly pipeline (Use Model = kddtest)."""
 
 from __future__ import annotations
 
@@ -55,15 +55,50 @@ def build_md() -> str:
     ocs = load("train_one_class_svm.json") or {}
     save_iso = load("save_isolation_forest.json") or {}
     save_ocs = load("save_one_class_svm.json") or {}
-    pred_iso = load("predict_full_isolation_forest.json") or {}
-    pred_ocs = load("predict_full_one_class_svm.json") or {}
-    eval_iso = load("eval_vs_attacks_isolation_forest.json") or {}
-    eval_ocs = load("eval_vs_attacks_one_class_svm.json") or {}
-    eval_sum = load("eval_vs_attacks_summary.json") or {}
+
+    # Prefer kddtest Use Model results; fall back to legacy train-CSV artifacts if needed
+    kdd_stats = load("kddtest_stats.json") or {}
+    pred_iso = load("predict_kddtest_isolation_forest.json") or {}
+    pred_ocs = load("predict_kddtest_one_class_svm.json") or {}
+    eval_iso = load("eval_kddtest_isolation_forest.json") or {}
+    eval_ocs = load("eval_kddtest_one_class_svm.json") or {}
+    eval_sum = load("eval_kddtest_summary.json") or {}
     if not eval_iso and isinstance(eval_sum.get("isolation_forest"), dict):
         eval_iso = eval_sum["isolation_forest"]
     if not eval_ocs and isinstance(eval_sum.get("one_class_svm"), dict):
         eval_ocs = eval_sum["one_class_svm"]
+    if not pred_iso and eval_iso:
+        pred_iso = {
+            "rows_processed": eval_iso.get("n"),
+            "n_anomaly": eval_iso.get("predicted_anomaly"),
+            "n_normal": eval_iso.get("predicted_normal"),
+            "anomaly_rate": eval_iso.get("anomaly_rate"),
+            "score_min": eval_iso.get("score_min"),
+            "score_mean": eval_iso.get("score_mean"),
+            "score_max": eval_iso.get("score_max"),
+            "pipeline_applied": True,
+            "target_column": "attack_type",
+            "unexpected_columns_ignored": ["difficulty_level"],
+            "chunks": eval_iso.get("chunks"),
+        }
+    if not pred_ocs and eval_ocs:
+        pred_ocs = {
+            "rows_processed": eval_ocs.get("n"),
+            "n_anomaly": eval_ocs.get("predicted_anomaly"),
+            "n_normal": eval_ocs.get("predicted_normal"),
+            "anomaly_rate": eval_ocs.get("anomaly_rate"),
+            "score_min": eval_ocs.get("score_min"),
+            "score_mean": eval_ocs.get("score_mean"),
+            "score_max": eval_ocs.get("score_max"),
+            "pipeline_applied": True,
+            "target_column": "attack_type",
+            "unexpected_columns_ignored": ["difficulty_level"],
+            "chunks": eval_ocs.get("chunks"),
+        }
+
+    kdd_n = kdd_stats.get("n_rows") or eval_iso.get("n") or eval_ocs.get("n") or 22544
+    kdd_normal = kdd_stats.get("n_normal")
+    kdd_attack = kdd_stats.get("n_attack")
 
     lines: list[str] = []
     lines.append("# Rapport détaillé — NSL-KDD only-train · détection d'anomalies\n")
@@ -72,9 +107,11 @@ def build_md() -> str:
     lines.append("|---|---|")
     lines.append("| Plateforme | http://46.62.212.226 |")
     lines.append("| Utilisateur | `cc@cc.cc` |")
-    lines.append("| Source predefined | `nslkdd_only_train_part` (125973 lignes) |")
-    lines.append("| Dataset entraînement | `nsl_only_train_anom_nov5` |")
-    lines.append("| Dataset CSV (Use Model) | `nsl_only_train_csv_nov5` (copie brute non modifiée) |")
+    lines.append("| Source predefined (train) | `nslkdd_only_train_part` (125973 lignes) |")
+    lines.append("| Dataset entraînement | `nsl_only_train_anom_nov5` (normals only) |")
+    lines.append(
+        f"| Dataset Use Model | **`kddtest`** (My Datasets, **{kdd_n}** lignes — partie test) |"
+    )
     lines.append("| Target | `attack_type` |")
     lines.append("| Algorithmes | Isolation Forest + One-Class SVM |")
     lines.append("| Éval ground-truth | attaque (`attack_type != normal`) vs anomalie prédite |")
@@ -88,25 +125,27 @@ def build_md() -> str:
     lines.append("4. Supprimer la colonne **`difficulty_level`**")
     lines.append("5. Continue (checkpoint)")
     lines.append("6. Split **80/20 random** (seed=42) — stratifié impossible car 1 seule classe après filtre")
-    lines.append("7. Transformation (identique au run classification précédent) :")
+    lines.append("7. Transformation :")
     lines.append("   - Label Encoding sur `attack_type`")
     lines.append("   - One-Hot sur `protocol_type`, `service`, `flag`")
     lines.append("8. Entraîner **Isolation Forest** puis **One-Class SVM**, sauvegarder les 2 modèles")
-    lines.append("9. Nouvelle copie predefined unmodified → `nsl_only_train_csv_nov5`")
-    lines.append("10. Télécharger CSV tel quel (`/api/download-dataset-csv`)")
-    lines.append("11. Use Model → predict-batch sur le CSV avec les 2 modèles sauvegardés")
+    lines.append("9. Prendre le dataset My Datasets **`kddtest`** (partie test, non utilisé pour l'entraînement)")
+    lines.append("10. Télécharger CSV tel quel (`/api/download-dataset-csv?dbName=kddtest`)")
+    lines.append("11. Use Model → predict-batch sur **kddtest** avec les 2 modèles sauvegardés")
     lines.append(
-        "12. Évaluation ground-truth : comparer prédictions anomalie vs vraies attaques "
-        "(`attack_type != normal`) → accuracy / precision / recall / F1 / etc."
+        "12. Évaluation ground-truth sur **kddtest** : anomalie prédite vs "
+        "`attack_type != normal` → accuracy / precision / recall / F1 / etc."
     )
     lines.append("")
 
-    lines.append("## 3. Stats AVANT preprocessing\n")
+    lines.append("## 3. Stats AVANT preprocessing (dataset d'entraînement)\n")
     tgt = (before.get("target") or {})
     lines.append(f"- Target metadata: `{json.dumps(tgt, ensure_ascii=False)}`")
     vc = before.get("attack_type_values") or {}
     if isinstance(vc, dict) and vc.get("value_counts"):
-        lines.append(f"- Distinct attack_type: **{vc.get('total_distinct')}** / rows **{vc.get('total_rows')}**")
+        lines.append(
+            f"- Distinct attack_type: **{vc.get('total_distinct')}** / rows **{vc.get('total_rows')}**"
+        )
         lines.append("")
         lines.append("| Valeur | Count |")
         lines.append("|---|---:|")
@@ -116,13 +155,13 @@ def build_md() -> str:
     lines.append("Filtre appliqué ensuite : garder uniquement `attack_type = normal`.")
     lines.append("")
 
-    lines.append("## 4. Split & transformation\n")
+    lines.append("## 4. Split & transformation (entraînement)\n")
     lines.append("### Split\n")
     lines.append("| Champ | Valeur |")
     lines.append("|---|---|")
     lines.append("| Méthode | random 80/20, seed=42 |")
     lines.append(f"| Train | **{split.get('train_count')}** |")
-    lines.append(f"| Test | **{split.get('test_count')}** |")
+    lines.append(f"| Test (interne, normals) | **{split.get('test_count')}** |")
     lines.append(f"| Total | **{split.get('total_rows')}** |")
     lines.append("| Contenu | 100% `normal` (après filtre) |")
     lines.append("")
@@ -132,8 +171,37 @@ def build_md() -> str:
     cols = transform.get("new_columns") or []
     lines.append(f"- Colonnes après transform : **{len(cols)}**")
     after_split = (after.get("split") or {})
-    lines.append(f"- Split stats post-transform : train={after_split.get('train_count')} test={after_split.get('test_count')}")
+    lines.append(
+        f"- Split stats post-transform : train={after_split.get('train_count')} "
+        f"test={after_split.get('test_count')}"
+    )
     lines.append("")
+
+    lines.append("## 5. Dataset Use Model — `kddtest` (My Datasets)\n")
+    lines.append("| Champ | Valeur |")
+    lines.append("|---|---|")
+    lines.append("| Nom | `kddtest` |")
+    lines.append("| Source | My Datasets (partie test) |")
+    lines.append(f"| Lignes | **{kdd_n}** |")
+    lines.append(f"| Colonnes CSV | **{kdd_stats.get('n_columns', 43)}** |")
+    lines.append(f"| Normal | **{kdd_normal}** |")
+    lines.append(f"| Attaques | **{kdd_attack}** |")
+    lines.append(f"| Taux d'attaque | **{fmt(kdd_stats.get('attack_rate'))}** |")
+    lines.append("")
+    vc_kdd = kdd_stats.get("attack_type_value_counts") or {}
+    if vc_kdd:
+        lines.append("### Distribution `attack_type` (kddtest)\n")
+        lines.append("| Valeur | Count |")
+        lines.append("|---|---:|")
+        for val, cnt in list(vc_kdd.items())[:40]:
+            lines.append(f"| {val} | {cnt} |")
+        if len(vc_kdd) > 40:
+            lines.append(f"| … | ({len(vc_kdd) - 40} labels supplémentaires) |")
+        lines.append("")
+    lines.append(
+        "Note : `kddtest` n'a **pas** servi à l'entraînement. Les modèles "
+        "(entraînés uniquement sur du trafic normal du train) sont appliqués ici via Use Model.\n"
+    )
 
     def section_algo(title: str, train_obj: dict, save_obj: dict, pred_obj: dict):
         lines.append(f"## {title}\n")
@@ -155,7 +223,7 @@ def build_md() -> str:
         lines.append(f"| target_excluded | `{m.get('target_excluded')}` |")
         lines.append(f"| anti_leakage | {m.get('anti_leakage')} |")
         lines.append("")
-        lines.append("### Résultats train / test (données 100% normal)\n")
+        lines.append("### Résultats train / test interne (données 100% normal)\n")
         lines.append("| Split | n | n_anomalies | anomaly_rate | score_mean | score_min | score_max |")
         lines.append("|---|---:|---:|---:|---:|---:|---:|")
         for split_name in ("train", "test"):
@@ -166,17 +234,12 @@ def build_md() -> str:
                 f"{fmt(s.get('score_min'))} | {fmt(s.get('score_max'))} |"
             )
         lines.append("")
-        le = m.get("label_evaluation")
-        lines.append("### Évaluation labels (train set)\n")
-        if le:
-            lines.append("```json")
-            lines.append(json.dumps(le, indent=2, ensure_ascii=False, default=str)[:3000])
-            lines.append("```\n")
-        else:
-            lines.append(
-                "Non disponible / non pertinente ici : après filtre, train+test ne contiennent que `normal`, "
-                "donc pas de classes positives (attaques) pour precision/recall/F1 sur le split interne.\n"
-            )
+        lines.append("### Évaluation labels (split interne)\n")
+        lines.append(
+            "Non pertinente ici : après filtre, train+test ne contiennent que `normal`, "
+            "donc pas de classes positives (attaques) pour precision/recall/F1 sur le split interne. "
+            "L'évaluation réelle est faite sur **kddtest** (section 8).\n"
+        )
         lines.append("### Sauvegarde modèle\n")
         lines.append("| Champ | Valeur |")
         lines.append("|---|---|")
@@ -187,37 +250,35 @@ def build_md() -> str:
         lines.append(f"| path | `{save_obj.get('model_path')}` |")
         lines.append(f"| saved_at | {save_obj.get('saved_at')} |")
         lines.append("")
-        lines.append("### Use Model — prédiction sur CSV brut (125973 lignes)\n")
+        lines.append(f"### Use Model — prédiction sur `kddtest` ({kdd_n} lignes)\n")
         lines.append("| Champ | Valeur |")
         lines.append("|---|---|")
         lines.append(f"| rows_processed | **{pred_obj.get('rows_processed')}** |")
         lines.append(f"| n_anomaly | **{pred_obj.get('n_anomaly')}** |")
         lines.append(f"| n_normal | **{pred_obj.get('n_normal')}** |")
-        lines.append(f"| anomaly_rate | **{fmt(pred_obj.get('anomaly_rate'))}** ({fmt(100*(pred_obj.get('anomaly_rate') or 0),1)}%) |")
-        lines.append(f"| score_min / mean / max | {fmt(pred_obj.get('score_min'))} / {fmt(pred_obj.get('score_mean'))} / {fmt(pred_obj.get('score_max'))} |")
+        lines.append(
+            f"| anomaly_rate | **{fmt(pred_obj.get('anomaly_rate'))}** "
+            f"({fmt(100*(pred_obj.get('anomaly_rate') or 0),1)}%) |"
+        )
+        lines.append(
+            f"| score_min / mean / max | {fmt(pred_obj.get('score_min'))} / "
+            f"{fmt(pred_obj.get('score_mean'))} / {fmt(pred_obj.get('score_max'))} |"
+        )
         lines.append(f"| pipeline_applied | {pred_obj.get('pipeline_applied')} |")
         lines.append(f"| target_column (display only) | `{pred_obj.get('target_column')}` |")
-        lines.append(f"| unexpected columns ignored | `{pred_obj.get('unexpected_columns_ignored')}` |")
+        lines.append(
+            f"| unexpected columns ignored | `{pred_obj.get('unexpected_columns_ignored')}` |"
+        )
         lines.append(f"| chunks | {pred_obj.get('chunks')} × 4000 |")
         lines.append("")
         lines.append(
-            "Note Use Model : le CSV contient encore toutes les classes d'attaque + `difficulty_level`. "
+            "Note Use Model : `kddtest` contient normal + attaques + `difficulty_level`. "
             "Le pipeline sauvegardé (label/one-hot) est réappliqué ; `difficulty_level` est ignoré ; "
             "`attack_type` n'est **pas** utilisé comme feature.\n"
         )
 
-    section_algo(
-        "5. Isolation Forest",
-        iso,
-        save_iso,
-        pred_iso,
-    )
-    section_algo(
-        "6. One-Class SVM",
-        ocs,
-        save_ocs,
-        pred_ocs,
-    )
+    section_algo("6. Isolation Forest", iso, save_iso, pred_iso)
+    section_algo("7. One-Class SVM", ocs, save_ocs, pred_ocs)
 
     def eval_block(title: str, e: dict):
         if not e:
@@ -232,7 +293,9 @@ def build_md() -> str:
         lines.append(f"| support_normal (y_true-) | {e.get('support_normal')} |")
         lines.append(f"| predicted_anomaly | {e.get('predicted_anomaly')} |")
         lines.append(f"| predicted_normal | {e.get('predicted_normal')} |")
-        lines.append(f"| TP / FP / TN / FN | {e.get('tp')} / {e.get('fp')} / {e.get('tn')} / {e.get('fn')} |")
+        lines.append(
+            f"| TP / FP / TN / FN | {e.get('tp')} / {e.get('fp')} / {e.get('tn')} / {e.get('fn')} |"
+        )
         lines.append(f"| **Accuracy** | **{fmt(e.get('accuracy'))}** |")
         lines.append(f"| **Precision** | **{fmt(e.get('precision'))}** |")
         lines.append(f"| **Recall (sensibilité)** | **{fmt(e.get('recall'))}** |")
@@ -244,23 +307,20 @@ def build_md() -> str:
         lines.append(f"| score_mean (vrais normal) | {fmt(e.get('score_mean_true_normal'))} |")
         lines.append("")
 
-    lines.append("## 7. Évaluation ground-truth (attaque vs anomalie prédite)\n")
+    lines.append("## 8. Évaluation ground-truth sur `kddtest`\n")
     lines.append(
         "Définition positive : **y_true** = `attack_type != normal` (vraie attaque) ; "
-        "**y_pred** = modèle a prédit anomalie. "
-        "Évalué sur les **125973** lignes du CSV brut (Use Model).\n"
+        f"**y_pred** = modèle a prédit anomalie. Évalué sur les **{kdd_n}** lignes de `kddtest`.\n"
     )
     eval_block("Isolation Forest (model_id 48)", eval_iso)
     eval_block("One-Class SVM (model_id 49)", eval_ocs)
 
-    lines.append("## 8. Synthèse comparative\n")
+    lines.append("## 9. Synthèse comparative\n")
     lines.append(
-        "| Modèle | Durée train | Contam./nu | Anomaly rate CSV | "
+        "| Modèle | Durée train | Contam./nu | Anomaly rate (kddtest) | "
         "Accuracy | Precision | Recall | F1 |"
     )
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|")
-    iso_m = ((iso.get("result") or {}).get("metrics") or {})
-    ocs_m = ((ocs.get("result") or {}).get("metrics") or {})
     lines.append(
         f"| Isolation Forest | {fmt_dur(iso.get('duration_seconds'))} | contamination=0.05 | "
         f"{fmt(pred_iso.get('anomaly_rate'))} | "
@@ -274,27 +334,27 @@ def build_md() -> str:
         f"**{fmt(eval_ocs.get('recall'))}** | **{fmt(eval_ocs.get('f1'))}** |"
     )
     lines.append("")
-    lines.append("## 9. Interprétation\n")
+    lines.append("## 10. Interprétation\n")
     lines.append(
-        "- Les modèles sont entraînés **uniquement sur du trafic normal** (one-class / anomaly setting)."
+        "- Les modèles sont entraînés **uniquement sur du trafic normal** (only-train filtré)."
     )
     lines.append(
         "- Sur le split interne (aussi 100% normal), le taux d'anomalies ≈ contamination/nu (~5%) : "
-        "ce sont des faux positifs attendus sur le profil normal."
+        "faux positifs attendus sur le profil normal."
     )
     lines.append(
-        "- Sur le CSV complet (normal + attaques), le taux d'anomalies monte fortement "
-        f"(IF ≈ {fmt(100*(pred_iso.get('anomaly_rate') or 0),1)}%, "
-        f"OCSVM ≈ {fmt(100*(pred_ocs.get('anomaly_rate') or 0),1)}%), "
-        "ce qui est cohérent avec la présence d'attaques dans le fichier brut."
+        f"- Sur **`kddtest`** (hold-out / partie test réelle : "
+        f"{kdd_normal} normal + {kdd_attack} attaques), "
+        f"IF anomaly_rate ≈ {fmt(100*(pred_iso.get('anomaly_rate') or 0),1)}%, "
+        f"OCSVM ≈ {fmt(100*(pred_ocs.get('anomaly_rate') or 0),1)}%."
     )
     lines.append(
-        f"- Contre la vérité terrain : Isolation Forest est plus précis "
+        f"- Contre la vérité terrain sur kddtest : Isolation Forest "
         f"(acc={fmt(eval_iso.get('accuracy'))}, F1={fmt(eval_iso.get('f1'))}, "
         f"FPR={fmt(eval_iso.get('false_positive_rate'))}) ; "
-        f"One-Class SVM détecte plus d'attaques "
-        f"(recall={fmt(eval_ocs.get('recall'))}) au prix de plus de faux positifs "
-        f"(FPR={fmt(eval_ocs.get('false_positive_rate'))}, "
+        f"One-Class SVM "
+        f"(acc={fmt(eval_ocs.get('accuracy'))}, recall={fmt(eval_ocs.get('recall'))}, "
+        f"FPR={fmt(eval_ocs.get('false_positive_rate'))}, "
         f"precision={fmt(eval_ocs.get('precision'))})."
     )
     lines.append("")
@@ -307,7 +367,12 @@ class PDF(FPDF):
         self.set_font("Helvetica", "B", 11)
         self.cell(0, 7, "NSL only-train anomaly detection report", ln=1)
         self.set_font("Helvetica", "", 8)
-        self.cell(0, 5, "nsl_only_train_anom_nov5 / IsolationForest + OneClassSVM / cc@cc.cc", ln=1)
+        self.cell(
+            0,
+            5,
+            "train=nsl_only_train_anom_nov5 / UseModel=kddtest / IF+OCSVM / cc@cc.cc",
+            ln=1,
+        )
         self.ln(1)
 
     def footer(self):

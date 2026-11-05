@@ -1,0 +1,92 @@
+{
+  "dataset": "kddtest",
+  "definition": {
+    "detected": "attack family row predicted as anomaly",
+    "support": "number of rows with that family in kddtest",
+    "detection_rate": "detected / support"
+  },
+  "models": {
+    "isolation_forest": {
+      "model_id": 48,
+      "all_attacks": {
+        "support": 12833,
+        "detected": 8735,
+        "missed": 4098,
+        "detection_rate": 0.6806670303124757
+      },
+      "normal": {
+        "support": 9711,
+        "correct_normal": 9036,
+        "false_positive": 675,
+        "true_negative_rate": 0.9304911955514366
+      },
+      "predictions_csv": "/root/tfmv1/backend/training_logs/nsl_anomaly_pipeline_nov5/artifacts/predictions_kddtest_isolation_forest.csv"
+    },
+    "one_class_svm": {
+      "model_id": 49,
+      "all_attacks": {
+        "support": 12833,
+        "detected": 11190,
+        "missed": 1643,
+        "detection_rate": 0.8719707005376763
+      },
+      "normal": {
+        "support": 9711,
+        "correct_normal": 8311,
+        "false_positive": 1400,
+        "true_negative_rate": 0.8558335907733499
+      },
+      "predictions_csv": "/root/tfmv1/backend/training_logs/nsl_anomaly_pipeline_nov5/artifacts/predictions_kddtest_one_class_svm.csv"
+    }
+  },
+  "table_8_9": [
+    {
+      "family": "DoS",
+      "isolation_forest_support": 7460,
+      "isolation_forest_detected": 5852,
+      "isolation_forest_missed": 1608,
+      "isolation_forest_detection_rate": 0.7844504021447721,
+      "one_class_svm_support": 7460,
+      "one_class_svm_detected": 6313,
+      "one_class_svm_missed": 1147,
+      "one_class_svm_detection_rate": 0.8462466487935657,
+      "support": 7460
+    },
+    {
+      "family": "Probe",
+      "isolation_forest_support": 2421,
+      "isolation_forest_detected": 2371,
+      "isolation_forest_missed": 50,
+      "isolation_forest_detection_rate": 0.9793473771168938,
+      "one_class_svm_support": 2421,
+      "one_class_svm_detected": 2405,
+      "one_class_svm_missed": 16,
+      "one_class_svm_detection_rate": 0.9933911606774061,
+      "support": 2421
+    },
+    {
+      "family": "R2L",
+      "isolation_forest_support": 2885,
+      "isolation_forest_detected": 491,
+      "isolation_forest_missed": 2394,
+      "isolation_forest_detection_rate": 0.17019064124783362,
+      "one_class_svm_support": 2885,
+      "one_class_svm_detected": 2419,
+      "one_class_svm_missed": 466,
+      "one_class_svm_detection_rate": 0.838474870017331,
+      "support": 2885
+    },
+    {
+      "family": "U2R",
+      "isolation_forest_support": 67,
+      "isolation_forest_detected": 21,
+      "isolation_forest_missed": 46,
+      "isolation_forest_detection_rate": 0.31343283582089554,
+      "one_class_svm_support": 67,
+      "one_class_svm_detected": 53,
+      "one_class_svm_missed": 14,
+      "one_class_svm_detection_rate": 0.7910447761194029,
+      "support": 67
+    }
+  ]
+}

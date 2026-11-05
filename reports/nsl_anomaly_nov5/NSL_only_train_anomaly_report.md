@@ -12,7 +12,7 @@
 | Target | `attack_type` |
 | Algorithmes | Isolation Forest + One-Class SVM |
 | Éval ground-truth | attaque (`attack_type != normal`) vs anomalie prédite |
-| Date | 2026-11-06 00:02 CET |
+| Date | 2026-11-06 00:18 CET |
 
 ## 2. Pipeline effectué (étape par étape)
 
@@ -316,18 +316,104 @@ Définition positive : **y_true** = `attack_type != normal` (vraie attaque) ; **
 | score_mean (vraies attaques) | -30.0909 |
 | score_mean (vrais normal) | 13.1053 |
 
-## 9. Synthèse comparative
+## 9. Table 8.9 — Détection par famille d'attaque (`kddtest`)
+
+Taxonomie NSL-KDD : **DoS / Probe / R2L / U2R**. Pour chaque famille : *support* = nb de lignes de cette famille dans `kddtest` ; *détectées* = nb prédites anomalie ; *taux* = détectées / support.
+
+| Famille | Support | IF détectées | IF taux | OCSVM détectées | OCSVM taux |
+|---|---:|---:|---:|---:|---:|
+| DoS | 7460 | **5852** | **0.7845** | **6313** | **0.8462** |
+| Probe | 2421 | **2371** | **0.9793** | **2405** | **0.9934** |
+| R2L | 2885 | **491** | **0.1702** | **2419** | **0.8385** |
+| U2R | 67 | **21** | **0.3134** | **53** | **0.7910** |
+| **Toutes attaques** | **12833** | **8735** | **0.6807** | **11190** | **0.8720** |
+
+### Normal (faux positifs)
+
+| Modèle | Support normal | Correct normal (TN) | Faux positifs | TNR |
+|---|---:|---:|---:|---:|
+| Isolation Forest | 9711 | 9036 | 675 | 0.9305 |
+| One-Class SVM | 9711 | 8311 | 1400 | 0.8558 |
+
+### Fichiers de prédiction Use Model (pour recalcul)
+
+Colonnes : `row_index`, `attack_type`, `attack_family`, `predicted_label`, `is_anomaly`, `anomaly_score`.
+
+- Isolation Forest : http://46.62.212.226/predictions_kddtest_isolation_forest.csv
+- One-Class SVM : http://46.62.212.226/predictions_kddtest_one_class_svm.csv
+
+### Détail par `attack_type` (support ≥ 1, top par famille)
+
+#### DoS
+
+| attack_type | Support | IF détectées | IF taux | OCSVM détectées | OCSVM taux |
+|---|---:|---:|---:|---:|---:|
+| neptune | 4657 | 4657 | 1.0000 | 4657 | 1.0000 |
+| apache2 | 737 | 596 | 0.8087 | 239 | 0.3243 |
+| processtable | 685 | 304 | 0.4438 | 685 | 1.0000 |
+| smurf | 665 | 258 | 0.3880 | 665 | 1.0000 |
+| back | 359 | 0 | 0.0000 | 3 | 0.0084 |
+| mailbomb | 293 | 1 | 0.0034 | 0 | 0.0000 |
+| pod | 41 | 29 | 0.7073 | 41 | 1.0000 |
+| teardrop | 12 | 0 | 0.0000 | 12 | 1.0000 |
+| land | 7 | 7 | 1.0000 | 7 | 1.0000 |
+| udpstorm | 2 | 0 | 0.0000 | 2 | 1.0000 |
+| worm | 2 | 0 | 0.0000 | 2 | 1.0000 |
+
+#### Probe
+
+| attack_type | Support | IF détectées | IF taux | OCSVM détectées | OCSVM taux |
+|---|---:|---:|---:|---:|---:|
+| mscan | 996 | 964 | 0.9679 | 984 | 0.9880 |
+| satan | 735 | 733 | 0.9973 | 734 | 0.9986 |
+| saint | 319 | 312 | 0.9781 | 316 | 0.9906 |
+| portsweep | 157 | 156 | 0.9936 | 157 | 1.0000 |
+| ipsweep | 141 | 133 | 0.9433 | 141 | 1.0000 |
+| nmap | 73 | 73 | 1.0000 | 73 | 1.0000 |
+
+#### R2L
+
+| attack_type | Support | IF détectées | IF taux | OCSVM détectées | OCSVM taux |
+|---|---:|---:|---:|---:|---:|
+| guess_passwd | 1231 | 61 | 0.0496 | 1228 | 0.9976 |
+| warezmaster | 944 | 295 | 0.3125 | 527 | 0.5583 |
+| snmpguess | 331 | 0 | 0.0000 | 331 | 1.0000 |
+| snmpgetattack | 178 | 9 | 0.0506 | 171 | 0.9607 |
+| httptunnel | 133 | 110 | 0.8271 | 119 | 0.8947 |
+| multihop | 18 | 4 | 0.2222 | 8 | 0.4444 |
+| named | 17 | 5 | 0.2941 | 9 | 0.5294 |
+| sendmail | 14 | 0 | 0.0000 | 14 | 1.0000 |
+| xlock | 9 | 4 | 0.4444 | 5 | 0.5556 |
+| xsnoop | 4 | 2 | 0.5000 | 3 | 0.7500 |
+| ftp_write | 3 | 1 | 0.3333 | 2 | 0.6667 |
+| phf | 2 | 0 | 0.0000 | 1 | 0.5000 |
+| imap | 1 | 0 | 0.0000 | 1 | 1.0000 |
+
+#### U2R
+
+| attack_type | Support | IF détectées | IF taux | OCSVM détectées | OCSVM taux |
+|---|---:|---:|---:|---:|---:|
+| buffer_overflow | 20 | 9 | 0.4500 | 18 | 0.9000 |
+| ps | 15 | 2 | 0.1333 | 11 | 0.7333 |
+| rootkit | 13 | 2 | 0.1538 | 7 | 0.5385 |
+| xterm | 13 | 6 | 0.4615 | 11 | 0.8462 |
+| loadmodule | 2 | 2 | 1.0000 | 2 | 1.0000 |
+| perl | 2 | 0 | 0.0000 | 2 | 1.0000 |
+| sqlattack | 2 | 0 | 0.0000 | 2 | 1.0000 |
+
+## 10. Synthèse comparative
 
 | Modèle | Durée train | Contam./nu | Anomaly rate (kddtest) | Accuracy | Precision | Recall | F1 |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Isolation Forest | 4.1s | contamination=0.05 | 0.4174 | **0.7883** | **0.9283** | **0.6807** | **0.7854** |
 | One-Class SVM | 1m 16s | nu=0.05 | 0.5585 | **0.8650** | **0.8888** | **0.8720** | **0.8803** |
 
-## 10. Interprétation
+## 11. Interprétation
 
 - Les modèles sont entraînés **uniquement sur du trafic normal** (only-train filtré).
 - Sur le split interne (aussi 100% normal), le taux d'anomalies ≈ contamination/nu (~5%) : faux positifs attendus sur le profil normal.
 - Sur **`kddtest`** (hold-out / partie test réelle : 9711 normal + 12833 attaques), IF anomaly_rate ≈ 41.7%, OCSVM ≈ 55.8%.
 - Contre la vérité terrain sur kddtest : Isolation Forest (acc=0.7883, F1=0.7854, FPR=0.0695) ; One-Class SVM (acc=0.8650, recall=0.8720, FPR=0.1442, precision=0.8888).
+- Table 8.9 : Probe très bien détecté (IF 0.9793, OCSVM 0.9934) ; DoS correct (IF 0.7845, OCSVM 0.8462) ; R2L/U2R nettement plus faibles pour IF (R2L 0.1702, U2R 0.3134) alors qu'OCSVM les récupère mieux (R2L 0.8385, U2R 0.7910).
 
-*Généré le 2026-11-06 00:02:30 CET*
+*Généré le 2026-11-06 00:18:15 CET*

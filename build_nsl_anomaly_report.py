@@ -315,7 +315,103 @@ def build_md() -> str:
     eval_block("Isolation Forest (model_id 48)", eval_iso)
     eval_block("One-Class SVM (model_id 49)", eval_ocs)
 
-    lines.append("## 9. Synthèse comparative\n")
+    fam_sum = load("family_detection_kddtest_summary.json") or {}
+    fam_iso = load("family_detection_kddtest_isolation_forest.json") or {}
+    fam_ocs = load("family_detection_kddtest_one_class_svm.json") or {}
+    table_89 = fam_sum.get("table_8_9") or []
+
+    lines.append("## 9. Table 8.9 — Détection par famille d'attaque (`kddtest`)\n")
+    lines.append(
+        "Taxonomie NSL-KDD : **DoS / Probe / R2L / U2R**. "
+        "Pour chaque famille : *support* = nb de lignes de cette famille dans `kddtest` ; "
+        "*détectées* = nb prédites anomalie ; *taux* = détectées / support.\n"
+    )
+    lines.append(
+        "| Famille | Support | IF détectées | IF taux | OCSVM détectées | OCSVM taux |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|")
+    for row in table_89:
+        lines.append(
+            f"| {row.get('family')} | {row.get('support')} | "
+            f"**{row.get('isolation_forest_detected')}** | "
+            f"**{fmt(row.get('isolation_forest_detection_rate'))}** | "
+            f"**{row.get('one_class_svm_detected')}** | "
+            f"**{fmt(row.get('one_class_svm_detection_rate'))}** |"
+        )
+    # totals
+    if fam_iso.get("all_attacks") and fam_ocs.get("all_attacks"):
+        ai = fam_iso["all_attacks"]
+        ao = fam_ocs["all_attacks"]
+        lines.append(
+            f"| **Toutes attaques** | **{ai.get('support')}** | "
+            f"**{ai.get('detected')}** | **{fmt(ai.get('detection_rate'))}** | "
+            f"**{ao.get('detected')}** | **{fmt(ao.get('detection_rate'))}** |"
+        )
+    lines.append("")
+    # Normal FP context
+    ni = fam_iso.get("normal") or {}
+    no = fam_ocs.get("normal") or {}
+    lines.append("### Normal (faux positifs)\n")
+    lines.append("| Modèle | Support normal | Correct normal (TN) | Faux positifs | TNR |")
+    lines.append("|---|---:|---:|---:|---:|")
+    lines.append(
+        f"| Isolation Forest | {ni.get('support')} | {ni.get('correct_normal')} | "
+        f"{ni.get('false_positive')} | {fmt(ni.get('true_negative_rate'))} |"
+    )
+    lines.append(
+        f"| One-Class SVM | {no.get('support')} | {no.get('correct_normal')} | "
+        f"{no.get('false_positive')} | {fmt(no.get('true_negative_rate'))} |"
+    )
+    lines.append("")
+    lines.append("### Fichiers de prédiction Use Model (pour recalcul)\n")
+    lines.append(
+        "Colonnes : `row_index`, `attack_type`, `attack_family`, `predicted_label`, "
+        "`is_anomaly`, `anomaly_score`.\n"
+    )
+    lines.append(
+        "- Isolation Forest : "
+        "http://46.62.212.226/predictions_kddtest_isolation_forest.csv"
+    )
+    lines.append(
+        "- One-Class SVM : "
+        "http://46.62.212.226/predictions_kddtest_one_class_svm.csv"
+    )
+    lines.append("")
+
+    # optional compact by-label top misses for thesis discussion
+    def top_by_family(fam_obj: dict, family: str, limit: int = 8):
+        rows = [
+            r
+            for r in (fam_obj.get("by_attack_type") or [])
+            if r.get("family") == family
+        ]
+        rows = sorted(rows, key=lambda r: (-(r.get("support") or 0), r.get("attack_type") or ""))
+        return rows[:limit]
+
+    lines.append("### Détail par `attack_type` (support ≥ 1, top par famille)\n")
+    for fam in ("DoS", "Probe", "R2L", "U2R"):
+        lines.append(f"#### {fam}\n")
+        lines.append(
+            "| attack_type | Support | IF détectées | IF taux | OCSVM détectées | OCSVM taux |"
+        )
+        lines.append("|---|---:|---:|---:|---:|---:|")
+        iso_map = {r["attack_type"]: r for r in top_by_family(fam_iso, fam, 50)}
+        ocs_map = {r["attack_type"]: r for r in top_by_family(fam_ocs, fam, 50)}
+        labels = sorted(
+            set(iso_map) | set(ocs_map),
+            key=lambda x: (-(iso_map.get(x, {}).get("support") or 0), x),
+        )
+        for lab in labels:
+            ri = iso_map.get(lab) or {}
+            ro = ocs_map.get(lab) or {}
+            lines.append(
+                f"| {lab} | {ri.get('support') or ro.get('support')} | "
+                f"{ri.get('detected')} | {fmt(ri.get('detection_rate'))} | "
+                f"{ro.get('detected')} | {fmt(ro.get('detection_rate'))} |"
+            )
+        lines.append("")
+
+    lines.append("## 10. Synthèse comparative\n")
     lines.append(
         "| Modèle | Durée train | Contam./nu | Anomaly rate (kddtest) | "
         "Accuracy | Precision | Recall | F1 |"
@@ -334,7 +430,7 @@ def build_md() -> str:
         f"**{fmt(eval_ocs.get('recall'))}** | **{fmt(eval_ocs.get('f1'))}** |"
     )
     lines.append("")
-    lines.append("## 10. Interprétation\n")
+    lines.append("## 11. Interprétation\n")
     lines.append(
         "- Les modèles sont entraînés **uniquement sur du trafic normal** (only-train filtré)."
     )
@@ -357,6 +453,22 @@ def build_md() -> str:
         f"FPR={fmt(eval_ocs.get('false_positive_rate'))}, "
         f"precision={fmt(eval_ocs.get('precision'))})."
     )
+    # family interpretation for thesis Table 8.9 discussion
+    if table_89:
+        def rate(tag_key):
+            return {r["family"]: r.get(tag_key) for r in table_89}
+
+        if_r = rate("isolation_forest_detection_rate")
+        oc_r = rate("one_class_svm_detection_rate")
+        lines.append(
+            f"- Table 8.9 : Probe très bien détecté (IF {fmt(if_r.get('Probe'))}, "
+            f"OCSVM {fmt(oc_r.get('Probe'))}) ; DoS correct "
+            f"(IF {fmt(if_r.get('DoS'))}, OCSVM {fmt(oc_r.get('DoS'))}) ; "
+            f"R2L/U2R nettement plus faibles pour IF "
+            f"(R2L {fmt(if_r.get('R2L'))}, U2R {fmt(if_r.get('U2R'))}) "
+            f"alors qu'OCSVM les récupère mieux "
+            f"(R2L {fmt(oc_r.get('R2L'))}, U2R {fmt(oc_r.get('U2R'))})."
+        )
     lines.append("")
     lines.append(f"*Généré le {datetime.now(MADRID).strftime('%Y-%m-%d %H:%M:%S %Z')}*\n")
     return "\n".join(lines)

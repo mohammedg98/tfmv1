@@ -1,0 +1,359 @@
+{
+  "model_id": 48,
+  "tag": "isolation_forest",
+  "dataset": "kddtest",
+  "n_rows": 22544,
+  "predicted_anomaly": 9410,
+  "predicted_normal": 13134,
+  "anomaly_rate": 0.41740596167494676,
+  "predictions_csv": "/root/tfmv1/backend/training_logs/nsl_anomaly_pipeline_nov5/artifacts/predictions_kddtest_isolation_forest.csv",
+  "family_detection": [
+    {
+      "family": "DoS",
+      "support": 7460,
+      "detected": 5852,
+      "missed": 1608,
+      "detection_rate": 0.7844504021447721
+    },
+    {
+      "family": "Probe",
+      "support": 2421,
+      "detected": 2371,
+      "missed": 50,
+      "detection_rate": 0.9793473771168938
+    },
+    {
+      "family": "R2L",
+      "support": 2885,
+      "detected": 491,
+      "missed": 2394,
+      "detection_rate": 0.17019064124783362
+    },
+    {
+      "family": "U2R",
+      "support": 67,
+      "detected": 21,
+      "missed": 46,
+      "detection_rate": 0.31343283582089554
+    }
+  ],
+  "normal": {
+    "support": 9711,
+    "correct_normal": 9036,
+    "false_positive": 675,
+    "true_negative_rate": 0.9304911955514366
+  },
+  "all_attacks": {
+    "support": 12833,
+    "detected": 8735,
+    "missed": 4098,
+    "detection_rate": 0.6806670303124757
+  },
+  "by_attack_type": [
+    {
+      "attack_type": "normal",
+      "family": "Normal",
+      "support": 9711,
+      "detected": 9036,
+      "missed": 675,
+      "detection_rate": 0.9304911955514366
+    },
+    {
+      "attack_type": "neptune",
+      "family": "DoS",
+      "support": 4657,
+      "detected": 4657,
+      "missed": 0,
+      "detection_rate": 1.0
+    },
+    {
+      "attack_type": "guess_passwd",
+      "family": "R2L",
+      "support": 1231,
+      "detected": 61,
+      "missed": 1170,
+      "detection_rate": 0.04955320877335499
+    },
+    {
+      "attack_type": "mscan",
+      "family": "Probe",
+      "support": 996,
+      "detected": 964,
+      "missed": 32,
+      "detection_rate": 0.9678714859437751
+    },
+    {
+      "attack_type": "warezmaster",
+      "family": "R2L",
+      "support": 944,
+      "detected": 295,
+      "missed": 649,
+      "detection_rate": 0.3125
+    },
+    {
+      "attack_type": "apache2",
+      "family": "DoS",
+      "support": 737,
+      "detected": 596,
+      "missed": 141,
+      "detection_rate": 0.8086838534599728
+    },
+    {
+      "attack_type": "satan",
+      "family": "Probe",
+      "support": 735,
+      "detected": 733,
+      "missed": 2,
+      "detection_rate": 0.9972789115646259
+    },
+    {
+      "attack_type": "processtable",
+      "family": "DoS",
+      "support": 685,
+      "detected": 304,
+      "missed": 381,
+      "detection_rate": 0.44379562043795623
+    },
+    {
+      "attack_type": "smurf",
+      "family": "DoS",
+      "support": 665,
+      "detected": 258,
+      "missed": 407,
+      "detection_rate": 0.3879699248120301
+    },
+    {
+      "attack_type": "back",
+      "family": "DoS",
+      "support": 359,
+      "detected": 0,
+      "missed": 359,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "snmpguess",
+      "family": "R2L",
+      "support": 331,
+      "detected": 0,
+      "missed": 331,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "saint",
+      "family": "Probe",
+      "support": 319,
+      "detected": 312,
+      "missed": 7,
+      "detection_rate": 0.9780564263322884
+    },
+    {
+      "attack_type": "mailbomb",
+      "family": "DoS",
+      "support": 293,
+      "detected": 1,
+      "missed": 292,
+      "detection_rate": 0.0034129692832764505
+    },
+    {
+      "attack_type": "snmpgetattack",
+      "family": "R2L",
+      "support": 178,
+      "detected": 9,
+      "missed": 169,
+      "detection_rate": 0.05056179775280899
+    },
+    {
+      "attack_type": "portsweep",
+      "family": "Probe",
+      "support": 157,
+      "detected": 156,
+      "missed": 1,
+      "detection_rate": 0.9936305732484076
+    },
+    {
+      "attack_type": "ipsweep",
+      "family": "Probe",
+      "support": 141,
+      "detected": 133,
+      "missed": 8,
+      "detection_rate": 0.9432624113475178
+    },
+    {
+      "attack_type": "httptunnel",
+      "family": "R2L",
+      "support": 133,
+      "detected": 110,
+      "missed": 23,
+      "detection_rate": 0.8270676691729323
+    },
+    {
+      "attack_type": "nmap",
+      "family": "Probe",
+      "support": 73,
+      "detected": 73,
+      "missed": 0,
+      "detection_rate": 1.0
+    },
+    {
+      "attack_type": "pod",
+      "family": "DoS",
+      "support": 41,
+      "detected": 29,
+      "missed": 12,
+      "detection_rate": 0.7073170731707317
+    },
+    {
+      "attack_type": "buffer_overflow",
+      "family": "U2R",
+      "support": 20,
+      "detected": 9,
+      "missed": 11,
+      "detection_rate": 0.45
+    },
+    {
+      "attack_type": "multihop",
+      "family": "R2L",
+      "support": 18,
+      "detected": 4,
+      "missed": 14,
+      "detection_rate": 0.2222222222222222
+    },
+    {
+      "attack_type": "named",
+      "family": "R2L",
+      "support": 17,
+      "detected": 5,
+      "missed": 12,
+      "detection_rate": 0.29411764705882354
+    },
+    {
+      "attack_type": "ps",
+      "family": "U2R",
+      "support": 15,
+      "detected": 2,
+      "missed": 13,
+      "detection_rate": 0.13333333333333333
+    },
+    {
+      "attack_type": "sendmail",
+      "family": "R2L",
+      "support": 14,
+      "detected": 0,
+      "missed": 14,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "rootkit",
+      "family": "U2R",
+      "support": 13,
+      "detected": 2,
+      "missed": 11,
+      "detection_rate": 0.15384615384615385
+    },
+    {
+      "attack_type": "xterm",
+      "family": "U2R",
+      "support": 13,
+      "detected": 6,
+      "missed": 7,
+      "detection_rate": 0.46153846153846156
+    },
+    {
+      "attack_type": "teardrop",
+      "family": "DoS",
+      "support": 12,
+      "detected": 0,
+      "missed": 12,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "xlock",
+      "family": "R2L",
+      "support": 9,
+      "detected": 4,
+      "missed": 5,
+      "detection_rate": 0.4444444444444444
+    },
+    {
+      "attack_type": "land",
+      "family": "DoS",
+      "support": 7,
+      "detected": 7,
+      "missed": 0,
+      "detection_rate": 1.0
+    },
+    {
+      "attack_type": "xsnoop",
+      "family": "R2L",
+      "support": 4,
+      "detected": 2,
+      "missed": 2,
+      "detection_rate": 0.5
+    },
+    {
+      "attack_type": "ftp_write",
+      "family": "R2L",
+      "support": 3,
+      "detected": 1,
+      "missed": 2,
+      "detection_rate": 0.3333333333333333
+    },
+    {
+      "attack_type": "loadmodule",
+      "family": "U2R",
+      "support": 2,
+      "detected": 2,
+      "missed": 0,
+      "detection_rate": 1.0
+    },
+    {
+      "attack_type": "perl",
+      "family": "U2R",
+      "support": 2,
+      "detected": 0,
+      "missed": 2,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "phf",
+      "family": "R2L",
+      "support": 2,
+      "detected": 0,
+      "missed": 2,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "sqlattack",
+      "family": "U2R",
+      "support": 2,
+      "detected": 0,
+      "missed": 2,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "udpstorm",
+      "family": "DoS",
+      "support": 2,
+      "detected": 0,
+      "missed": 2,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "worm",
+      "family": "DoS",
+      "support": 2,
+      "detected": 0,
+      "missed": 2,
+      "detection_rate": 0.0
+    },
+    {
+      "attack_type": "imap",
+      "family": "R2L",
+      "support": 1,
+      "detected": 0,
+      "missed": 1,
+      "detection_rate": 0.0
+    }
+  ],
+  "family_map_notes": "NSL-KDD standard taxonomy DoS/Probe/R2L/U2R"
+}

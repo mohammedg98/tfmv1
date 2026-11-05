@@ -11,7 +11,7 @@
 | Dataset CSV (Use Model) | `nsl_only_train_csv_nov5` (copie brute non modifiée) |
 | Target | `attack_type` |
 | Algorithmes | Isolation Forest + One-Class SVM |
-| Date | 2026-11-05 22:25 CET |
+| Date | 2026-11-05 22:26 CET |
 
 ## 2. Pipeline effectué (étape par étape)
 
@@ -201,15 +201,15 @@ Non disponible / non pertinente ici : après filtre, train+test ne contiennent q
 
 | Champ | Valeur |
 |---|---|
-| rows_processed | **None** |
-| n_anomaly | **None** |
-| n_normal | **None** |
-| anomaly_rate | **n/a** (0.0%) |
-| score_min / mean / max | n/a / n/a / n/a |
-| pipeline_applied | None |
-| target_column (display only) | `None` |
-| unexpected columns ignored | `None` |
-| chunks | None × 4000 |
+| rows_processed | **125973** |
+| n_anomaly | **69507** |
+| n_normal | **56466** |
+| anomaly_rate | **0.5518** (55.2%) |
+| score_min / mean / max | -55.2884 / -13.9894 / 30.0683 |
+| pipeline_applied | True |
+| target_column (display only) | `attack_type` |
+| unexpected columns ignored | `['difficulty_level']` |
+| chunks | 32 × 4000 |
 
 Note Use Model : le CSV contient encore toutes les classes d'attaque + `difficulty_level`. Le pipeline sauvegardé (label/one-hot) est réappliqué ; `difficulty_level` est ignoré ; `attack_type` n'est **pas** utilisé comme feature.
 
@@ -218,13 +218,13 @@ Note Use Model : le CSV contient encore toutes les classes d'attaque + `difficul
 | Modèle | Durée train | Contam./nu | Anomaly rate (train normals) | Anomaly rate (CSV full) | Anomalies CSV |
 |---|---:|---:|---:|---:|---:|
 | Isolation Forest | 4.1s | contamination=0.05 | 0.0500 | 0.4516 | 56894 |
-| One-Class SVM | 1m 16s | nu=0.05 | 0.0499 | n/a | None |
+| One-Class SVM | 1m 16s | nu=0.05 | 0.0499 | 0.5518 | 69507 |
 
 ## 8. Interprétation
 
 - Les modèles sont entraînés **uniquement sur du trafic normal** (one-class / anomaly setting).
 - Sur le split interne (aussi 100% normal), le taux d'anomalies ≈ contamination/nu (~5%) : ce sont des faux positifs attendus sur le profil normal.
-- Sur le CSV complet (normal + attaques), le taux d'anomalies monte fortement (IF ≈ 45.2%, OCSVM ≈ 0.0%), ce qui est cohérent avec la présence d'attaques dans le fichier brut.
+- Sur le CSV complet (normal + attaques), le taux d'anomalies monte fortement (IF ≈ 45.2%, OCSVM ≈ 55.2%), ce qui est cohérent avec la présence d'attaques dans le fichier brut.
 - OCSVM est plus agressif que Isolation Forest sur ce CSV (plus d'anomalies déclarées).
 
-*Généré le 2026-11-05 22:25:59 CET*
+*Généré le 2026-11-05 22:26:25 CET*

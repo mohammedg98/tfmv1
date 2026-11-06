@@ -1,8 +1,0 @@
-{
-  "exists": true,
-  "train_count": 53874,
-  "test_count": 13469,
-  "validation_count": 0,
-  "total_rows": 67343,
-  "quick": false
-}

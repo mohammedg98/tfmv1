@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   FaPlus, FaTimes, FaDatabase, FaRobot, FaBox,
@@ -229,6 +229,7 @@ function Dashboard() {
   const [tableLimitExceeded, setTableLimitExceeded] = useState(false);
   const [userTableCount, setUserTableCount] = useState(0);
   const [duplicating, setDuplicating] = useState(false);
+  const [copyProgress, setCopyProgress] = useState(0);
   const [localDatasetInfoText, setLocalDatasetInfoText] = useState("");
 
   // Nouveaux états pour la visualisation
@@ -556,7 +557,7 @@ const handleAddDatasetInfo = async (dataset, e) => {
     };
 
     return (
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ className: "dash-dialog" }}>
+      <Dialog open={open} onClose={duplicating ? undefined : handleClose} maxWidth="sm" fullWidth PaperProps={{ className: "dash-dialog" }}>
         <DialogTitle>
           Start from predefined dataset
         </DialogTitle>
@@ -593,9 +594,25 @@ const handleAddDatasetInfo = async (dataset, e) => {
             autoFocus
             disabled={localTableLimitExceeded}
           />
+          {duplicating && (
+            <Box sx={{ mt: 2 }}>
+              <LinearProgress
+                variant="determinate"
+                value={copyProgress}
+                sx={{
+                  height: 8,
+                  backgroundColor: "#e8e9ea",
+                  "& .MuiLinearProgress-bar": { backgroundColor: "#384850" },
+                }}
+              />
+              <Typography variant="body2" sx={{ mt: 1, color: "#384850" }}>
+                {copyProgress < 70 ? "Copying dataset…" : "Opening preparation…"}
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleClose} disabled={duplicating}>Cancel</Button>
           <Button 
             onClick={handleConfirm} 
             variant="contained"
@@ -1265,7 +1282,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
   // Fetch predefined datasets
   const fetchPredefinedDatasets = async () => {
     try {
-      console.log("🔄 Fetching predefined datasets...");
+      console.log("Fetching predefined datasets...");
       
       const response = await fetch(`${backendUrl}/api/predefined-datasets`, {
         method: "GET",
@@ -1280,7 +1297,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
       setPredefinedDatasets(result.datasets || []);
       
     } catch (err) {
-      console.error("❌ Error fetching predefined datasets:", err);
+      console.error("Error fetching predefined datasets:", err);
       setPredefinedDatasets([]);
     } finally {
       setLoadingPredefined(false);
@@ -1291,6 +1308,7 @@ const DatasetInfoAdminModal = ({ open, onClose, dataset, infoText, onSave, savin
 const handleCreateFromPredefined = async (newDatasetName) => {
   try {
     setDuplicating(true);
+    setCopyProgress(12);
     
     // Spaces → _, uppercase → lowercase (same as Target & Type / upload flow)
     const cleanedDatasetName = normalizeDatasetName(newDatasetName);
@@ -1317,8 +1335,10 @@ const handleCreateFromPredefined = async (newDatasetName) => {
     }
 
     const duplicateResult = await duplicateResponse.json();
-    
+    setCopyProgress(62);
+
     await checkDatasetLimit();
+    setCopyProgress(78);
     
     const dataResponse = await fetch(
       `${backendUrl}/api/get-database-data?dbName=${cleanedDatasetName}`,
@@ -1332,6 +1352,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
     }
 
     const datasetData = await dataResponse.json();
+    setCopyProgress(100);
 
     navigate('/data_preparation', {
       state: {
@@ -1349,6 +1370,7 @@ const handleCreateFromPredefined = async (newDatasetName) => {
     alert(`Error: ${error.message}`);
   } finally {
     setDuplicating(false);
+    setCopyProgress(0);
     setCreateModalOpen(false);
     setSelectedPredefinedDataset(null);
   }

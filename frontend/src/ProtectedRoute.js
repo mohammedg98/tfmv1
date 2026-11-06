@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { backendUrl, frontendUrl } from "./config";
+import { backendUrl } from "./config";
 
 function ProtectedRoute() {
   const [isAuthenticated, setIsAuthenticated] = useState(null);

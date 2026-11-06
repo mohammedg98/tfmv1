@@ -63,7 +63,7 @@ import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; 
 import DownloadIcon from '@mui/icons-material/Download';
-import { backendUrl, frontendUrl } from "../config";
+import { backendUrl } from "../config";
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import {
@@ -74,11 +74,85 @@ import {
   DialogContentText,
   DialogActions,
   IconButton,
-  // ... vos autres imports existants ...
 } from '@mui/material';
 
 
 
+
+const HelpDialog = ({ open, onClose }) => (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ className: "train-dialog" }}>
+        <DialogTitle>
+            <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>Train Model guide</Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+            <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 3 }}>
+                <Typography variant="body2">
+                    <strong>Steps:</strong> choose a model, set parameters, pick a validation method, then start training.
+                    Your data should already be prepared (Target, Clean/Split, Transform).
+                </Typography>
+            </Alert>
+
+            <Typography variant="h6" gutterBottom sx={{ color: '#384850', borderBottom: '1px solid #c8c9ca', pb: 0.5, mt: 2 }}>
+                Models
+            </Typography>
+
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', height: '100%', borderRadius: '2px', boxShadow: 'none' }}>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Regression</Typography>
+                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                            <strong>Ridge:</strong> linear baseline.<br/>
+                            <strong>Random Forest / LightGBM:</strong> strong defaults for tabular data.<br/>
+                            <strong>MLP:</strong> neural net; needs more data and care with scaling.
+                        </Typography>
+                    </Paper>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', height: '100%', borderRadius: '2px', boxShadow: 'none' }}>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Classification</Typography>
+                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                            <strong>Logistic, Random Forest, SVM, KNN, LightGBM, MLP.</strong><br/>
+                            Prefer Random Forest or LightGBM if you are unsure.
+                        </Typography>
+                    </Paper>
+                </Grid>
+                <Grid item xs={12}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', borderRadius: '2px', boxShadow: 'none' }}>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Other</Typography>
+                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                            <strong>K-Means:</strong> clustering (no target).<br/>
+                            <strong>Isolation Forest / One-Class SVM:</strong> anomaly detection.
+                        </Typography>
+                    </Paper>
+                </Grid>
+            </Grid>
+
+            <Typography variant="h6" gutterBottom sx={{ color: '#384850', mt: 2, borderBottom: '1px solid #c8c9ca', pb: 0.5 }}>
+                Validation
+            </Typography>
+            <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                    Estimates how the model behaves on unseen data.
+                    <ul style={{ marginTop: '8px', marginBottom: '4px' }}>
+                        <li><strong>Hold-out:</strong> quick train/validation split inside the training rows</li>
+                        <li><strong>KFold / Repeated / Shuffle:</strong> several folds on training rows</li>
+                        <li><strong>Time Series Split:</strong> chronological folds; needs one date column (used for order only)</li>
+                    </ul>
+                    Final scores also use the fixed train/test split from Clean · Split.
+                </Typography>
+            </Alert>
+
+            <Typography variant="body2" sx={{ mt: 2, p: 2, bgcolor: '#e8e9ea', borderRadius: '2px' }}>
+                After training, save the model if you want to use it later on the Use Model page.
+            </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', p: 2 }}>
+            <Button onClick={onClose} variant="contained" sx={{ bgcolor: '#384850', px: 4, textTransform: 'none', '&:hover': { bgcolor: '#2a3942' } }}>
+                Got it
+            </Button>
+        </DialogActions>
+    </Dialog>
+);
 
 const Creat_Model = ({ embedded = false, bdName: bdNameProp = null } = {}) => {
     const isTrainingRef = useRef(false);
@@ -100,8 +174,9 @@ const [firstTimeOpen, setFirstTimeOpen] = useState(true);
   const [alpha, setAlpha] = useState(1.0);
   const [isTraining, setIsTraining] = useState(false);
   const [result, setResult] = useState(null);
+  const [treePick, setTreePick] = useState({ index: 0, depth: 3, text: "", loading: false, zoom: 13, error: "" });
   const [error, setError] = useState(null);
-  // Server-side save window (Solution 1): 5 minutes after training completes
+  // Server-side save window : 5 minutes after training completes
   const [lastCompletedTrainingId, setLastCompletedTrainingId] = useState(null);
   const [saveAvailableUntil, setSaveAvailableUntil] = useState(null);
 
@@ -251,6 +326,18 @@ useEffect(() => {
     }
 }, [isTraining, firstTimeOpen, state?.bdName]);
 
+useEffect(() => {
+  const meta = result?.metrics?.tree_metadata;
+  setTreePick({
+    index: 0,
+    depth: meta?.view?.default_depth || 3,
+    text: meta?.preview || "",
+    loading: false,
+    zoom: 13,
+    error: "",
+  });
+}, [result]);
+
 const [dateColumn, setDateColumn] = useState(null);
 const [dateColumnOptions, setDateColumnOptions] = useState([]);
 const [timeSeriesParams, setTimeSeriesParams] = useState({
@@ -310,7 +397,6 @@ const renderMlpValidationDetails = () => {
       ...baseItem,
       fold: baseItem.id,
       score: scoreValue
-      // best_epoch SUPPRIMÉ
     };
   });
 
@@ -426,7 +512,6 @@ const renderMlpValidationDetails = () => {
                 <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                   {isClassification ? 'Accuracy' : 'R² Score'}
                 </TableCell>
-                {/* Colonnes Best Epoch et Unique Samples SUPPRIMÉES */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -660,14 +745,14 @@ const renderModelSelectionButtons = () => {
   };
 
   const models = [
-    { id: 'ridge', label: 'Ridge', sub: 'Linear regression', tag: 'Reg' },
-    { id: 'logistic', label: 'Logistic', sub: 'Linear classification', tag: 'Clf' },
+    { id: 'ridge', label: 'Ridge', sub: 'Linear regression', tag: 'Regression' },
+    { id: 'logistic', label: 'Logistic', sub: 'Linear classification', tag: 'Classification' },
     { id: 'random_forest', label: 'Random Forest', sub: 'Ensemble trees', tag: 'Both' },
     { id: 'svm', label: 'SVM', sub: 'Support vectors', tag: 'Both' },
     { id: 'knn', label: 'KNN', sub: 'Nearest neighbors', tag: 'Both' },
     { id: 'lightgbm', label: 'LightGBM', sub: 'Gradient boosting', tag: 'Both' },
     { id: 'mlp', label: 'Neural Net', sub: 'MLP (PyTorch)', tag: 'Both' },
-    { id: 'kmeans', label: 'K-Means', sub: 'Clustering', tag: 'Unsup' },
+    { id: 'kmeans', label: 'K-Means', sub: 'Clustering', tag: 'Unsupervised' },
     { id: 'isolation_forest', label: 'Isolation Forest', sub: 'Anomaly / intrusion', tag: 'Anom' },
     { id: 'one_class_svm', label: 'One-Class SVM', sub: 'Novelty detection', tag: 'Anom' },
   ];
@@ -717,14 +802,6 @@ const renderModelSelectionButtons = () => {
   );
 };
 useEffect(() => {
-  if (!randomForestParams.bootstrap && randomForestParams.oob_score) {
-    setRandomForestParams(prev => ({
-      ...prev,
-      oob_score: false
-    }));
-  }
-}, [randomForestParams.bootstrap]);
-useEffect(() => {
   if (state?.bdName) {
     const initializeDatasetInfo = async () => {
       try {
@@ -743,7 +820,7 @@ useEffect(() => {
         if (detectedCol) {
           setDateColumn(detectedCol);
           setDateColumnDetected(true);
-          console.log(`[DEBUG] 📅 Date column set to: ${detectedCol}`);
+          console.log(`[DEBUG] Date column set to: ${detectedCol}`);
         } else {
           setDateColumnDetected(false);
         }
@@ -755,10 +832,9 @@ useEffect(() => {
     initializeDatasetInfo();
   }
 }, [state?.bdName]);
-// ✅ DÉTECTION GÉNÉRALE ROBUSTE AVEC LOGS DE DEBUG
 const detectProblemType = async () => {
   if (!state?.bdName) {
-    console.log("[DEBUG] ❌ No dataset name available");
+    console.log("[DEBUG] No dataset name available");
     return;
   }
   
@@ -776,7 +852,7 @@ const detectProblemType = async () => {
     );
     
     const detectionResult = response.data;
-    console.log("[DEBUG] ✅ Detection result received:", detectionResult);
+    console.log("[DEBUG] Detection result received:", detectionResult);
     
     // Appliquer les résultats de détection
     const pt = detectionResult.problem_type;
@@ -800,7 +876,7 @@ const detectProblemType = async () => {
     console.log("[DEBUG]  Reason:", detectionResult.reason);
     
   } catch (error) {
-    console.error("[DEBUG] ❌ Error in problem type detection:", error);
+    console.error("[DEBUG] Error in problem type detection:", error);
     
     // Fallback en cas d'erreur
     console.log("[DEBUG] 🆘 FALLBACK: Using conservative detection");
@@ -826,9 +902,9 @@ const detectProblemType = async () => {
 };
 
 
-// ✅ FALLBACK AMÉLIORÉ
+// FALLBACK AMÉLIORÉ
 const fallbackTargetDetection = async (originalBdName) => {
-  console.log("[DEBUG] 🛠️ Using enhanced fallback target detection");
+  console.log("[DEBUG] Using enhanced fallback target detection");
   
   try {
     // Essayer de récupérer des informations basiques
@@ -870,7 +946,7 @@ const fallbackTargetDetection = async (originalBdName) => {
     };
     
   } catch (fallbackError) {
-    console.error("[DEBUG] ❌ Enhanced fallback failed:", fallbackError);
+    console.error("[DEBUG] Enhanced fallback failed:", fallbackError);
     
     // Dernier recours ultra-conservateur
     return {
@@ -1073,25 +1149,9 @@ const renderModelInfoDialog = () => {
               'None: All features'
             ]
           },
-          {
-            name: 'Bootstrap Sampling',
-            type: 'checkbox',
-            description: 'Whether to use bootstrap samples when building trees.',
-            checked: 'Recommended - creates more diverse trees',
-            unchecked: 'Use entire dataset for each tree - less diversity'
-          },
-          {
-            name: 'Calculate OOB Score',
-            type: 'checkbox',
-            description: 'Whether to calculate Out-of-Bag score (requires bootstrap).',
-            checked: 'Provides validation score without separate test set',
-            unchecked: 'No OOB score calculated'
-          }
         ],
         tips: [
           'Start with 100 trees and increase if needed',
-          'Use bootstrap sampling for better performance',
-          'Enable OOB score for free validation',
           'Random Forest handles missing values well'
         ]
       },
@@ -1848,7 +1908,7 @@ const renderInfoDialog = () => {
           </Typography>
           <Typography variant="body2" paragraph>
             Validation methods help evaluate how well your model will perform on unseen data 
-            and prevent overfitting. They split your data to test the model's generalization ability.
+            and prevent overfitting. They split your data to test how well the model generalizes.
           </Typography>
 
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
@@ -1950,12 +2010,7 @@ const renderInfoDialog = () => {
             </Typography>
           </Card>
 
-          <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>Recommendation:</strong> Start with Hold-out for quick testing, use K-Fold for reliable results, 
-              and Bootstrap for small datasets or when you need confidence intervals.
-            </Typography>
-          </Alert>
+          
         </DialogContentText>
       </DialogContent>
       <DialogActions>
@@ -2012,7 +2067,7 @@ const renderValidationParams = () => {
                 <MenuItem value="cv_repeatedkfold">Cross-Validation: Repeated KFold</MenuItem>
                 <MenuItem value="cv_shufflesplit">Cross-Validation: Shuffle Split</MenuItem>
                 
-                {/* ✅ AJOUT : TimeSeriesSplit - actif SEULEMENT si colonne date détectée */}
+                {/* TimeSeriesSplit - actif SEULEMENT si colonne date détectée */}
                 <MenuItem 
                   value="cv_timeseries" 
                   disabled={!dateColumnDetected}
@@ -2026,7 +2081,7 @@ const renderValidationParams = () => {
                 <MenuItem value="bootstrap">Bootstrap</MenuItem>
               </TextField>
               
-              {/* ✅ AJOUT : Message explicatif si TimeSeriesSplit désactivé */}
+              {/* Message explicatif si TimeSeriesSplit désactivé */}
               {validationMethod === 'cv_timeseries' && !dateColumnDetected && (
                 <Alert icon={false} className="train-alert" severity="warning" sx={{ mt: 1 }}>
                   <Typography variant="body2">
@@ -2036,7 +2091,7 @@ const renderValidationParams = () => {
                 </Alert>
               )}
               
-              {/* ✅ AJOUT : Message quand TimeSeriesSplit est sélectionné */}
+              {/* Message quand TimeSeriesSplit est sélectionné */}
               {validationMethod === 'cv_timeseries' && dateColumnDetected && (
                 <Alert severity="info" icon={false} className="train-alert" sx={{ mt: 1 }}>
                   <Typography variant="body2">
@@ -2083,7 +2138,6 @@ const renderValidationParams = () => {
             </Alert>
           )}
           
-          {/* ✅ AJOUT : Paramètres pour TimeSeriesSplit */}
           {validationMethod === 'cv_timeseries' && dateColumnDetected && (
             <Box sx={{ mt: 2, p: 2, border: '1px solid #c8c9ca', borderRadius: '2px', width: '100%', bgcolor: '#e8e9ea' }}>
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: '#384850' }}>
@@ -2367,7 +2421,7 @@ const handleSaveModel = async (modelNameToSave) => {
       throw new Error("No column information available after filtering. Cannot save model.");
     }
 
-    // ✅ CORRECTION : Sauvegarde des scores selon le type de modèle
+    // Sauvegarde des scores selon le type de modèle
     // model_object is NOT trusted by the server: training_id selects the server copy
     const saveData = {
       model_name: nameToSave,
@@ -2379,7 +2433,7 @@ const handleSaveModel = async (modelNameToSave) => {
       algorithm: modelType,
     };
 
-    // ✅ CORRECTION AMÉLIORÉE : Sauvegarder les scores selon le type de problème
+    // Sauvegarder les scores selon le type de problème
     const isClassificationModel = modelType === 'logistic' || 
                                  modelType === 'svm' || 
                                  modelType === 'knn' ||
@@ -2571,81 +2625,7 @@ const isAnomalyAlgo = (mt = modelType) =>
 
 
 
-const HelpDialog = ({ open, onClose }) => (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ className: "train-dialog" }}>
-        <DialogTitle>
-            <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>Train Model guide</Typography>
-        </DialogTitle>
-        <DialogContent dividers>
-            <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 3 }}>
-                <Typography variant="body2">
-                    <strong>Steps:</strong> choose a model, set parameters, pick a validation method, then start training.
-                    Your data should already be prepared (Target, Clean/Split, Transform).
-                </Typography>
-            </Alert>
 
-            <Typography variant="h6" gutterBottom sx={{ color: '#384850', borderBottom: '1px solid #c8c9ca', pb: 0.5, mt: 2 }}>
-                Models
-            </Typography>
-
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={6}>
-                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', height: '100%', borderRadius: '2px', boxShadow: 'none' }}>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Regression</Typography>
-                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
-                            <strong>Ridge:</strong> linear baseline.<br/>
-                            <strong>Random Forest / LightGBM:</strong> strong defaults for tabular data.<br/>
-                            <strong>MLP:</strong> neural net; needs more data and care with scaling.
-                        </Typography>
-                    </Paper>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', height: '100%', borderRadius: '2px', boxShadow: 'none' }}>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Classification</Typography>
-                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
-                            <strong>Logistic, Random Forest, SVM, KNN, LightGBM, MLP.</strong><br/>
-                            Prefer Random Forest or LightGBM if you are unsure.
-                        </Typography>
-                    </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f3f4f5', borderRadius: '2px', boxShadow: 'none' }}>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Other</Typography>
-                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
-                            <strong>K-Means:</strong> clustering (no target).<br/>
-                            <strong>Isolation Forest / One-Class SVM:</strong> anomaly detection.
-                        </Typography>
-                    </Paper>
-                </Grid>
-            </Grid>
-
-            <Typography variant="h6" gutterBottom sx={{ color: '#384850', mt: 2, borderBottom: '1px solid #c8c9ca', pb: 0.5 }}>
-                Validation
-            </Typography>
-            <Alert severity="info" icon={false} className="train-alert" sx={{ mb: 2 }}>
-                <Typography variant="body2">
-                    Estimates how the model behaves on unseen data.
-                    <ul style={{ marginTop: '8px', marginBottom: '4px' }}>
-                        <li><strong>Hold-out:</strong> quick train/validation split inside the training rows</li>
-                        <li><strong>KFold / Repeated / Shuffle:</strong> several folds on training rows</li>
-                        <li><strong>Bootstrap:</strong> resampling; useful on small sets</li>
-                        <li><strong>Time Series Split:</strong> chronological folds; needs one date column (used for order only)</li>
-                    </ul>
-                    Final scores also use the fixed train/test split from Clean · Split.
-                </Typography>
-            </Alert>
-
-            <Typography variant="body2" sx={{ mt: 2, p: 2, bgcolor: '#e8e9ea', borderRadius: '2px' }}>
-                After training, save the model if you want to use it later on the Use Model page.
-            </Typography>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', p: 2 }}>
-            <Button onClick={onClose} variant="contained" sx={{ bgcolor: '#384850', px: 4, textTransform: 'none', '&:hover': { bgcolor: '#2a3942' } }}>
-                Got it
-            </Button>
-        </DialogActions>
-    </Dialog>
-);
 
 
 
@@ -2657,7 +2637,7 @@ const SaveModelDialog = ({
   onClose, 
   onSave, 
   isLoading,
-  error, // ✅ Ajouter la prop error
+  error,
   saveAvailableUntil = null,
 }) => {
   const [localModelName, setLocalModelName] = useState('');
@@ -2692,7 +2672,6 @@ const SaveModelDialog = ({
       ? 5
       : Math.max(1, Math.ceil(secondsLeft / 60));
 
-  // ✅ Afficher les erreurs de sauvegarde
   useEffect(() => {
     if (error) {
       // Vous pouvez choisir d'afficher l'erreur dans la dialog
@@ -2773,7 +2752,7 @@ const SaveModelDialog = ({
     <Dialog 
       open={open} 
       onClose={handleClose}
-      disableEscapeKeyDown={isLoading} // ✅ Empêcher la fermeture pendant le chargement
+      disableEscapeKeyDown={isLoading}
       maxWidth="sm"
       fullWidth
       PaperProps={{ className: "train-dialog" }}
@@ -2783,7 +2762,6 @@ const SaveModelDialog = ({
       </DialogTitle>
       
       <DialogContent>
-        {/* ✅ AFFICHER LES ERREURS DE SAUVEGARDE */}
         {error && (
           <Alert severity="error" icon={false} className="train-alert" sx={{ mb: 2 }}>
             <Typography variant="body2">
@@ -3338,7 +3316,7 @@ const detectDateColumn = async () => {
         .map((c) => c.column_name)
         .filter((n) => n && n !== "id" && n !== "split_type");
       if (dates.length > 0) {
-        console.log(`[DEBUG] ✅ Date columns from analyze-column-types:`, dates);
+        console.log(`[DEBUG] Date columns from analyze-column-types:`, dates);
         setDateColumnOptions(dates);
         return dates[0];
       }
@@ -3402,11 +3380,11 @@ const detectDateColumn = async () => {
 
     setDateColumnOptions(found);
     if (found.length > 0) {
-      console.log(`[DEBUG] ✅ Date column detected: ${found[0]}`);
+      console.log(`[DEBUG] Date column detected: ${found[0]}`);
       return found[0];
     }
     
-    console.log("[DEBUG] ❌ No date column found");
+    console.log("[DEBUG] No date column found");
     return null;
     
   } catch (error) {
@@ -4415,7 +4393,7 @@ const validateLogisticParams = (params) => {
     errors.push("Liblinear does not support 'multinomial'. Use 'ovr' or change solver.");
   }
 
-  // ✅ NOUVELLE VALIDATION : l1_ratio pour ElasticNet
+  // NOUVELLE VALIDATION : l1_ratio pour ElasticNet
   if (params.penalty === 'elasticnet') {
     if (params.solver !== 'saga') {
       errors.push("ElasticNet requires solver 'saga'");
@@ -5581,7 +5559,7 @@ const renderKnnResults = () => {
 
 
 const renderFeatureImportanceChart = () => {
-  // ✅ CORRECTION : Vérifier d'abord dans les métriques
+  // Vérifier d'abord dans les métriques
   const featureImportanceData = result?.metrics?.feature_importances || 
                                 result?.metrics?.feature_importance || 
                                 featureImportance;
@@ -5845,7 +5823,6 @@ const renderRandomForestParams = () => {
 
   return (
     <Grid container spacing={2}>
-      {/* ✅ CORRIGÉ : Chaque paramètre dans sa propre Grid item */}
       <Grid item xs={12} md={6}>
         <TextField
           label="Number of trees"
@@ -5920,30 +5897,6 @@ const renderRandomForestParams = () => {
         </TextField>
       </Grid>
       
-      {/* ✅ CORRIGÉ : Checkboxes bien séparées */}
-      <Grid item xs={12} md={6}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={randomForestParams.bootstrap}
-              onChange={(e) => handleRandomForestParamChange('bootstrap', e.target.checked)}
-            />
-          }
-          label="Bootstrap sampling (recommended)"
-        />
-      </Grid>
-      
-      <Grid item xs={12} md={6}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={randomForestParams.oob_score}
-              onChange={(e) => handleRandomForestParamChange('oob_score', e.target.checked)}
-            />
-          }
-          label="Calculate OOB score (requires bootstrap)"
-        />
-      </Grid>
 
      
     </Grid>
@@ -5959,10 +5912,62 @@ useEffect(() => {
     rfParams: randomForestParams
   });
 }, [isClassification, randomForestParams]);
+const loadForestTree = async (index, depth) => {
+  const meta = result?.metrics?.tree_metadata;
+  const view = meta?.view || { min_depth: 3, max_depth: 5 };
+  const nTrees = meta?.n_trees || 1;
+  const minD = view.min_depth || 2;
+  const maxD = view.max_depth || minD;
+  const depthUsed = Math.max(minD, Math.min(maxD, depth));
+  const indexUsed = Math.max(0, Math.min(nTrees - 1, index));
+  if (!lastCompletedTrainingId) {
+    setTreePick((p) => ({ ...p, index: indexUsed, depth: depthUsed, error: "Train again to open another tree." }));
+    return;
+  }
+  setTreePick((p) => ({ ...p, index: indexUsed, depth: depthUsed, loading: true, error: "" }));
+  try {
+    const res = await axios.post(
+      `${backendUrl}/api/forest-tree`,
+      { training_id: lastCompletedTrainingId, tree_index: indexUsed, max_depth: depthUsed },
+      { withCredentials: true }
+    );
+    setTreePick((p) => ({
+      ...p,
+      index: res.data.tree_index,
+      depth: res.data.max_depth,
+      text: res.data.text || "",
+      loading: false,
+      error: "",
+    }));
+  } catch (err) {
+    setTreePick((p) => ({
+      ...p,
+      loading: false,
+      error: "This forest is no longer available on the server. Train again to browse trees.",
+    }));
+  }
+};
+
 const renderTreeVisualization = () => {
   if (!result?.metrics?.tree_metadata) return null;
   
   const treeData = result.metrics.tree_metadata;
+  const nTrees = treeData.n_trees || 1;
+  const avgDepth = Number(treeData.avg_depth || 0);
+  const view = treeData.view || {
+    min_depth: 3,
+    max_depth: avgDepth >= 12 ? 5 : 3,
+    default_depth: 3,
+    zoom: false,
+    show_importance: avgDepth >= 12,
+    why: "This forest has " + nTrees + " trees. The box below shows one tree at a time, with a depth limit, so a large forest stays readable.",
+  };
+  const importance = result.metrics?.feature_importance || {};
+  const topImportance = Object.entries(importance)
+    .filter((pair) => pair[1] !== null && pair[1] !== undefined && !Number.isNaN(Number(pair[1])))
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .slice(0, 8);
+  const maxImportance = topImportance.length ? Number(topImportance[0][1]) || 1 : 1;
   const validationData = result.metrics?.validation_results;
   const isClassification = result.metrics?.is_classification;
   
@@ -5983,22 +5988,143 @@ const renderTreeVisualization = () => {
             <Grid item xs={6} md={3}>
               <Typography>Avg leaves: {treeData.avg_leaves ? treeData.avg_leaves.toFixed(1) : 'N/A'}</Typography>
             </Grid>
-            <Grid item xs={6} md={3}>
-              <Typography>
-                OOB Score: {treeData.oob_score !== null && treeData.oob_score !== undefined ? 
-                  treeData.oob_score.toFixed(4) : 
-                  (treeData.bootstrap_used ? 'Not available' : 'Bootstrap disabled')}
-              </Typography>
-            </Grid>
           </Grid>
-          
-          {/* Information sur les paramètres utilisés */}
-          {treeData.bootstrap_used !== undefined && (
+        </CardContent>
+      </Card>
+
+
+      <Card sx={{ mt: 2 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Tree view
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#384850", mb: 1.5 }}>
+            {view.why}
+          </Typography>
+          <Box sx={{ display: "flex", gap: 3, alignItems: "center", flexWrap: "wrap" }}>
+            {nTrees > 1 && (
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <Typography variant="body2">Tree</Typography>
+                <Box
+                  component="input"
+                  type="number"
+                  min={1}
+                  max={nTrees}
+                  value={treePick.index + 1}
+                  onChange={(e) => {
+                    const raw = parseInt(e.target.value || "1", 10);
+                    const n = Number.isNaN(raw) ? 1 : raw;
+                    loadForestTree(n - 1, treePick.depth || view.default_depth || 3);
+                  }}
+                  sx={{
+                    width: 88,
+                    padding: "4px 8px",
+                    border: "1px solid #c8c9ca",
+                    color: "#384850",
+                    background: "#fff",
+                    font: "inherit",
+                  }}
+                />
+                <Typography variant="body2">of {nTrees}</Typography>
+              </Box>
+            )}
+            {view.max_depth > view.min_depth && (
+              <Box sx={{ minWidth: 220 }}>
+                <Typography variant="body2">Depth limit: {treePick.depth}</Typography>
+                <Box
+                  component="input"
+                  type="range"
+                  min={view.min_depth}
+                  max={view.max_depth}
+                  value={treePick.depth}
+                  onChange={(e) => {
+                    const depth = parseInt(e.target.value, 10);
+                    setTreePick((p) => ({ ...p, depth }));
+                  }}
+                  onMouseUp={(e) => loadForestTree(treePick.index, parseInt(e.target.value, 10))}
+                  onTouchEnd={(e) => loadForestTree(treePick.index, parseInt(e.target.value, 10))}
+                  onKeyUp={(e) => loadForestTree(treePick.index, parseInt(e.target.value, 10))}
+                  sx={{ width: "100%", accentColor: "#384850" }}
+                />
+              </Box>
+            )}
+            {view.zoom && (
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Button
+                  variant="contained"
+                  onClick={() => setTreePick((p) => ({ ...p, zoom: Math.min(20, (p.zoom || 13) + 2) }))}
+                  sx={{ bgcolor: "#384850", textTransform: "none", "&:hover": { bgcolor: "#2a3942" } }}
+                >
+                  Zoom in
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => setTreePick((p) => ({ ...p, zoom: Math.max(11, (p.zoom || 13) - 2) }))}
+                  sx={{ color: "#384850", borderColor: "#c8c9ca", textTransform: "none" }}
+                >
+                  Zoom out
+                </Button>
+              </Box>
+            )}
+          </Box>
+          <Typography variant="body2" sx={{ mt: 1.5, color: "#384850" }}>
+            {`Showing tree ${treePick.index + 1} of ${nTrees}, depth limit ${treePick.depth}.`}
+            {avgDepth > Number(treePick.depth || 0)
+              ? ` The average tree in this forest is about ${Math.round(avgDepth)} levels, so deeper branches stay hidden.`
+              : ""}
+            {" A line that says truncated branch is a real branch hidden by this depth limit."}
+          </Typography>
+          {treePick.loading && (
+            <Typography variant="body2" sx={{ mt: 1, color: "#384850" }}>
+              Opening this tree...
+            </Typography>
+          )}
+          {treePick.error && (
+            <Typography variant="body2" sx={{ mt: 1, color: "#384850" }}>
+              {treePick.error}
+            </Typography>
+          )}
+          {(treePick.text || treeData.preview) ? (
+            <Box
+              component="pre"
+              sx={{
+                mt: 1.5,
+                p: 1.5,
+                overflow: "auto",
+                maxHeight: 420,
+                whiteSpace: "pre",
+                background: "#f3f4f5",
+                color: "#384850",
+                fontSize: treePick.zoom || 13,
+                lineHeight: 1.45,
+                border: "1px solid #c8c9ca",
+              }}
+            >
+              {treePick.text || treeData.preview}
+            </Box>
+          ) : (
+            <Typography variant="body2" sx={{ mt: 2, color: "#384850" }}>
+              Train again to see one tree.
+            </Typography>
+          )}
+          {view.show_importance && topImportance.length > 0 && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Bootstrap: {treeData.bootstrap_used ? 'Enabled' : 'Disabled'} | 
-                OOB Calculation: {treeData.oob_score_requested ? 'Requested' : 'Not requested'}
+              <Typography variant="subtitle1" sx={{ color: "#384850", fontWeight: 700 }}>
+                Feature importance
               </Typography>
+              <Typography variant="body2" sx={{ color: "#384850", mb: 1 }}>
+                These scores come from the whole forest, not from the single tree above. A longer bar means the column is used more often when the trees make a decision.
+              </Typography>
+              {topImportance.map(([name, value]) => (
+                <Box key={name} sx={{ mb: 0.75 }}>
+                  <Typography variant="caption" sx={{ color: "#384850" }}>
+                    {name} ({Number(value).toFixed(3)})
+                  </Typography>
+                  <Box sx={{ height: 8, background: "#e8e9ea" }}>
+                    <Box sx={{ width: `${Math.max(2, (Number(value) / maxImportance) * 100)}%`, height: 8, background: "#384850" }} />
+                  </Box>
+                </Box>
+              ))}
             </Box>
           )}
         </CardContent>
@@ -6069,12 +6195,6 @@ const renderTreeVisualization = () => {
               </Grid>
               <Grid item xs={6} md={3}>
                 <Typography>max_features: {result.metrics.final_params_used.max_features?.toString() || 'auto'}</Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography>bootstrap: {result.metrics.final_params_used.bootstrap ? 'Yes' : 'No'}</Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography>oob_score: {result.metrics.final_params_used.oob_score ? 'Yes' : 'No'}</Typography>
               </Grid>
             </Grid>
           </CardContent>
@@ -6669,7 +6789,7 @@ const renderRandomForestValidationDetails = () => {
   if (isTimeSeries) {
     details = validationData.fold_details || [];
     methodLabel = 'Time Series Fold';
-    scoreProperty = 'val_score';  // ✅ Le backend utilise 'val_score'
+    scoreProperty = 'val_score';
     
     console.log("[RANDOM FOREST]  TimeSeriesSplit validation details:", {
       n_folds: details.length,
@@ -6706,7 +6826,7 @@ const renderRandomForestValidationDetails = () => {
     let scoreValue = 0;
     let trainScoreValue = 0;
     
-    // ✅ Pour TimeSeries, le backend utilise 'val_score' et 'train_score'
+    // Pour TimeSeries, le backend utilise 'val_score' et 'train_score'
     if (isTimeSeries) {
       scoreValue = item.val_score || 0;
       trainScoreValue = item.train_score || 0;
@@ -6748,7 +6868,7 @@ const renderRandomForestValidationDetails = () => {
   let bestScore = 0;
   
   if (isTimeSeries) {
-    // ✅ Pour TimeSeries, le backend fournit ces champs
+    // Pour TimeSeries, le backend fournit ces champs
     meanScore = validationData.mean_score || validationData.cv_validation_r2_mean || 0;
     stdScore = validationData.std_score || validationData.cv_validation_r2_std || 0;
     bestScore = validationData.best_score || validationData.best_fold_score || 0;
@@ -7532,13 +7652,13 @@ const renderRidgeValidationDetails = () => {
 
   const validationData = result.metrics.validation_results;
   
-  // ✅ DÉTERMINER LA MÉTHODE DE VALIDATION
+  // DÉTERMINER LA MÉTHODE DE VALIDATION
   const isHoldout = validationData.method?.includes('Hold-Out');
   const isBootstrap = validationData.method?.includes('Bootstrap');
   const isCV = validationData.method?.includes('Cross-Validation');
   const isTimeSeries = validationData.method?.includes('TimeSeries');
   
-  // ✅ RÉCUPÉRER LES DÉTAILS SELON LA MÉTHODE
+  // RÉCUPÉRER LES DÉTAILS SELON LA MÉTHODE
   let details = [];
   let methodLabel = '';
   let scoreProperty = 'validation_r2';
@@ -7556,7 +7676,7 @@ const renderRidgeValidationDetails = () => {
     methodLabel = 'Fold';
     scoreProperty = 'outer_val_score';
   } else if (isTimeSeries) {
-    // ✅ NOUVEAU : TimeSeriesSplit
+    // TimeSeriesSplit
     details = validationData.fold_details || [];
     methodLabel = 'Time Series Fold';
     scoreProperty = 'validation_r2';
@@ -7571,7 +7691,7 @@ const renderRidgeValidationDetails = () => {
 
   const hasDetails = details.length > 0;
   
-  // ✅ PRÉPARER LES DONNÉES POUR LE GRAPHIQUE
+  // PRÉPARER LES DONNÉES POUR LE GRAPHIQUE
   let chartData = [];
   if (hasDetails) {
     chartData = details.map(item => {
@@ -7601,7 +7721,7 @@ const renderRidgeValidationDetails = () => {
   }
 
   if (!hasDetails) {
-    console.log("[RIDGE] ⚠️ No validation details available");
+    console.log("[RIDGE] No validation details available");
     return null;
   }
 
@@ -8121,7 +8241,6 @@ const renderLightGBMValidationDetails = () => {
       ...baseItem,
       fold: baseItem.id,
       score: scoreValue
-      // best_iteration a été supprimé
     };
   });
 
@@ -8237,7 +8356,6 @@ const renderLightGBMValidationDetails = () => {
                 <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                   {isClassification ? 'Accuracy' : 'R² Score'}
                 </TableCell>
-                {/* La colonne Best Iteration a été supprimée */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -8273,7 +8391,6 @@ const renderLightGBMValidationDetails = () => {
                     >
                       {displayScore.toFixed(4)}
                     </TableCell>
-                    {/* La cellule Best Iteration a été supprimée */}
                   </TableRow>
                 );
               })}
@@ -8447,9 +8564,6 @@ const getAllTrainingParamErrors = () => {
     }
     if (!randomForestParams.min_samples_leaf || randomForestParams.min_samples_leaf < 1) {
       errors.push('Random Forest: min_samples_leaf must be ≥ 1');
-    }
-    if (randomForestParams.oob_score && !randomForestParams.bootstrap) {
-      errors.push('Random Forest: OOB score requires bootstrap = true');
     }
     if (randomForestParams.max_depth != null && randomForestParams.max_depth !== '' && Number(randomForestParams.max_depth) < 1) {
       errors.push('Random Forest: max_depth must be ≥ 1 (or empty for unlimited)');
@@ -8633,13 +8747,13 @@ const handleTrain = async () => {
     return;
   }
   
-  // ✅ NETTOYER L'ANCIEN INTERVALLE
+  // NETTOYER L'ANCIEN INTERVALLE
   if (trainingInterval) {
     clearInterval(trainingInterval);
     setTrainingInterval(null);
   }
   
-  // ✅ ARRÊTER L'ANCIEN ENTRAÎNEMENT S'IL EXISTE (non-blocking for UI)
+  // ARRÊTER L'ANCIEN ENTRAÎNEMENT S'IL EXISTE (non-blocking for UI)
   const oldTrainingId = localStorage.getItem('current_training_id'); 
   if (oldTrainingId) {
     try { 
@@ -8648,20 +8762,20 @@ const handleTrain = async () => {
     localStorage.removeItem('current_training_id');
   }
   
-  // ✅ NETTOYER LES TRAININGS ORPHELINS
+  // NETTOYER LES TRAININGS ORPHELINS
   cleanupCompletedTrainings();
   
-  // ✅ CRÉER UN NOUVEL ID UNIQUE (no artificial 1s delay)
+  // CRÉER UN NOUVEL ID UNIQUE (no artificial 1s delay)
   const trainingId = `${modelType}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
   console.log("🆕 New training ID:", trainingId);
   
-  // ✅ STOCKER L'ID DANS LOCALSTORAGE AVANT LA REQUÊTE
+  // STOCKER L'ID DANS LOCALSTORAGE AVANT LA REQUÊTE
   localStorage.setItem('current_training_id', trainingId);
   setCurrentTrainingId(trainingId);
   setLastCompletedTrainingId(null);
   setSaveAvailableUntil(null);
   
-  // ✅ DÉMARRER LE POLLING IMMÉDIATEMENT (avant d'attendre la réponse)
+  // DÉMARRER LE POLLING IMMÉDIATEMENT (avant d'attendre la réponse)
   pollTrainingStatus(trainingId);
   
   try {
@@ -8678,7 +8792,7 @@ const handleTrain = async () => {
       training_id: trainingId,
     };
 
-    // ✅ AJOUT : Date column pour TimeSeriesSplit si détectée
+    // Date column pour TimeSeriesSplit si détectée
     if (dateColumnDetected && dateColumn) {
       requestData.date_column = dateColumn;
       console.log(`[DEBUG] Date column added to request: ${dateColumn}`);
@@ -8694,16 +8808,16 @@ const handleTrain = async () => {
         requestData.n_repetitions = nRepetitions;
         console.log(`[RIDGE]  Hold-Out validation with ${nRepetitions} repetitions`);
       } else if (validationMethod === 'cv_timeseries') {
-        // ✅ TimeSeriesSplit pour Ridge
+        // TimeSeriesSplit pour Ridge
         requestData.time_series_column = dateColumn;
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
         
         console.log(`[RIDGE]  TimeSeriesSplit validation enabled`);
-        console.log(`[RIDGE] 📅 Date column: ${dateColumn}`);
+        console.log(`[RIDGE] Date column: ${dateColumn}`);
         console.log(`[RIDGE]  Parameters:`, timeSeriesParams);
-        console.log(`[RIDGE] ⚠️ NOTE: Date column will ONLY be used for chronological splitting`);
-        console.log(`[RIDGE] ⚠️ Date column will NOT be used as a feature in training`);
+        console.log(`[RIDGE] NOTE: Date column will ONLY be used for chronological splitting`);
+        console.log(`[RIDGE] Date column will NOT be used as a feature in training`);
       } else if (validationMethod.startsWith('cv_')) {
         requestData.cv_params = cvParams;
       } else if (validationMethod === 'bootstrap') {
@@ -8730,7 +8844,7 @@ const handleTrain = async () => {
       if (validationMethod === 'holdout') {
         requestData.n_repetitions = nRepetitions;
       } else if (validationMethod === 'cv_timeseries') {
-        // ✅ TimeSeriesSplit pour Logistic
+        // TimeSeriesSplit pour Logistic
         requestData.time_series_column = dateColumn;
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
@@ -8763,8 +8877,8 @@ const handleTrain = async () => {
       requestData.min_samples_split = randomForestParams.min_samples_split;
       requestData.min_samples_leaf = randomForestParams.min_samples_leaf;
       requestData.max_features = randomForestParams.max_features;
-      requestData.bootstrap = randomForestParams.bootstrap;
-      requestData.oob_score = randomForestParams.oob_score;
+      requestData.bootstrap = true;
+      requestData.oob_score = false;
       requestData.random_state = randomForestParams.random_state;
       requestData.n_jobs = randomForestParams.n_jobs;
       requestData.validation_method = validationMethod;
@@ -8779,7 +8893,7 @@ const handleTrain = async () => {
         requestData.validation_method = 'cv_timeseries';
         
         console.log(`[RANDOM FOREST]  TimeSeriesSplit validation enabled`);
-        console.log(`[RANDOM FOREST] 📅 Date column: ${dateColumn}`);
+        console.log(`[RANDOM FOREST] Date column: ${dateColumn}`);
         console.log(`[RANDOM FOREST]  Parameters:`, timeSeriesParams);
       } else if (validationMethod.startsWith('cv_')) {
         requestData.cv_params = cvParams;
@@ -8802,7 +8916,7 @@ const handleTrain = async () => {
       if (validationMethod === 'holdout') {
         requestData.n_repetitions = nRepetitions;
       } else if (validationMethod === 'cv_timeseries') {
-        // ✅ TimeSeriesSplit pour SVM
+        // TimeSeriesSplit pour SVM
         requestData.time_series_column = dateColumn;
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
@@ -8828,7 +8942,7 @@ const handleTrain = async () => {
       if (validationMethod === 'holdout') {
         requestData.n_repetitions = nRepetitions;
       } else if (validationMethod === 'cv_timeseries') {
-        // ✅ TimeSeriesSplit pour KNN
+        // TimeSeriesSplit pour KNN
         requestData.time_series_column = dateColumn;
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
@@ -8862,7 +8976,7 @@ const handleTrain = async () => {
       if (validationMethod === 'holdout') {
         requestData.n_repetitions = nRepetitions;
       } else if (validationMethod === 'cv_timeseries') {
-        // ✅ TimeSeriesSplit pour LightGBM
+        // TimeSeriesSplit pour LightGBM
         requestData.time_series_column = dateColumn;
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
@@ -8891,7 +9005,7 @@ const handleTrain = async () => {
       if (validationMethod === 'holdout') {
         requestData.n_repetitions = nRepetitions;
       } else if (validationMethod === 'cv_timeseries') {
-        // ✅ TimeSeriesSplit pour MLP
+        // TimeSeriesSplit pour MLP
         requestData.time_series_column = dateColumn;
         requestData.time_series_params = timeSeriesParams;
         requestData.validation_method = 'cv_timeseries';
@@ -8972,8 +9086,8 @@ const handleTrain = async () => {
                       ? `${backendUrl}/api/train-anomaly`
                       : `${backendUrl}/api/ridge`;
 
-    console.log("📤 Sending training request with ID:", trainingId);
-    console.log("📦 Request data:", JSON.stringify(requestData, null, 2));
+    console.log("Sending training request with ID:", trainingId);
+    console.log("Request data:", JSON.stringify(requestData, null, 2));
     setLastRequestData(requestData);
 
     const response = await axios.post(
@@ -8988,34 +9102,34 @@ const handleTrain = async () => {
       }
     );
 
-    // ✅ GESTION DE LA RÉPONSE
+    // GESTION DE LA RÉPONSE
     if (response.data.status === "training_started") {
-      console.log("✅ Training started in background with ID:", trainingId);
+      console.log("Training started in background with ID:", trainingId);
       
-      // ✅ S'assurer que isTraining est toujours true
+      // S'assurer que isTraining est toujours true
       setIsTraining(true);
       isTrainingRef.current = true;
       
-      // ✅ Le polling est déjà en cours (démarré avant la requête)
+      // Le polling est déjà en cours (démarré avant la requête)
       
     } else {
-      // ✅ Entraînement terminé immédiatement
-      console.log("✅ Training completed immediately");
+      // Entraînement terminé immédiatement
+      console.log("Training completed immediately");
       
-      // ✅ FORCER l'arrêt proprement
+      // FORCER l'arrêt proprement
       setIsTraining(false);
       isTrainingRef.current = false;
       
-      // ✅ Nettoyer l'ancien ID
+      // Nettoyer l'ancien ID
       if (oldTrainingId && oldTrainingId !== trainingId) {
         localStorage.removeItem(`training_${oldTrainingId}`);
       }
       
-      // ✅ Nettoyer le localStorage
+      // Nettoyer le localStorage
       localStorage.removeItem('current_training_id');
       setCurrentTrainingId(null);
       
-      // ✅ Nettoyer l'intervalle
+      // Nettoyer l'intervalle
       if (trainingInterval) {
         clearInterval(trainingInterval);
         setTrainingInterval(null);
@@ -9028,19 +9142,19 @@ const handleTrain = async () => {
     }
 
   } catch (err) {
-    // ✅ TIMEOUT = NORMAL, C'EST LE MODE ASYNCHRONE (polling déjà démarré)
+    // TIMEOUT = NORMAL, C'EST LE MODE ASYNCHRONE (polling déjà démarré)
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
       console.log(" Training started in background (timeout) with ID:", trainingId);
       
-      // ✅ S'assurer que isTraining est toujours true
+      // S'assurer que isTraining est toujours true
       setIsTraining(true);
       isTrainingRef.current = true;
       
-      // ✅ Le polling est déjà en cours
+      // Le polling est déjà en cours
       return;
     }
     
-    // ❌ GESTION DES AUTRES ERREURS
+    // GESTION DES AUTRES ERREURS
     let errorMessage = "Unknown error during training";
     
     if (err.response?.data) {
@@ -9058,17 +9172,17 @@ const handleTrain = async () => {
     }
 
     setError(errorMessage);
-    console.error("❌ Training error:", err);
+    console.error("Training error:", err);
     
-    // ✅ FORCER l'arrêt en cas d'erreur
+    // FORCER l'arrêt en cas d'erreur
     setIsTraining(false);
     isTrainingRef.current = false;
     
-    // ✅ NETTOYER LE LOCALSTORAGE
+    // NETTOYER LE LOCALSTORAGE
     localStorage.removeItem('current_training_id');
     setCurrentTrainingId(null);
     
-    // ✅ NETTOYER L'INTERVALLE
+    // NETTOYER L'INTERVALLE
     if (trainingInterval) {
       clearInterval(trainingInterval);
       setTrainingInterval(null);
@@ -9079,7 +9193,7 @@ const handleTrain = async () => {
 const pollTrainingStatus = (trainingId) => {
   console.log(" Polling started for:", trainingId);
   
-  // ✅ NETTOYER L'ANCIEN INTERVALLE
+  // NETTOYER L'ANCIEN INTERVALLE
   if (trainingInterval) {
     clearInterval(trainingInterval);
     setTrainingInterval(null);
@@ -9091,9 +9205,9 @@ const pollTrainingStatus = (trainingId) => {
   const MAX_ATTEMPTS = 3600;
   
   const interval = setInterval(async () => {
-    // ✅ VÉRIFIER LA RÉFÉRENCE (PAS LE STATE !)
+    // VÉRIFIER LA RÉFÉRENCE (PAS LE STATE !)
     if (!isTrainingRef.current) {
-      console.log("⏹️ Training already completed (ref), stopping polling");
+      console.log("Training already completed (ref), stopping polling");
       clearInterval(interval);
       setTrainingInterval(null);
       return;
@@ -9103,7 +9217,7 @@ const pollTrainingStatus = (trainingId) => {
       clearInterval(interval);
       setTrainingInterval(null);
       if (attempts >= MAX_ATTEMPTS) {
-        console.log("⚠️ Max polling attempts reached, stopping");
+        console.log("Max polling attempts reached, stopping");
         setIsTraining(false);
         isTrainingRef.current = false;
         localStorage.removeItem('current_training_id');
@@ -9120,14 +9234,14 @@ const pollTrainingStatus = (trainingId) => {
     attempts++;
     
     try {
-      // ✅ UTILISER LE BON TRAINING ID
+      // UTILISER LE BON TRAINING ID
       const response = await axios.get(
         `${backendUrl}/api/training-status/${trainingId}`,
         { withCredentials: true, timeout: 60000 }
       );
       
       if (response.data.completed) {
-        console.log("✅ Training completed for ID:", trainingId);
+        console.log("Training completed for ID:", trainingId);
         clearInterval(interval);
         setTrainingInterval(null);
         
@@ -9161,7 +9275,7 @@ const pollTrainingStatus = (trainingId) => {
             const trialLines = Array.isArray(rsSummary.trial_logs)
               ? rsSummary.trial_logs.map(
                   (t) =>
-                    `Trial ${t.trial}: ${JSON.stringify(t.params)} → score=${Number(t.score).toFixed(4)}${t.best ? " ★ best" : ""}`
+                    `Trial ${t.trial}: ${JSON.stringify(t.params)} → score=${Number(t.score).toFixed(4)}${t.best ? " best" : ""}`
                 )
               : [];
             setRandomSearchProgress({
@@ -9191,9 +9305,9 @@ const pollTrainingStatus = (trainingId) => {
         setRandomSearchProgress(response.data.progress);
       }
     } catch (err) {
-      // ✅ GÉRER LE 404 - Training non trouvé
+      // GÉRER LE 404 - Training non trouvé
       if (err.response?.status === 404) {
-        console.log(`⚠️ Training ${trainingId} not found, stopping polling`);
+        console.log(`Training ${trainingId} not found, stopping polling`);
         clearInterval(interval);
         setTrainingInterval(null);
         setIsTraining(false);
@@ -9201,13 +9315,13 @@ const pollTrainingStatus = (trainingId) => {
         localStorage.removeItem('current_training_id');
         setCurrentTrainingId(null);
         
-        // ✅ NE PAS METTRE D'ERREUR SI ON A DÉJÀ UN RÉSULTAT
+        // NE PAS METTRE D'ERREUR SI ON A DÉJÀ UN RÉSULTAT
         if (!result) {
           setError("Training session expired or cancelled");
         }
       } else {
-        // ✅ AUTRES ERREURS - continuer le polling
-        console.log(`⚠️ Polling error for ${trainingId}:`, err.message);
+        // AUTRES ERREURS - continuer le polling
+        console.log(`Polling error for ${trainingId}:`, err.message);
       }
     }
   }, 2000);
@@ -9218,7 +9332,7 @@ const pollTrainingStatus = (trainingId) => {
   const [stopCooldownSecondsLeft, setStopCooldownSecondsLeft] = useState(0);
 
   const handleStopTraining = async () => {
-    console.log("🛑 Stop training clicked");
+    console.log("Stop training clicked");
 
     // Cooldown 10s before a new training can start
     setStopCooldown(true);
@@ -9260,7 +9374,7 @@ const pollTrainingStatus = (trainingId) => {
           { training_id: trainingId },
           { withCredentials: true }
         );
-        console.log("✅ Stop request sent");
+        console.log("Stop request sent");
       } catch (err) {
         console.error("Stop error:", err);
       }
@@ -9281,7 +9395,7 @@ const pollTrainingStatus = (trainingId) => {
 useEffect(() => {
   return () => {
     if (trainingInterval) {
-      console.log("🧹 Cleanup on unmount");
+      console.log("Cleanup on unmount");
       clearInterval(trainingInterval);
       setTrainingInterval(null);
     }
@@ -9323,7 +9437,7 @@ useEffect(() => {
 }, [randomSearchAvailable, randomSearchEnabled]);
 
 const cleanupCompletedTrainings = () => {
-  console.log("🧹 Starting cleanup of completed trainings...");
+  console.log("Starting cleanup of completed trainings...");
   
   // 1. Nettoyer les intervals orphelins
   if (window.pollingIntervals) {
@@ -9334,7 +9448,7 @@ const cleanupCompletedTrainings = () => {
       // Vérifier si ce training est toujours dans localStorage
       const isActive = localStorage.getItem(`training_${id}`);
       if (!isActive) {
-        console.log(`🧹 Cleaning up orphaned polling for ${id}`);
+        console.log(`Cleaning up orphaned polling for ${id}`);
         clearInterval(window.pollingIntervals[id]);
         delete window.pollingIntervals[id];
       }
@@ -9346,13 +9460,13 @@ const cleanupCompletedTrainings = () => {
   if (currentId) {
     const isStillPolling = window.pollingIntervals && window.pollingIntervals[currentId];
     if (!isStillPolling) {
-      console.log(`🧹 Removing stale current_training_id: ${currentId}`);
+      console.log(`Removing stale current_training_id: ${currentId}`);
       localStorage.removeItem(`training_${currentId}`);
       localStorage.removeItem('current_training_id');
     }
   }
   
-  console.log("✅ Cleanup completed");
+  console.log("Cleanup completed");
 };
 // ========== FONCTION POUR ARRÊTER L'ENTRAÎNEMENT ==========
 
@@ -9361,7 +9475,7 @@ const cleanupCompletedTrainings = () => {
 useEffect(() => {
   return () => {
     if (trainingInterval) {
-      console.log("🧹 Cleanup on unmount");
+      console.log("Cleanup on unmount");
       clearInterval(trainingInterval);
       trainingInterval = null;
     }
@@ -9448,7 +9562,7 @@ const renderLogisticValidationResults = () => {
   const validationData = result.metrics?.validation_results;
   if (!validationData) return null;
 
-  // ✅ NOUVEAU : Détecter TimeSeriesSplit
+  // Détecter TimeSeriesSplit
   const isTimeSeries = validationData.method?.includes('TimeSeries');
   const isBootstrap = validationData.method?.includes('Bootstrap');
   const isHoldout = validationData.method?.includes('Hold-Out');
@@ -9992,14 +10106,14 @@ const renderRocPrCurves = () => {
 };
 
 const renderConfusionMatrix = () => {
-  // ✅ Vérification initiale
+  // Vérification initiale
   if (!result?.metrics?.confusion_matrix) return null;
 
   const cm = result.metrics.confusion_matrix;
   let cmArray = null;
   let labels = [];
   
-  // ✅ FORMAT 1: Binaire avec true_negative, false_positive, etc.
+  // FORMAT 1: Binaire avec true_negative, false_positive, etc.
   if (cm.true_negative !== undefined && cm.false_positive !== undefined) {
     cmArray = [
       [cm.true_negative, cm.false_positive],
@@ -10007,32 +10121,29 @@ const renderConfusionMatrix = () => {
     ];
     labels = cm.labels || ['Negative', 'Positive'];
   }
-  // ✅ FORMAT 2: Multiclasse avec matrix
+  // FORMAT 2: Multiclasse avec matrix
   else if (cm.matrix && Array.isArray(cm.matrix) && cm.matrix.length > 0) {
     cmArray = cm.matrix;
     labels = cm.labels || Array.from({ length: cmArray.length }, (_, i) => `Class ${i}`);
   }
-  // ✅ FORMAT 3: Array 2D direct
+  // FORMAT 3: Array 2D direct
   else if (Array.isArray(cm) && cm.length > 0 && Array.isArray(cm[0]) && cm[0].length > 0) {
     cmArray = cm;
     labels = result.metrics.classes ? 
       result.metrics.classes.map(cls => cls.toString()) : 
       Array.from({ length: cmArray.length }, (_, i) => `Class ${i}`);
   }
-  // ❌ FORMAT INVALIDE - NE RIEN AFFICHER
   else {
-    return null; // ⬅️ Ne rien afficher si le format est incorrect
+    return null;
   }
 
-  // ✅ Vérification finale que la matrice est valide
   if (!cmArray || cmArray.length === 0 || !cmArray[0] || cmArray[0].length === 0) {
-    return null; // ⬅️ Ne rien afficher
+    return null;
   }
 
-  // ✅ S'assurer que toutes les lignes ont la même longueur
   const isValid = cmArray.every(row => Array.isArray(row) && row.length === cmArray[0].length);
   if (!isValid) {
-    return null; // ⬅️ Ne rien afficher si la matrice est mal formée
+    return null;
   }
 
   // ========== SI TOUT EST VALIDE, AFFICHER ==========
@@ -10232,7 +10343,6 @@ const renderLightGBMTimeseriesValidationDetails = () => {
     val_score: item.val_score || 0,
     train_size: item.train_size || 0,
     val_size: item.val_size || 0
-    // best_iteration est supprimé
   }));
   
   // Calculer les statistiques
@@ -10430,7 +10540,6 @@ const renderLightGBMTimeseriesValidationDetails = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               <strong>LightGBM Parameters:</strong> boosting={result.metrics?.boosting_type_used || 'gbdt'}, learning_rate={result.metrics?.learning_rate_used || 0.1}
             </Typography>
-            {/* La ligne Best Global Iteration a été supprimée */}
           </Box>
         </Box>
 
@@ -10585,7 +10694,6 @@ const renderLogisticParams = () => {
         </TextField>
       </Grid>
 
-      {/* ✅ NOUVEAU : Paramètre l1_ratio pour ElasticNet */}
       {logisticParams.penalty === 'elasticnet' && (
         <Grid item xs={12} md={6}>
           <TextField
@@ -11811,7 +11919,7 @@ const renderMetrics = () => {
     );
   }
   
-  // ✅ CORRECTION : Priority data sources
+  // Priority data sources
   const r2 = result.metrics.r2 ?? result.metrics.final_test?.r2;
   const mse = result.metrics.mse ?? result.metrics.final_test?.mse;
   const mae = result.metrics.mae ?? result.metrics.final_test?.mae;
@@ -11990,7 +12098,7 @@ const renderMetrics = () => {
           <Typography variant="body2">
             <strong>Best Score:</strong> {
               (() => {
-                // ✅ CORRECTION : Calcul du best score selon la méthode
+                // Calcul du best score selon la méthode
                 const vr = result.metrics.validation_results;
                 
                 // Si best_score existe déjà
@@ -12570,23 +12678,12 @@ return (
             label="Retrain final model on train+test (advanced)"
           />
           <Typography variant="caption" display="block" sx={{ ml: 4, mt: -0.5, lineHeight: 1.5 }}>
-            <strong>Leave OFF (recommended):</strong> the app trains on Train, measures scores on Test,
+            <strong>Leave OFF:</strong> the app trains on Train, measures scores on Test,
             and saves that same Train model: the numbers you see match what you deploy.
             <br />
             <strong>Turn ON only if you want:</strong> after those honest Test scores, refit once more on
             Train+Test and save that fuller model for production (more data, but the saved model is no longer
             the exact one that produced the Test score).
-          </Typography>
-        </Alert>
-      ) : modelType !== 'kmeans' && !isAnomalyAlgo() ? (
-        <Alert icon={false} className="train-alert" severity="info" sx={{ mt: 2, maxWidth: 720, mx: "auto" }}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            Retrain on train+test
-          </Typography>
-          <Typography variant="caption" display="block" sx={{ lineHeight: 1.5 }}>
-            Not available for {modelType.replace(/_/g, ' ')}. Only Random Forest, SVM, KNN, and LightGBM
-            support this optional last refit. For this algorithm the saved model always comes from Train only
-            (same as the metrics: nothing incorrect).
           </Typography>
         </Alert>
       ) : null}
@@ -12712,13 +12809,12 @@ return (
           </Box>
         </Grid>
 
-        {/* 🛑 STOP BUTTON - AJOUTÉ */}
         <Grid item xs={12} md={4}>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
     variant="contained"
     onClick={handleStopTraining}
-    disabled={stopCooldown} // ← CRITIQUE
+    disabled={stopCooldown}
     sx={{
       background: '#b42318',
       color: 'white',

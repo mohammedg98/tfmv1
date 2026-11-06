@@ -128,7 +128,6 @@ function TargetTypeTab({
   bdName,
   targetColumn,
   problemType,
-  onConfirm,
   onTargetChange,
   showSnackbar,
 }) {
@@ -142,7 +141,12 @@ function TargetTypeTab({
   const [detecting, setDetecting] = useState(false);
   const [detection, setDetection] = useState(null);
   const [chosenProblemType, setChosenProblemType] = useState(problemType || "");
-  const [saving, setSaving] = useState(false);
+  const [editingTarget, setEditingTarget] = useState(false);
+  const targetLocked = Boolean(targetColumn) && !editingTarget;
+  const targetDisplayName =
+    targetColumn === "no-target-column"
+      ? "No target column (unsupervised)"
+      : targetColumn;
 
   // Keep local selection in sync when parent restores / clears target from API
   useEffect(() => {
@@ -283,6 +287,7 @@ function TargetTypeTab({
   }, [bdName, targetColumn, loading, runDetection]);
 
   const handleSelectTarget = (name) => {
+    setEditingTarget(false);
     setSelectedTarget(name);
     runDetection(name);
   };
@@ -386,43 +391,6 @@ function TargetTypeTab({
     }
   };
 
-  const handleConfirm = async () => {
-    if (!selectedTarget) {
-      showSnackbar?.("Please select a target column first", "warning");
-      return;
-    }
-    setSaving(true);
-    try {
-      // On resauvegarde par sécurité (idempotent) puis on remonte l'état.
-      await axios.post(
-        `${backendUrl}/api/save-target-column`,
-        { dataset_name: bdName, target_column: selectedTarget },
-        { withCredentials: true }
-      );
-      const confirmedType =
-        selectedTarget === "no-target-column"
-          ? "unsupervised"
-          : chosenProblemType || detection?.problem_type || "";
-      onConfirm?.({
-        targetColumn: selectedTarget,
-        problemType: confirmedType,
-      });
-      showSnackbar?.(
-        selectedTarget === "no-target-column"
-          ? "Unsupervised mode confirmed (no target)"
-          : "Target and problem type confirmed",
-        "success"
-      );
-    } catch (err) {
-      showSnackbar?.(
-        err.response?.data?.detail || "Failed to save target column",
-        "error"
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const selectedInfo = useMemo(
     () => columnTypes.find((c) => c.column_name === selectedTarget),
     [columnTypes, selectedTarget]
@@ -447,6 +415,53 @@ function TargetTypeTab({
         </Alert>
       )}
 
+      {targetLocked && (
+        <Box
+          sx={{
+            mb: 2,
+            p: 2.5,
+            backgroundColor: "#f3f4f5",
+            border: "2px solid #DE6B06",
+            borderRadius: "2px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Box>
+            <Typography variant="body2" sx={{ color: "#384850", fontWeight: 700, letterSpacing: 0.2 }}>
+              Target column already chosen
+            </Typography>
+            <Typography variant="h5" sx={{ color: "#DE6B06", fontWeight: 700, mt: 0.5, lineHeight: 1.2 }}>
+              {targetDisplayName}
+            </Typography>
+            {(problemType || chosenProblemType) && (
+              <Typography variant="body2" sx={{ color: "#384850", mt: 0.5 }}>
+                {PROBLEM_LABELS[problemType || chosenProblemType] || problemType || chosenProblemType}
+              </Typography>
+            )}
+          </Box>
+          <Button
+            variant="contained"
+            onClick={() => setEditingTarget(true)}
+            sx={{
+              backgroundColor: "#384850",
+              textTransform: "none",
+              fontWeight: 700,
+              px: 3,
+              "&:hover": { backgroundColor: "#2a3942" },
+            }}
+          >
+            Change target
+          </Button>
+        </Box>
+      )}
+
+      <Grid container spacing={2}>
+      <Grid item xs={12} md={7}>
+      <Box sx={targetLocked ? { pointerEvents: "none", opacity: 0.45, userSelect: "none" } : undefined}>
       <Box className="dp-tab-toolbar">
         <Typography variant="h6" className="dp-tab-toolbar-title">
           Target column
@@ -456,6 +471,7 @@ function TargetTypeTab({
             variant="contained"
             className="target-btn"
             onClick={handleOpenAutoDialog}
+            disabled={targetLocked}
             sx={{
               height: 40,
               backgroundColor: "#DE6B06",
@@ -468,12 +484,12 @@ function TargetTypeTab({
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Choose the column you want to predict, or &quot;No target&quot; for unsupervised learning.
+        {editingTarget && targetColumn
+          ? "Pick another column. The current target stays until you choose a new one."
+          : "Choose the column you want to predict, or No target for unsupervised learning."}
       </Typography>
 
-      <Grid container spacing={2}>
         {/* Colonne gauche : sélection de la target */}
-        <Grid item xs={12} md={7}>
           <Card variant="outlined" className="target-card">
             <CardContent>
               <Box sx={{ mb: 2 }}>
@@ -482,6 +498,7 @@ function TargetTypeTab({
                   size="small"
                   placeholder="Search columns…"
                   value={searchTerm}
+                  disabled={targetLocked}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   InputProps={{
                     startAdornment: (
@@ -498,7 +515,8 @@ function TargetTypeTab({
                       label={t === "all" ? "All" : typeLabel(t)}
                       size="small"
                       variant={filterType === t ? "filled" : "outlined"}
-                      onClick={() => setFilterType(t)}
+                      onClick={() => { if (!targetLocked) setFilterType(t); }}
+                      disabled={targetLocked}
                       sx={
                         filterType === t
                           ? { backgroundColor: "#384850", color: "#fff", borderRadius: "2px" }
@@ -560,6 +578,7 @@ function TargetTypeTab({
               </Paper>
             </CardContent>
           </Card>
+      </Box>
         </Grid>
 
         {/* Colonne droite : type de problème détecté */}
@@ -605,7 +624,14 @@ function TargetTypeTab({
                       fullWidth
                       size="small"
                       value={chosenProblemType}
-                      onChange={(_, v) => v && setChosenProblemType(v)}
+                      onChange={(_, v) => {
+                        if (!v) return;
+                        setChosenProblemType(v);
+                        onTargetChange?.({
+                          targetColumn: selectedTarget,
+                          problemType: v,
+                        });
+                      }}
                       sx={{ mb: 2, "& .MuiToggleButton-root": { borderRadius: "2px", textTransform: "none" } }}
                     >
                       <ToggleButton value="classification">Classification</ToggleButton>
@@ -648,18 +674,6 @@ function TargetTypeTab({
                 </>
               )}
 
-              <Divider sx={{ my: 2 }} />
-              <Button
-                fullWidth
-                variant="contained"
-                className="target-btn"
-                startIcon={saving ? <CircularProgress size={18} color="inherit" /> : undefined}
-                onClick={handleConfirm}
-                disabled={!selectedTarget || detecting || saving}
-                sx={{ backgroundColor: "#DE6B06", "&:hover": { backgroundColor: "#c55a05" } }}
-              >
-                {saving ? "Saving…" : "Confirm"}
-              </Button>
             </CardContent>
           </Card>
         </Grid>

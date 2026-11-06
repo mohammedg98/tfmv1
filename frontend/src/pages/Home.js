@@ -171,7 +171,7 @@ function Home() {
       <footer className="home-footer">
         <div className="footer-content">
           <p className="project-info">
-            Master's Thesis Project - Cybersecurity Master's Program
+            Master Thesis Project - Cybersecurity Master Program
           </p>
           <p className="author-info">
             Author: Guettal Mohammed Idir | Supervisor: Esther Lidia Silva Ramírez

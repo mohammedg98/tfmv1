@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import moment from "moment";
-import RefreshIcon from '@mui/icons-material/Refresh';
 import { LinearProgress, Backdrop, Fade } from "@mui/material";
 import Chip from '@mui/material/Chip';
 import CloseIcon from '@mui/icons-material/Close';
@@ -68,13 +67,19 @@ const transformationMethods = {
     {
       value: "binary",
       label: "Binary Encoding",
-      description: "Converts boolean values to 0 and 1",
+      description: "Writes 1 for true and 0 for false.",
       example: "true → 1, false → 0"
+    },
+    {
+      value: "label",
+      label: "Label Encoding",
+      description: "Also turns each true or false value into a number.",
+      example: "false → 0, true → 1"
     },
     {
       value: "invert",
       label: "Boolean Inversion",
-      description: "Inverts boolean values (true→0, false→1)",
+      description: "Swaps the two values: true becomes 0 and false becomes 1.",
       example: "true → 0, false → 1"
     }
   ],
@@ -82,13 +87,13 @@ const transformationMethods = {
     {
       value: "onehot",
       label: "One-Hot Encoding",
-      description: "Creates binary columns for each unique category",
+      description: "Creates one yes/no column per category. Use this when the category has no order.",
       example: "['Red', 'Blue'] → Red:1, Blue:0"
     },
     {
       value: "label",
       label: "Label Encoding",
-      description: "Assigns a unique number to each category",
+      description: "Replaces each category with a number. Use this when the category has an order.",
       example: "['Red', 'Blue'] → 0, 1"
     },
   ],
@@ -292,28 +297,34 @@ const HelpDialog = ({ open, onClose }) => {
           MinMax squeezes them between 0 and 1. Log is for columns where a few values are much larger than the others.
         </Typography>
         <Typography variant="body2" paragraph>
-          If the column is words or labels (tcp, udp, red, blue): One-Hot creates one yes/no column per word.
-          Label replaces each word by a number. Use One-Hot when there are not too many different words.
+          If the column is categories or labels (tcp, udp, red, blue): One-Hot creates one yes/no column per category.
+          Label encoding replaces each category with a number. Use One-Hot when the category has no order.
+          Use Label encoding when the category has an order.
         </Typography>
         <Typography variant="body2" paragraph>
-          If the column is true/false: Binary writes 1 and 0. Invert swaps them.
+          If the column is true/false: Binary writes 1 for true and 0 for false.
+          Label encoding also turns each value into a number. Invert swaps the two values.
         </Typography>
         <Typography variant="body2" paragraph>
           If the column is free text: Frequency replaces each text by how often it appears.
           If you need a value hidden inside the text, use Extract from text first.
         </Typography>
         <Typography variant="body2" paragraph>
-          If the column is a date: you may keep one date if later, in Train Model, you want to split by time.
-          Extra date columns should be deleted. A kept date is not used like a normal feature.
-          You can also encode a date with Frequency, like text.
+          If the column is a date: keep one date if, later in Train Model, you want to split the rows by time.
+          Delete any extra date columns. A date you keep is only used to order the rows, not as a normal feature.
+          You can also encode a date with Frequency, the same way as text.
         </Typography>
 
         <Typography variant="subtitle1" sx={{ color: '#384850', fontWeight: 700, mt: 2, mb: 1 }}>
           Other buttons
         </Typography>
-        <Typography variant="body2" paragraph>
-          Delete a column removes that column. Clean empty rows removes rows that still have blanks.
-          Outlier Manager finds unusual numbers after the columns are ready.
+        <Typography variant="body2" component="div">
+          <ul style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
+            <li><em>Delete a column</em>: Removes the selected column from the dataset.</li>
+            <li><em>Clean empty rows</em>: Removes rows that still contain missing values.</li>
+            <li><em>Outlier Manager</em>: Detects unusual numerical values after the columns have been prepared.</li>
+            <li><em>Outlier Manager (Multivariate)</em>: Looks at several numeric columns together. It stays available even when some columns are still text. Those columns are left out of the calculation.</li>
+          </ul>
         </Typography>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
@@ -1676,8 +1687,7 @@ const renderExtractDialog = () => {
             if (!selected) {
               return <em style={{ color: '#757575' }}>Select a column…</em>;
             }
-            const t = state.columnTypes?.[selected];
-            return t ? `${selected} (${t})` : selected;
+            return selected;
           }}
           onChange={(e) => {
             setSelectedExtractColumn(e.target.value);
@@ -1701,7 +1711,7 @@ const renderExtractDialog = () => {
             .filter((col) => col !== 'split_type')
             .map((col) => (
               <MenuItem key={col} value={col} sx={{ fontSize: '0.95rem', whiteSpace: 'normal' }}>
-                {col} ({state.columnTypes[col]})
+                {col}
               </MenuItem>
             ))}
         </Select>
@@ -2426,19 +2436,6 @@ const getAvailableMethods = (column) => {
   const columnType = state.columnTypes[column] || "text";
   let methods = [...(transformationMethods[columnType] || [])];
 
-  // Boolean: uniquement Binary Encoding + Boolean Inversion (jamais numeric / frequency)
-  // Categorical avec contenu numérique (ex. 1,2,3,4,5) : + méthodes numériques
-  // Frequency Encoding : uniquement pour type "text"
-  if (columnType === "categorical") {
-    const isNumericContent = !!state.columnStats?.[column]?.is_numeric_content;
-    if (isNumericContent) {
-      const existing = new Set(methods.map((m) => m.value));
-      for (const m of transformationMethods.numerical) {
-        if (!existing.has(m.value)) methods.push(m);
-      }
-    }
-  }
-
   // Sécurité : retirer frequency partout sauf text
   if (columnType !== "text") {
     methods = methods.filter((m) => m.value !== "frequency");
@@ -2690,7 +2687,7 @@ const handleTransform = async (configsToApply = null) => {
       { withCredentials: true }
     );
 
-    // 🔥 CORRECTION: Utiliser l'API backend pour les types
+    // Utiliser l'API backend pour les types
     const typesResponse = await axios.get(
       `${backendUrl}/api/analyze-column-types`,
       {
@@ -2715,7 +2712,7 @@ const handleTransform = async (configsToApply = null) => {
     const fullData = formatData(responseAfter);
     const columns = responseAfter.data.columns;
 
-    // 🔥 CORRECTION: Construire les types à partir de la réponse du backend
+    // Construire les types à partir de la réponse du backend
     const columnTypes = {};
     const columnStats = {};
     
@@ -3099,10 +3096,25 @@ const renderTransformationPanel = () => {
         </Tooltip>
       </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
         Pick a transformation method for a column, then click <strong>Apply</strong>.
         Selected several? Use <strong>Apply All</strong> to run them together.
       </Typography>
+      <Box
+        sx={{
+          mb: 2,
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#f3f4f5',
+          border: '1px solid #c8c9ca',
+          borderLeft: '3px solid #DE6B06',
+          borderRadius: '2px',
+        }}
+      >
+        <Typography variant="body2" sx={{ color: '#384850', lineHeight: 1.45 }}>
+          SVM, Isolation Forest, and One-Class SVM scale the numbers automatically before training, so there is no need to do it here.
+        </Typography>
+      </Box>
 
       {cols.length === 0 && (
         <Typography color="text.secondary" textAlign="center" sx={{ py: 4 }}>
@@ -3195,11 +3207,29 @@ const renderTransformationPanel = () => {
                   />
                 )}
 
+                {type === 'categorical' && (
+                  <Box
+                    sx={{
+                      px: 1.25,
+                      py: 1,
+                      backgroundColor: '#f3f4f5',
+                      border: '1px solid #c8c9ca',
+                      borderLeft: '3px solid #DE6B06',
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ color: '#384850', fontSize: '0.8rem', lineHeight: 1.45 }}>
+                      Use <Box component="span" sx={{ fontWeight: 700, color: '#DE6B06' }}>One-Hot</Box> when the category has no order.
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#384850', fontSize: '0.8rem', lineHeight: 1.45, mt: 0.25 }}>
+                      Use <Box component="span" sx={{ fontWeight: 700, color: '#384850' }}>Label encoding</Box> when the category has an order.
+                    </Typography>
+                  </Box>
+                )}
+
                 {isDateType && (
                   <Alert severity="info" icon={false} className="transform-alert" sx={{ py: 0, fontSize: '0.78rem' }}>
-                    Date columns use the same methods as text. You can also leave them as-is
-                    for optional <strong>Time Series</strong> validation in Create Model
-                    (they are not used as normal features). Or use <strong>Extract from text</strong> above.
+                    Keep one date if you want a time split later in Train Model. It is used to order the rows, not as a normal feature.
+                    Delete any extra date columns. Frequency encoding works on a date the same way as on text.
                   </Alert>
                 )}
                 {type === 'text' && (
@@ -3726,20 +3756,9 @@ return (
       Outlier Manager
     </Button>
 
-    <Tooltip
-      title={
-        allColumnsNumeric
-          ? ""
-          : dateColumns.length > 1
-            ? `Only one date column is allowed. Extra dates: ${dateColumns.join(', ')}: keep one (Auto Transform) or delete the rest.`
-            : `Available once every column is numeric-compatible (at most one date allowed). Remaining: ${nonNumericColumns.join(', ') || 'N/A'}`
-      }
-    >
-      <span>
         <Button
           variant="outlined"
           onClick={() => setOutlierDialog('v2')}
-          disabled={!allColumnsNumeric}
           sx={{
             borderColor: colorPalette.primary,
             color: colorPalette.primary,
@@ -3748,8 +3767,9 @@ return (
         >
           Outlier Manager (Multivariate)
         </Button>
-      </span>
-    </Tooltip>
+        <Typography variant="body2" sx={{ color: "#384850", flexBasis: "100%" }}>
+          Multivariate detection stays available. It uses numeric columns only. Text, dates, and labels that are not numbers are left out of the calculation.
+        </Typography>
     </Box>
 
     <Tooltip title="Rows containing at least one empty value (NULL, '', 'null', [], {})">

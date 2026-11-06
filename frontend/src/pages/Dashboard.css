@@ -197,6 +197,21 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.databases-section .section-header,
+.databases-section .section-header * {
+  cursor: default;
+}
+
+.databases-section .section-header .upload-btn,
+.databases-section .section-header .upload-btn * {
+  cursor: pointer;
+}
+
+.databases-section .section-header .upload-btn:disabled,
+.databases-section .section-header .upload-btn:disabled * {
+  cursor: not-allowed;
+}
+
 .section-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
@@ -988,6 +1003,7 @@ body {
   display: flex;
   gap: 1rem;
   align-items: center;
+  cursor: default;
 }
 
 .stat-item {
@@ -999,6 +1015,7 @@ body {
   border-radius: 0;
   font-size: 0.9rem;
   color: var(--gray-700);
+  cursor: default;
 }
 
 /* Dataset Actions Info */

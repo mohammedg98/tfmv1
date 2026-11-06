@@ -35,6 +35,8 @@ import {
   Slider,
   Checkbox,
   FormControlLabel,
+  Radio,
+  RadioGroup,
   Table,
   TableBody,
   TableCell,
@@ -58,6 +60,387 @@ import "./Data_cleaning.css";
 
 const MISSING_VALUES = ['nan', 'nat', 'null', 'none', 'na', 'NA', 'n/a', 'missing', 'unknown', '-', '--', '?', ''];
 
+const HelpDialog = ({ open, onClose }) => {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{ className: "clean-dialog" }}
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+          Guide: Clean · Split · Impute
+        </Typography>
+        <IconButton onClick={onClose} sx={{ color: 'white' }}>
+          <Close />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3 }}>
+        <Typography variant="body2" paragraph>
+          Clean empty rows and duplicates, split into train and test, and then fill missing values.
+          Fill values are taken from train and applied to both train and test.
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Auto Clean &amp; Split runs that sequence for you. You cannot delete the target column or split_type.
+          Reset puts this step back to its start.
+        </Typography>
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2 }}>
+        <Button
+          onClick={onClose}
+          variant="contained"
+          fullWidth
+          size="large"
+          sx={{
+            backgroundColor: '#384850',
+            textTransform: 'none',
+            fontWeight: 700,
+            '&:hover': { backgroundColor: '#2a3942' },
+          }}
+        >
+          Got it
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const ImputationDialog = ({
+  open,
+  onClose,
+  previewData,
+  method,
+  onApply,
+  onMethodChange,
+  previewLoading,
+  ignoreOutliersForMean,
+  setIgnoreOutliersForMean,
+  setCheckingSplitStatus,
+  bdName,
+  setImputationPreview,
+  showSnackbar,
+  setSelectedColumnsForImputation,
+  applyingImputation,
+}) => {
+    const [localSelectedColumns, setLocalSelectedColumns] = useState([]);
+
+    useEffect(() => {
+      if (!previewData) {
+        setLocalSelectedColumns([]);
+        return;
+      }
+      if (method === 'mode') {
+        const allColumns = previewData.columns_analysis.map(col => col.column_name);
+        setLocalSelectedColumns(allColumns);
+      } else {
+        const compatibleColumns = previewData.columns_analysis
+          .filter(col => col.compatible_with_method)
+          .map(col => col.column_name);
+        setLocalSelectedColumns(compatibleColumns);
+      }
+    }, [previewData, method]);
+
+    const handleColumnToggle = (columnName, isCompatible) => {
+      if (method !== 'mode' && !isCompatible) return;
+      
+      setLocalSelectedColumns(prev => {
+        if (prev.includes(columnName)) {
+          return prev.filter(col => col !== columnName);
+        } else {
+          return [...prev, columnName];
+        }
+      });
+    };
+
+    const handleSelectAll = () => {
+      const allCompatibleColumns = previewData.columns_analysis
+        .filter(col => col.compatible_with_method)
+        .map(col => col.column_name);
+      setLocalSelectedColumns(allCompatibleColumns);
+    };
+
+    const handleDeselectAll = () => {
+      setLocalSelectedColumns([]);
+    };
+
+    const handleApply = () => {
+      setSelectedColumnsForImputation(localSelectedColumns);
+      onApply();
+    };
+
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ className: "clean-dialog" }}>
+        <DialogTitle>
+          <Typography variant="h6">
+            Missing Value Imputation
+          </Typography>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Typography variant="body2" sx={{ color: '#384850', mb: 1.5 }}>
+            Pick one method. The fill value comes from the train rows, then it is written into the empty cells of train and test.
+          </Typography>
+          <RadioGroup
+            row
+            value={method}
+            onChange={(e) => onMethodChange(e.target.value)}
+          >
+            <FormControlLabel
+              value="mean"
+              label="Mean"
+              control={<Radio size="small" sx={{ color: '#384850', '&.Mui-checked': { color: '#384850' } }} />}
+              sx={{ color: '#384850', mr: 2 }}
+            />
+            <FormControlLabel
+              value="median"
+              label="Median"
+              control={<Radio size="small" sx={{ color: '#384850', '&.Mui-checked': { color: '#384850' } }} />}
+              sx={{ color: '#384850', mr: 2 }}
+            />
+            <FormControlLabel
+              value="mode"
+              label="Mode"
+              control={<Radio size="small" sx={{ color: '#384850', '&.Mui-checked': { color: '#384850' } }} />}
+              sx={{ color: '#384850', mr: 2 }}
+            />
+          </RadioGroup>
+          <Box sx={{ mt: 1, mb: 2, p: 1.5, backgroundColor: '#f3f4f5', border: '1px solid #c8c9ca' }}>
+            <Typography variant="body2" sx={{ color: '#384850' }}>
+              Mean. The average. For numbers that sit around a center, such as a score.
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#384850', mt: 0.5 }}>
+              Median. The middle value. For numbers when a few values are much larger than the others, such as a size or an amount.
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#384850', mt: 0.5 }}>
+              Mode. The most common value. For words, yes/no, and codes.
+            </Typography>
+          </Box>
+          {previewLoading && !previewData && (
+            <Typography variant="body2" sx={{ color: '#384850', mb: 2 }}>
+              Loading the columns...
+            </Typography>
+          )}
+          {!method && !previewLoading && (
+            <Typography variant="body2" sx={{ color: '#384850', mb: 2 }}>
+              Select Mean, Median, or Mode to see the columns.
+            </Typography>
+          )}
+          {previewData && (
+          <>
+          <Card sx={{ p: 2, mb: 3, backgroundColor: '#e8e9ea', boxShadow: 'none', borderRadius: '2px' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
+              Imputation Summary
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Typography variant="body2">
+                  <strong>Method:</strong> {method.toUpperCase()}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="body2">
+                  <strong>Total Missing Values:</strong> {previewData.total_missing_before}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="body2">
+                  Fill values come from train only, then are applied to train and test.
+                </Typography>
+              </Grid>
+              {method === 'mean' && (
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={ignoreOutliersForMean}
+                        onChange={async (e) => {
+                          const checked = e.target.checked;
+                          setIgnoreOutliersForMean(checked);
+                          // Recharger le preview avec le nouveau paramètre
+                          try {
+                            setCheckingSplitStatus(true);
+                            const response = await axios.get(
+                              `${backendUrl}/api/get-imputation-preview`,
+                              {
+                                params: {
+                                  bdName,
+                                  method: 'mean',
+                                  columns: '',
+                                  ignore_outliers: checked,
+                                  z_threshold: 3.0,
+                                },
+                                withCredentials: true,
+                                timeout: 30000,
+                              }
+                            );
+                            setImputationPreview(response.data);
+                          } catch (err) {
+                            showSnackbar?.(err.response?.data?.detail || "Preview refresh failed", "error");
+                          } finally {
+                            setCheckingSplitStatus(false);
+                          }
+                        }}
+                        sx={{ color: '#384850' }}
+                      />
+                    }
+                    label="Ignore extreme outliers when computing the mean"
+                  />
+                </Grid>
+              )}
+            </Grid>
+          </Card>
+
+        
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ color: '#384850' }}>
+              Column Selection
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button variant="outlined" size="small" onClick={handleSelectAll}>
+                Select All Compatible
+              </Button>
+              <Button variant="outlined" size="small" onClick={handleDeselectAll}>
+                Deselect All
+              </Button>
+            </Box>
+          </Box>
+
+          <TableContainer component={Paper} sx={{ maxHeight: 400, border: '1px solid #e0e0e0' }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell width="50px"><strong>Apply</strong></TableCell>
+                  <TableCell><strong>Column</strong></TableCell>
+                  <TableCell><strong>Data Type</strong></TableCell>
+                  <TableCell><strong>Missing Values</strong></TableCell>
+                  <TableCell><strong>Train Missing</strong></TableCell>
+                  <TableCell><strong>Test Missing</strong></TableCell>
+                  <TableCell><strong>Compatible</strong></TableCell>
+                  <TableCell><strong>Imputation Value</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {previewData.columns_analysis.map((col) => (
+                  <TableRow 
+                    key={col.column_name}
+                    sx={{ 
+                      backgroundColor: !col.compatible_with_method ? 'rgba(0, 0, 0, 0.04)' : 'inherit',
+                    }}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={localSelectedColumns.includes(col.column_name)}
+                        onChange={() => handleColumnToggle(col.column_name, col.compatible_with_method)}
+                        disabled={!col.compatible_with_method}
+                        sx={{ 
+                          color: '#384850',
+                          '&.Mui-checked': {
+                            color: '#384850',
+                          },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="bold">
+                        {col.column_name}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={col.data_type} 
+                        size="small" 
+                        color={col.data_type.includes('char') ? 'primary' : 'secondary'}
+                        sx={{ backgroundColor: '#384850' }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">
+                          {col.missing_count}
+                        </Typography>
+                        {col.missing_count > 0 && (
+                          <Warning color="warning" sx={{ fontSize: 16 }} />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      {col.split_distribution.train ? (
+                        <Typography variant="body2">
+                          {col.split_distribution.train.missing_count} 
+                          ({col.split_distribution.train.missing_percentage}%)
+                        </Typography>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {col.split_distribution.test ? (
+                        <Typography variant="body2">
+                          {col.split_distribution.test.missing_count} 
+                          ({col.split_distribution.test.missing_percentage}%)
+                        </Typography>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {col.compatible_with_method ? "Yes" : "No"}
+                    </TableCell>
+                    <TableCell>
+                      {col.suggested_imputation_value !== null && col.suggested_imputation_value !== undefined ? (
+                        <Chip 
+                          label={col.suggested_imputation_value} 
+                          size="small" 
+                          sx={{ 
+                            backgroundColor: '#384850',
+                            color: 'white'
+                          }}
+                          variant="outlined"
+                        />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          N/A
+                        </Typography>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {localSelectedColumns.length > 0 && (
+            <Box sx={{ mt: 2, p: 1.5, backgroundColor: '#e8e9ea', border: '1px solid #c8c9ca', borderRadius: '2px' }}>
+              <Typography variant="body2" sx={{ color: '#384850' }}>
+                Selected {localSelectedColumns.length} columns: {localSelectedColumns.join(', ')}
+              </Typography>
+            </Box>
+          )}
+          </>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button onClick={onClose} variant="outlined">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleApply} 
+            variant="contained"
+            disabled={applyingImputation || previewLoading || !previewData || localSelectedColumns.length === 0}
+            startIcon={applyingImputation ? <CircularProgress size={20} /> : undefined}
+            sx={{ backgroundColor: '#384850' }}
+          >
+            {applyingImputation ? "Applying..." : "Apply"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
+
+
 function Data_cleaning({ embedded = false, onSplitChange, onGoToGroups, onCheckpointReset }) {
   // États existants
   const [data, setData] = useState(null);
@@ -66,6 +449,7 @@ function Data_cleaning({ embedded = false, onSplitChange, onGoToGroups, onCheckp
   const [originalDataRows, setOriginalDataRows] = useState([]);
   const [emptyRowsCount, setEmptyRowsCount] = useState(0);
   const [duplicatedRowsCount, setDuplicatedRowsCount] = useState(0);
+  const [deleteResult, setDeleteResult] = useState("");
   const [selectedFilter, setSelectedFilter] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -160,7 +544,7 @@ const [autoHelpOpened, setAutoHelpOpened] = useState(false);
   if (!bdName) return false;
   
   try {
-    console.log("📊 Fetching split stats for entire dataset:", bdName);
+    console.log("Fetching split stats for entire dataset:", bdName);
     const response = await axios.get(
       `${backendUrl}/api/get-split-stats2`,
       { 
@@ -169,7 +553,7 @@ const [autoHelpOpened, setAutoHelpOpened] = useState(false);
       }
     );
     
-    console.log("📊 Split stats response:", response.data);
+    console.log("Split stats response:", response.data);
     
     if (response.data.exists) {
       const valid = response.data.train_count > 0;
@@ -187,7 +571,7 @@ const [autoHelpOpened, setAutoHelpOpened] = useState(false);
       setHasValidSplit(valid);
       setSplitCompleted(valid);
       
-      console.log("✅ Split stats updated:", newSplitStatus);
+      console.log("Split stats updated:", newSplitStatus);
       return valid;
     } else {
       setSplitColumnStatus({
@@ -216,11 +600,11 @@ useEffect(() => {
 }, [bdName, fetchSplitStats]);
 useEffect(() => {
   // Only auto-open once when page loads and help hasn't been auto-opened yet
-  if (!loading && !openHelpDialog && !autoHelpOpened) {
-    setOpenHelpDialog(true);
+  if (!loading && !autoHelpOpened) {
     setAutoHelpOpened(true);
+    setOpenHelpDialog(true);
   }
-}, [loading, openHelpDialog, autoHelpOpened]);
+}, [loading, autoHelpOpened]);
   const showSnackbar = (message, severity = "info") => {
     setSnackbar({ open: true, message, severity });
   };
@@ -261,19 +645,19 @@ useEffect(() => {
 
   const convertToGridFormat = useCallback((backendData) => {
     if (!backendData || !backendData.columns || !backendData.rows) {
-      console.error("❌ Invalid data format in convertToGridFormat:", backendData);
+      console.error("Invalid data format in convertToGridFormat:", backendData);
       return { columns: [], rows: [] };
     }
 
-    console.log("🔄 Converting data with columns:", backendData.columns);
-    console.log("🔄 Rows count:", backendData.rows.length);
-    console.log("🔄 Sample raw row:", backendData.rows[0]);
+    console.log("Converting data with columns:", backendData.columns);
+    console.log("Rows count:", backendData.rows.length);
+    console.log("Sample raw row:", backendData.rows[0]);
 
     // Filtrer les lignes null/undefined
     const validRows = backendData.rows.filter(row => row !== null && row !== undefined);
     
     if (validRows.length === 0) {
-      console.warn("⚠️ No valid rows found");
+      console.warn("No valid rows found");
       return { columns: [], rows: [] };
     }
 
@@ -405,9 +789,9 @@ useEffect(() => {
       return rowData;
     });
 
-    console.log(`✅ Converted ${gridRows.length} rows for grid`);
+    console.log(`Converted ${gridRows.length} rows for grid`);
     if (gridRows.length > 0) {
-      console.log("📋 Sample converted row:", gridRows[0]);
+      console.log("Sample converted row:", gridRows[0]);
       
       // Vérifier les valeurs vides dans la première ligne
       const firstRow = gridRows[0];
@@ -415,7 +799,7 @@ useEffect(() => {
         const value = firstRow[`col${idx}`];
         return isMissingValue(value, `col${idx}`);
       });
-      console.log("📋 Empty columns in first row:", emptyColumns);
+      console.log("Empty columns in first row:", emptyColumns);
     }
 
     return { columns: gridColumns, rows: gridRows };
@@ -427,7 +811,7 @@ const fetchStats = useCallback(async () => {
   if (!bdName) return null;
   
   try {
-    console.log("📊 Fetching stats for:", bdName);
+    console.log("Fetching stats for:", bdName);
     const response = await axios.get(
       `${backendUrl}/api/get-stats`,
       { 
@@ -436,7 +820,7 @@ const fetchStats = useCallback(async () => {
       }
     );
     
-    console.log("📊 Stats response:", response.data);
+    console.log("Stats response:", response.data);
     
     setStats({
       totalRows: response.data.total_rows,
@@ -469,7 +853,7 @@ const fetchStats = useCallback(async () => {
   const fetchPaginatedData = useCallback(async (pageNum = 1, filterType = selectedFilter) => {
     if (!bdName) return;
     
-    console.log(`📊 Fetching page ${pageNum} with filter: ${filterType || 'none'}`);
+    console.log(`Fetching page ${pageNum} with filter: ${filterType || 'none'}`);
     setIsLoadingMore(true);
     if (pageNum === 1) setLoading(true);
     
@@ -505,7 +889,7 @@ const fetchStats = useCallback(async () => {
             showSnackbar("Invalid data format received", "error");
         }
     } catch (error) {
-        console.error("❌ Error fetching paginated data:", error);
+        console.error("Error fetching paginated data:", error);
         showSnackbar("Error loading data: " + (error.response?.data?.detail || error.message), "error");
     } finally {
         setLoading(false);
@@ -516,31 +900,31 @@ const fetchStats = useCallback(async () => {
 
   useEffect(() => {
     if (!bdName) {
-      console.log("🚫 No bdName, redirecting to upload");
+      console.log("No bdName, redirecting to upload");
       navigate("/upload");
       return;
     }
     
-    console.log("🚀 Initializing Data_cleaning for:", bdName);
-    console.log("📍 Location state:", location.state);
+    console.log("Initializing Data_cleaning for:", bdName);
+    console.log("Location state:", location.state);
     
     fetchPaginatedData(1, null);
   }, [bdName, navigate]);
 
   useEffect(() => {
     if (bdName && selectedFilter !== undefined) {
-      console.log("🔄 Filter changed to:", selectedFilter);
+      console.log("Filter changed to:", selectedFilter);
       fetchPaginatedData(1, selectedFilter);
     }
   }, [selectedFilter]);
 
   useEffect(() => {
     if (rows.length > 0) {
-      console.log("✅ Data loaded successfully!");
-      console.log("📋 Number of rows in state:", rows.length);
-      console.log("📋 Number of columns in state:", columns.length);
-      console.log("📋 Sample row:", rows[0]);
-      console.log("📋 Sample column:", columns[0]);
+      console.log("Data loaded successfully!");
+      console.log("Number of rows in state:", rows.length);
+      console.log("Number of columns in state:", columns.length);
+      console.log("Sample row:", rows[0]);
+      console.log("Sample column:", columns[0]);
       
       // Diagnostic des valeurs vides
       const emptyCheck = rows.slice(0, 5).map(row => {
@@ -551,10 +935,10 @@ const fetchStats = useCallback(async () => {
           values: emptyCols.map(c => row[c.field])
         };
       });
-      console.log("📋 Empty values diagnostic (first 5 rows):", emptyCheck);
+      console.log("Empty values diagnostic (first 5 rows):", emptyCheck);
       
     } else if (!loading) {
-      console.warn("⚠️ No rows loaded, but loading is false");
+      console.warn("No rows loaded, but loading is false");
       console.log("Current state:", { 
         bdName, 
         page, 
@@ -610,10 +994,10 @@ const fetchStats = useCallback(async () => {
   // ==================== FONCTIONS DE FILTRE ====================
 
   const handleFilterClick = useCallback((filterType) => {
-    console.log("🔍 Filter clicked:", filterType);
+    console.log("Filter clicked:", filterType);
     setSelectedFilter(current => {
       const newFilter = current === filterType ? null : filterType;
-      console.log("🔄 New filter:", newFilter);
+      console.log("New filter:", newFilter);
       return newFilter;
     });
   }, []);
@@ -622,11 +1006,11 @@ const fetchStats = useCallback(async () => {
 
   const handleProcessRowUpdate = useCallback((newRow, oldRow) => {
     if (!newRow || !newRow.id) {
-      console.error("❌ Invalid row in handleProcessRowUpdate:", newRow);
+      console.error("Invalid row in handleProcessRowUpdate:", newRow);
       return oldRow;
     }
     
-    console.log("✏️ Row updated:", newRow.id);
+    console.log("Row updated:", newRow.id);
     
     setModifications((prev) => {
       const updatedModifications = new Map(prev);
@@ -643,7 +1027,7 @@ const fetchStats = useCallback(async () => {
 
   const handleSaveChanges = useCallback(async () => {
     try {
-      console.log("💾 Starting save process...");
+      console.log("Starting save process...");
       setLoading(true);
       
       const modifiedRowsArray = Array.from(modifications.values()).map(m => m.newRow).filter(row => row && row.id);
@@ -674,7 +1058,7 @@ const fetchStats = useCallback(async () => {
         return cleanRow;
       });
 
-      console.log("📤 Sending to backend:", rowsToSave.length, "rows");
+      console.log("Sending to backend:", rowsToSave.length, "rows");
       
       const response = await axios.post(
         `${backendUrl}/api/update-rows-batch`,
@@ -685,7 +1069,7 @@ const fetchStats = useCallback(async () => {
         { withCredentials: true }
       );
 
-      console.log("✅ Save response:", response.data);
+      console.log("Save response:", response.data);
 
       if (response.status === 200) {
         setModifications(new Map());
@@ -698,7 +1082,7 @@ const fetchStats = useCallback(async () => {
         onSplitChange?.();
       }
     } catch (error) {
-      console.error('❌ Error saving:', error);
+      console.error('Error saving:', error);
       showSnackbar(`Error saving: ${error.response?.data?.detail || error.message}`, 'error');
     } finally {
       setLoading(false);
@@ -746,7 +1130,7 @@ const prepareConfirmation = useCallback(async (actionType) => {
   let action = null;
   let previewRows = [];
 
-  console.log(`🔍 Preparing confirmation for action: ${actionType}`);
+  console.log(`Preparing confirmation for action: ${actionType}`);
   
   try {
     setLoading(true);
@@ -769,7 +1153,7 @@ const prepareConfirmation = useCallback(async (actionType) => {
     if (response.data) {
       const { rows: filteredRows, total_count, empty_count, duplicate_count } = response.data;
       
-      console.log("📦 Filtered rows from backend:", filteredRows);
+      console.log("Filtered rows from backend:", filteredRows);
       
       // Convertir les données au format DataGrid
       const backendData = {
@@ -779,7 +1163,7 @@ const prepareConfirmation = useCallback(async (actionType) => {
       
       const { rows: gridRows } = convertToGridFormat(backendData);
       
-      // IMPORTANT: Ajouter le rowType à chaque ligne convertie
+      // Ajouter le rowType à chaque ligne convertie
       previewRows = gridRows.map((row, index) => {
         // Trouver la ligne correspondante dans filteredRows pour récupérer rowType
         const originalRow = filteredRows.find(r => r.id === row.originalId) || filteredRows[index];
@@ -826,11 +1210,11 @@ const prepareConfirmation = useCallback(async (actionType) => {
         showSnackbar(`No ${actionType} rows found to delete`, "info");
       }
       
-      console.log(`✅ Confirmation dialog prepared with ${previewRows.length} preview rows`);
-      console.log("🎨 Preview rows with rowType:", previewRows.map(r => ({ id: r.id, rowType: r.rowType })));
+      console.log(`Confirmation dialog prepared with ${previewRows.length} preview rows`);
+      console.log("Preview rows with rowType:", previewRows.map(r => ({ id: r.id, rowType: r.rowType })));
     }
   } catch (error) {
-    console.error("❌ Error fetching filtered rows preview:", error);
+    console.error("Error fetching filtered rows preview:", error);
     showSnackbar(`Error: ${error.response?.data?.detail || error.message}`, "error");
   } finally {
     setLoading(false);
@@ -906,8 +1290,12 @@ const handleDeleteEmptyRows = useCallback(async () => {
     );
 
     if (response.status === 200) {
-      showSnackbar(response.data.message, "success");
-      
+      const deleted = response.data?.deleted_count;
+      const remain = response.data?.remaining_count;
+      const text =
+        typeof deleted === "number" && typeof remain === "number"
+          ? `Removed ${Number(deleted).toLocaleString()} empty rows. ${Number(remain).toLocaleString()} rows remain.`
+          : (response.data?.message || "Empty rows removed.");
       // Recharger la première page après suppression
       await fetchPaginatedData(1, selectedFilter);
       const statsData = await fetchStats();
@@ -915,9 +1303,10 @@ const handleDeleteEmptyRows = useCallback(async () => {
         emptyRowsCount:
           typeof statsData?.empty_count === "number" ? statsData.empty_count : 0,
       });
+      setDeleteResult(text);
     }
   } catch (error) {
-    console.error("❌ Deletion error:", error);
+    console.error("Deletion error:", error);
     showSnackbar(`Error: ${error.response?.data?.detail || error.message}`, "error");
   } finally {
     setLoading(false);
@@ -938,14 +1327,19 @@ const handleDeleteDuplicatedRows = useCallback(async () => {
     );
 
     if (response.status === 200) {
-      showSnackbar(response.data.message, "success");
-      
+      const deleted = response.data?.deleted_count;
+      const remain = response.data?.remaining_count;
+      const text =
+        typeof deleted === "number" && typeof remain === "number"
+          ? `Removed ${Number(deleted).toLocaleString()} duplicate rows. ${Number(remain).toLocaleString()} rows remain.`
+          : (response.data?.message || "Duplicate rows removed.");
       await fetchPaginatedData(1, selectedFilter);
       await fetchStats();
       onSplitChange?.();
+      setDeleteResult(text);
     }
   } catch (error) {
-    console.error("❌ Deletion error:", error);
+    console.error("Deletion error:", error);
     showSnackbar(`Error: ${error.response?.data?.detail || error.message}`, "error");
   } finally {
     setLoading(false);
@@ -957,19 +1351,19 @@ const handleDeleteDuplicatedRows = useCallback(async () => {
 
   const checkSplitColumnStatus = useCallback(() => {
     if (!rows.length) {
-      console.log("❌ No rows available to check split column");
+      console.log("No rows available to check split column");
       return;
     }
 
     try {
-      console.log("🔍 Checking split column status from local data...");
+      console.log("Checking split column status from local data...");
       
       const splitColumn = columns.find(col => 
         col.field.includes('split_type') || 
         (col.headerName && col.headerName.toLowerCase().includes('split_type'))
       );
 
-      console.log("🔎 Split column search result:", splitColumn);
+      console.log("Split column search result:", splitColumn);
       
       if (!splitColumn) {
         setSplitColumnStatus({
@@ -1030,7 +1424,7 @@ const handleDeleteDuplicatedRows = useCallback(async () => {
       setSplitCompleted(hasValidValues);
 
     } catch (error) {
-      console.error("💥 Error checking local split column:", error);
+      console.error("Error checking local split column:", error);
       setSplitColumnStatus({
         exists: false,
         hasValues: false,
@@ -1229,7 +1623,7 @@ const handlePreviewImputation = async (method) => {
       }
     );
 
-    console.log("📊 Imputation preview response:", response.data);
+    console.log("Imputation preview response:", response.data);
     
     setImputationPreview(response.data);
     setImputationMethod(method);
@@ -1259,6 +1653,28 @@ const handlePreviewImputation = async (method) => {
   }
 };
 
+  const handleOpenImputation = () => {
+    if (!hasValidSplit) {
+      showSnackbar(
+        "Dataset must be properly split (with training data) before applying imputation methods",
+        "warning"
+      );
+      return;
+    }
+    if (emptyRowsCount === 0) {
+      showSnackbar("No missing values to impute", "info");
+      return;
+    }
+    setImputationMethod("");
+    setImputationPreview(null);
+    setOpenImputationDialog(true);
+  };
+
+  const handleImputationMethodChange = (nextMethod) => {
+    setImputationPreview(null);
+    handlePreviewImputation(nextMethod);
+  };
+
   const handleApplyImputation = async () => {
     try {
       setApplyingImputation(true);
@@ -1279,13 +1695,13 @@ const handlePreviewImputation = async (method) => {
         { withCredentials: true }
       );
 
-      console.log("✅ Imputation response:", response.data);
+      console.log("Imputation response:", response.data);
       
       setOpenImputationDialog(false);
       setSelectedColumnsForImputation([]);
       
       if (response.data.details) {
-        console.log("📊 Imputation details:", response.data.details);
+        console.log("Imputation details:", response.data.details);
         
         const anyChanges = Object.values(response.data.details).some(
           detail => detail.affected_rows > 0
@@ -1307,7 +1723,7 @@ const handlePreviewImputation = async (method) => {
       });
       
     } catch (error) {
-      console.error("❌ Imputation error:", error);
+      console.error("Imputation error:", error);
       showSnackbar(`Imputation failed: ${error.response?.data?.detail || error.message}`, "error");
     } finally {
       setApplyingImputation(false);
@@ -1338,268 +1754,6 @@ const handlePreviewImputation = async (method) => {
   };
 
   // ==================== COMPOSANT IMPUTATION DIALOG ====================
-
-  const ImputationDialog = ({ open, onClose, previewData, method, onApply }) => {
-    const [localSelectedColumns, setLocalSelectedColumns] = useState([]);
-
-    useEffect(() => {
-      if (previewData) {
-        if (method === 'mode') {
-          const allColumns = previewData.columns_analysis.map(col => col.column_name);
-          setLocalSelectedColumns(allColumns);
-        } else {
-          const compatibleColumns = previewData.columns_analysis
-            .filter(col => col.compatible_with_method)
-            .map(col => col.column_name);
-          setLocalSelectedColumns(compatibleColumns);
-        }
-      }
-    }, [previewData, method]);
-
-    if (!previewData) return null;
-
-    const handleColumnToggle = (columnName, isCompatible) => {
-      if (method !== 'mode' && !isCompatible) return;
-      
-      setLocalSelectedColumns(prev => {
-        if (prev.includes(columnName)) {
-          return prev.filter(col => col !== columnName);
-        } else {
-          return [...prev, columnName];
-        }
-      });
-    };
-
-    const handleSelectAll = () => {
-      const allCompatibleColumns = previewData.columns_analysis
-        .filter(col => col.compatible_with_method)
-        .map(col => col.column_name);
-      setLocalSelectedColumns(allCompatibleColumns);
-    };
-
-    const handleDeselectAll = () => {
-      setLocalSelectedColumns([]);
-    };
-
-    const handleApply = () => {
-      setSelectedColumnsForImputation(localSelectedColumns);
-      onApply();
-    };
-
-    return (
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ className: "clean-dialog" }}>
-        <DialogTitle>
-          <Typography variant="h6">
-            Fill missing ({method})
-          </Typography>
-        </DialogTitle>
-        
-        <DialogContent sx={{ p: 3 }}>
-          <Card sx={{ p: 2, mb: 3, backgroundColor: '#e8e9ea', boxShadow: 'none', borderRadius: '2px' }}>
-            <Typography variant="h6" gutterBottom sx={{ color: '#384850' }}>
-              Imputation Summary
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Typography variant="body2">
-                  <strong>Method:</strong> {method.toUpperCase()}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2">
-                  <strong>Total Missing Values:</strong> {previewData.total_missing_before}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="body2">
-                  Fill values come from train only, then are applied to train and test.
-                </Typography>
-              </Grid>
-              {method === 'mean' && (
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={ignoreOutliersForMean}
-                        onChange={async (e) => {
-                          const checked = e.target.checked;
-                          setIgnoreOutliersForMean(checked);
-                          // Recharger le preview avec le nouveau paramètre
-                          try {
-                            setCheckingSplitStatus(true);
-                            const response = await axios.get(
-                              `${backendUrl}/api/get-imputation-preview`,
-                              {
-                                params: {
-                                  bdName,
-                                  method: 'mean',
-                                  columns: '',
-                                  ignore_outliers: checked,
-                                  z_threshold: 3.0,
-                                },
-                                withCredentials: true,
-                                timeout: 30000,
-                              }
-                            );
-                            setImputationPreview(response.data);
-                          } catch (err) {
-                            showSnackbar?.(err.response?.data?.detail || "Preview refresh failed", "error");
-                          } finally {
-                            setCheckingSplitStatus(false);
-                          }
-                        }}
-                        sx={{ color: '#384850' }}
-                      />
-                    }
-                    label="Ignore extreme outliers when computing the mean"
-                  />
-                </Grid>
-              )}
-            </Grid>
-          </Card>
-
-        
-
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: '#384850' }}>
-              Column Selection
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button variant="outlined" size="small" onClick={handleSelectAll}>
-                Select All Compatible
-              </Button>
-              <Button variant="outlined" size="small" onClick={handleDeselectAll}>
-                Deselect All
-              </Button>
-            </Box>
-          </Box>
-
-          <TableContainer component={Paper} sx={{ maxHeight: 400, border: '1px solid #e0e0e0' }}>
-            <Table stickyHeader size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell width="50px"><strong>Apply</strong></TableCell>
-                  <TableCell><strong>Column</strong></TableCell>
-                  <TableCell><strong>Data Type</strong></TableCell>
-                  <TableCell><strong>Missing Values</strong></TableCell>
-                  <TableCell><strong>Train Missing</strong></TableCell>
-                  <TableCell><strong>Test Missing</strong></TableCell>
-                  <TableCell><strong>Compatible</strong></TableCell>
-                  <TableCell><strong>Imputation Value</strong></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {previewData.columns_analysis.map((col) => (
-                  <TableRow 
-                    key={col.column_name}
-                    sx={{ 
-                      backgroundColor: !col.compatible_with_method ? 'rgba(0, 0, 0, 0.04)' : 'inherit',
-                    }}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        checked={localSelectedColumns.includes(col.column_name)}
-                        onChange={() => handleColumnToggle(col.column_name, col.compatible_with_method)}
-                        disabled={!col.compatible_with_method}
-                        sx={{ 
-                          color: '#384850',
-                          '&.Mui-checked': {
-                            color: '#384850',
-                          },
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="bold">
-                        {col.column_name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={col.data_type} 
-                        size="small" 
-                        color={col.data_type.includes('char') ? 'primary' : 'secondary'}
-                        sx={{ backgroundColor: '#384850' }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2">
-                          {col.missing_count}
-                        </Typography>
-                        {col.missing_count > 0 && (
-                          <Warning color="warning" sx={{ fontSize: 16 }} />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {col.split_distribution.train ? (
-                        <Typography variant="body2">
-                          {col.split_distribution.train.missing_count} 
-                          ({col.split_distribution.train.missing_percentage}%)
-                        </Typography>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {col.split_distribution.test ? (
-                        <Typography variant="body2">
-                          {col.split_distribution.test.missing_count} 
-                          ({col.split_distribution.test.missing_percentage}%)
-                        </Typography>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {col.compatible_with_method ? "Yes" : "No"}
-                    </TableCell>
-                    <TableCell>
-                      {col.suggested_imputation_value !== null && col.suggested_imputation_value !== undefined ? (
-                        <Chip 
-                          label={col.suggested_imputation_value} 
-                          size="small" 
-                          sx={{ 
-                            backgroundColor: '#384850',
-                            color: 'white'
-                          }}
-                          variant="outlined"
-                        />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          N/A
-                        </Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {localSelectedColumns.length > 0 && (
-            <Box sx={{ mt: 2, p: 1.5, backgroundColor: '#e8e9ea', border: '1px solid #c8c9ca', borderRadius: '2px' }}>
-              <Typography variant="body2" sx={{ color: '#384850' }}>
-                Selected {localSelectedColumns.length} columns: {localSelectedColumns.join(', ')}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button onClick={onClose} variant="outlined">
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleApply} 
-            variant="contained"
-            disabled={applyingImputation || localSelectedColumns.length === 0}
-            startIcon={applyingImputation ? <CircularProgress size={20} /> : undefined}
-            sx={{ backgroundColor: '#384850' }}
-          >
-            {applyingImputation ? "Applying..." : "Apply"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    );
-  };
 
   // ==================== FONCTIONS DE NAVIGATION ====================
 
@@ -1936,7 +2090,7 @@ const handlePreviewImputation = async (method) => {
       const { id, value, field, api } = props;
       
       if (!id) {
-        console.error("❌ CustomEditComponent: No id provided", props);
+        console.error("CustomEditComponent: No id provided", props);
         return null;
       }
       
@@ -2010,14 +2164,14 @@ const handlePreviewImputation = async (method) => {
       );
     };
 
-    console.log("📊 EnhancedDataGrid - columns:", columns.length);
-    console.log("📊 EnhancedDataGrid - rows:", rows.length);
+    console.log("EnhancedDataGrid - columns:", columns.length);
+    console.log("EnhancedDataGrid - rows:", rows.length);
 
     // S'assurer que toutes les lignes ont un ID
     const validRows = rows.filter(row => row && row.id !== null && row.id !== undefined);
     
     if (validRows.length !== rows.length) {
-      console.warn(`⚠️ Filtered out ${rows.length - validRows.length} rows without valid IDs`);
+      console.warn(`Filtered out ${rows.length - validRows.length} rows without valid IDs`);
     }
 
     const gridColumns = columns.map(col => ({
@@ -2107,7 +2261,7 @@ const handlePreviewImputation = async (method) => {
               paginationModel={{ page: page - 1, pageSize }}
               onPaginationModelChange={(model) => {
                 const newPage = model.page + 1;
-                console.log(`📄 Changing to page ${newPage}`);
+                console.log(`Changing to page ${newPage}`);
                 setPage(newPage);
                 setPageSize(model.pageSize);
                 fetchPaginatedData(newPage, selectedFilter);
@@ -2120,7 +2274,7 @@ const handlePreviewImputation = async (method) => {
               }}
               processRowUpdate={handleProcessRowUpdate}
               onProcessRowUpdateError={(error) => {
-                console.error("❌ Row update error:", error);
+                console.error("Row update error:", error);
                 setCellEditInProgress(false);
               }}
               onCellEditStart={() => setCellEditInProgress(true)}
@@ -2154,56 +2308,7 @@ const handlePreviewImputation = async (method) => {
 
   // ==================== HELP DIALOG ====================
 
-  const HelpDialog = ({ open, onClose }) => {
-    return (
-      <Dialog
-        open={open}
-        onClose={onClose}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ className: "clean-dialog" }}
-      >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
-            Guide: Clean · Split · Impute
-          </Typography>
-          <IconButton onClick={onClose} sx={{ color: 'white' }}>
-            <Close />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent sx={{ p: 3 }}>
-          <Typography variant="body2" paragraph>
-            Clean empty rows and duplicates, then split into train and test, then fill missing values.
-            Fill values are taken from train and applied to both train and test.
-          </Typography>
-          <Typography variant="body2" paragraph>
-            Auto Clean &amp; Split runs that sequence for you. You cannot delete the target column or split_type.
-            Reset puts this step back to its start.
-          </Typography>
-        </DialogContent>
-
-        <DialogActions sx={{ p: 2 }}>
-          <Button
-            onClick={onClose}
-            variant="contained"
-            fullWidth
-            size="large"
-            sx={{
-              backgroundColor: '#384850',
-              textTransform: 'none',
-              fontWeight: 700,
-              '&:hover': { backgroundColor: '#2a3942' },
-            }}
-          >
-            Got it
-          </Button>
-        </DialogActions>
-      </Dialog>
-    );
-  };
-
-  // ==================== RENDU PRINCIPAL ====================
+// ==================== RENDU PRINCIPAL ====================
 
   const pageBusy =
     loading ||
@@ -2529,56 +2634,23 @@ const handlePreviewImputation = async (method) => {
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', ml: 'auto', alignItems: 'center' }}>
-            <Tooltip title={getImputationTooltip("mean")}>
+            <Tooltip title={getImputationTooltip()}>
               <span>
                 <Button
                   variant="outlined"
-                  onClick={() => handlePreviewImputation("mean")}
+                  onClick={handleOpenImputation}
                   disabled={!hasValidSplit || checkingSplitStatus}
                   size="small"
                   sx={{
+                    textTransform: 'none',
+                    borderRadius: '2px',
                     opacity: (hasValidSplit && !checkingSplitStatus) ? 1 : 0.6,
                     borderColor: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400',
-                    color: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400'
+                    color: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400',
+                    '&:hover': { borderColor: '#384850', backgroundColor: 'rgba(56,72,80,0.08)' },
                   }}
                 >
-                  {checkingSplitStatus ? "Checking..." : "Mean Imputation"}
-                </Button>
-              </span>
-            </Tooltip>
-
-            <Tooltip title={getImputationTooltip("median")}>
-              <span>
-                <Button
-                  variant="outlined"
-                  onClick={() => handlePreviewImputation("median")}
-                  disabled={!hasValidSplit || checkingSplitStatus}
-                  size="small"
-                  sx={{
-                    opacity: (hasValidSplit && !checkingSplitStatus) ? 1 : 0.6,
-                    borderColor: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400',
-                    color: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400'
-                  }}
-                >
-                  Median Imputation
-                </Button>
-              </span>
-            </Tooltip>
-
-            <Tooltip title={getImputationTooltip("mode")}>
-              <span>
-                <Button
-                  variant="outlined"
-                  onClick={() => handlePreviewImputation("mode")}
-                  disabled={!hasValidSplit || checkingSplitStatus}
-                  size="small"
-                  sx={{
-                    opacity: (hasValidSplit && !checkingSplitStatus) ? 1 : 0.6,
-                    borderColor: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400',
-                    color: (hasValidSplit && !checkingSplitStatus) ? '#384850' : 'grey.400'
-                  }}
-                >
-                  Mode Imputation
+                  Missing Value Imputation
                 </Button>
               </span>
             </Tooltip>
@@ -2590,10 +2662,24 @@ const handlePreviewImputation = async (method) => {
       {/* Dialogue d'imputation */}
       <ImputationDialog
         open={openImputationDialog}
-        onClose={() => setOpenImputationDialog(false)}
+        onClose={() => {
+          setOpenImputationDialog(false);
+          setImputationMethod("");
+          setImputationPreview(null);
+        }}
         previewData={imputationPreview}
         method={imputationMethod}
         onApply={handleApplyImputation}
+        onMethodChange={handleImputationMethodChange}
+        previewLoading={checkingSplitStatus}
+        ignoreOutliersForMean={ignoreOutliersForMean}
+        setIgnoreOutliersForMean={setIgnoreOutliersForMean}
+        setCheckingSplitStatus={setCheckingSplitStatus}
+        bdName={bdName}
+        setImputationPreview={setImputationPreview}
+        showSnackbar={showSnackbar}
+        setSelectedColumnsForImputation={setSelectedColumnsForImputation}
+        applyingImputation={applyingImputation}
       />
 
       {/* Data Quality Actions */}
@@ -2687,6 +2773,28 @@ const handlePreviewImputation = async (method) => {
       {/* Boutons Flottants */}
       {FloatingSaveButton}
       {FloatingDeleteButton}
+
+      <Dialog
+        open={Boolean(deleteResult)}
+        onClose={() => setDeleteResult("")}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ className: "clean-dialog" }}
+      >
+        <DialogTitle>Deletion finished</DialogTitle>
+        <DialogContent className="dialog-content">
+          <Typography sx={{ color: "#384850" }}>{deleteResult}</Typography>
+        </DialogContent>
+        <DialogActions className="dialog-actions">
+          <Button
+            onClick={() => setDeleteResult("")}
+            className="confirm-button"
+            sx={{ backgroundColor: "#384850" }}
+          >
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Help Dialog */}
       <HelpDialog open={openHelpDialog} onClose={() => setOpenHelpDialog(false)} />

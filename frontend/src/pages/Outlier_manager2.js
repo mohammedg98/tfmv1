@@ -5,7 +5,6 @@ import axios from "axios";
 import React, { useState, useEffect } from "react";
 import Tooltip from '@mui/material/Tooltip';
 import ArrowBackIos from '@mui/icons-material/ArrowBackIos';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import {
     Box,
     Typography,
@@ -74,7 +73,10 @@ const HelpDialog = ({ open, onClose }) => (
                 A row can look normal in each column and still be odd as a combination (for example age and income that do not match).
             </Typography>
             <Typography variant="body2" paragraph>
-                How to run it: tick the columns, pick a method, set the parameters, click Detect Outliers. You can then look at the 2D plot and delete rows.
+                How to run it: tick the numeric columns, pick a method, set the parameters, click Detect Outliers. You can then look at the 2D plot and delete rows.
+            </Typography>
+            <Typography variant="body2" paragraph>
+                If the table still has text, dates, or labels that are not numbers, those columns stay unchecked and cannot be selected. The calculation uses the numeric columns only. When every column is already numeric, you can tick any of them.
             </Typography>
 
             <Typography variant="subtitle1" sx={{ color: COLORS.primary, fontWeight: 700, mt: 2, mb: 1 }}>
@@ -114,6 +116,22 @@ const HelpDialog = ({ open, onClose }) => (
         </DialogActions>
     </Dialog>
 );
+
+
+function isMultivariateNumeric(col, columnTypes, columnNumericContent) {
+    const t = columnTypes?.[col];
+    if (t === "numerical") return true;
+    if (t === "boolean" || t === "categorical") return !!columnNumericContent?.[col];
+    return false;
+}
+
+function skippedColumnReason(col, columnTypes) {
+    const t = columnTypes?.[col];
+    if (t === "date") return "Date column. This calculation uses numbers only.";
+    if (t === "boolean") return "Yes/no values are not numbers yet, so they stay out.";
+    if (t === "categorical") return "These are labels, not numbers, so they stay out.";
+    return "Text column. This calculation uses numbers only.";
+}
 
 const Outlier_manager2 = ({ embedded = false, bdName: bdNameProp = null, originalBdName: originalBdNameProp = null, onClose = null } = {}) => {
     const [methodParams, setMethodParams] = useState({
@@ -325,19 +343,13 @@ const Outlier_manager2 = ({ embedded = false, bdName: bdNameProp = null, origina
                     const stats = c.stats || {};
                     // numerical / boolean / categorical (encodé 0,1,2…) → utilisable en multivarié
                     columnNumericContent[c.column_name] = !!(
-                        stats.is_numeric_content ||
-                        t === "numerical" ||
-                        t === "boolean" ||
-                        t === "categorical"
+                        stats.is_numeric_content || t === "numerical"
                     );
                 });
 
-                // Éligible: numerical + boolean + categorical (pas text/date)
-                const isEligible = (col) => {
-                    const t = columnTypes[col];
-                    return t === "numerical" || t === "boolean" || t === "categorical";
-                };
-                const eligibleColumns = columns.filter(isEligible);
+                const eligibleColumns = columns.filter((col) =>
+                    isMultivariateNumeric(col, columnTypes, columnNumericContent)
+                );
 
                 setState(prev => ({
                     ...prev,
@@ -530,10 +542,13 @@ const Outlier_manager2 = ({ embedded = false, bdName: bdNameProp = null, origina
     // Detect outliers function
     const detectOutliers = async (columnsOverride = null) => {
         try {
-            const cols =
+            const rawCols =
                 (columnsOverride && columnsOverride.length > 0
                     ? columnsOverride
                     : state.selectedColumns) || [];
+            const cols = rawCols.filter((col) =>
+                isMultivariateNumeric(col, state.columnTypes, state.columnNumericContent)
+            );
 
             if (!cols.length) {
                 setState(prev => ({
@@ -879,6 +894,9 @@ const Outlier_manager2 = ({ embedded = false, bdName: bdNameProp = null, origina
     // Toggle column selection
     const toggleColumnSelection = (column) => {
         setState(prev => {
+            if (!isMultivariateNumeric(column, prev.columnTypes, prev.columnNumericContent)) {
+                return prev;
+            }
             const newSelected = prev.selectedColumns.includes(column)
                 ? prev.selectedColumns.filter(c => c !== column)
                 : [...prev.selectedColumns, column];
@@ -1126,14 +1144,13 @@ Do you want to continue anyway?`
 
     // Render outlier controls
     const renderOutlierControls = () => {
-        const eligibleColumns = state.columns.filter((col) => {
-            const t = state.columnTypes[col];
-            return t === "numerical" || t === "boolean" || t === "categorical";
-        });
+        const eligibleColumns = state.columns.filter((col) =>
+            isMultivariateNumeric(col, state.columnTypes, state.columnNumericContent)
+        );
+        const skippedColumns = state.columns.filter((col) => !eligibleColumns.includes(col));
 
         const selectedCount = state.selectedColumns.length;
-        // Bouton actif dès qu'il y a au moins une colonne utilisable dans le dataset
-        const canDetect = eligibleColumns.length >= 1 || state.columns.length >= 1;
+        const canDetect = eligibleColumns.length >= 1;
 
         return (
             <Box sx={{ mt: 2 }} className="configuration-paper">
@@ -1144,36 +1161,55 @@ Do you want to continue anyway?`
                 {renderMethodSelection()}
 
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Select columns for multivariate detection (numerical, categorical codes, boolean 0/1):
+                    {skippedColumns.length > 0
+                        ? "Tick the numeric columns. Text, dates, and labels that are not numbers stay unchecked and cannot be selected."
+                        : "Select the columns to include in the calculation."}
                 </Typography>
 
                 {eligibleColumns.length === 0 && (
-                    <Alert severity="warning" sx={{ mb: 1 }}>
-                        No eligible columns found. Check that the dataset loaded correctly.
+                    <Alert severity="warning" icon={false} sx={{ mb: 1 }}>
+                        No numeric columns are available for this calculation.
                     </Alert>
+                )}
+                {skippedColumns.length > 0 && (
+                    <Typography variant="body2" sx={{ color: "#384850", mb: 1 }}>
+                        {skippedColumns.length} column{skippedColumns.length === 1 ? "" : "s"} left out. This method compares numbers, so those columns are not part of the calculation.
+                    </Typography>
                 )}
 
                 <Paper sx={{ p: 2, maxHeight: 300, overflow: 'auto' }}>
                     <List dense>
-                        {(eligibleColumns.length > 0 ? eligibleColumns : state.columns).map(col => (
-                            <ListItem key={col} button onClick={() => toggleColumnSelection(col)}>
+                        {state.columns.map(col => {
+                            const numeric = eligibleColumns.includes(col);
+                            return (
+                            <ListItem
+                                key={col}
+                                button={numeric}
+                                disabled={!numeric}
+                                onClick={() => { if (numeric) toggleColumnSelection(col); }}
+                            >
                                 <ListItemIcon>
                                     <Checkbox
                                         className="colored-checkbox"
                                         edge="start"
-                                        checked={state.selectedColumns.includes(col)}
+                                        checked={numeric && state.selectedColumns.includes(col)}
+                                        disabled={!numeric}
                                         tabIndex={-1}
                                         disableRipple
                                     />
                                 </ListItemIcon>
-                                <ListItemText primary={col} />
+                                <ListItemText
+                                    primary={col}
+                                    secondary={numeric ? null : skippedColumnReason(col, state.columnTypes)}
+                                />
                                 <Chip
                                     label={state.columnTypes[col] || "unknown"}
                                     size="small"
                                     className="selection-chip"
                                 />
                             </ListItem>
-                        ))}
+                            );
+                        })}
                     </List>
                 </Paper>
 
@@ -1193,12 +1229,8 @@ Do you want to continue anyway?`
                         variant="contained"
                         className="primary-button"
                         onClick={() => {
-                            const pool = eligibleColumns.length > 0 ? eligibleColumns : state.columns;
-                            const cols =
-                                state.selectedColumns.length > 0
-                                    ? state.selectedColumns
-                                    : pool;
-                            detectOutliers(cols);
+                            const cols = state.selectedColumns.filter((col) => eligibleColumns.includes(col));
+                            detectOutliers(cols.length > 0 ? cols : eligibleColumns);
                         }}
                         disabled={!canDetect || state.isDetecting}
                         sx={{
@@ -1212,7 +1244,7 @@ Do you want to continue anyway?`
                     >
                         {state.isDetecting
                             ? "Detecting…"
-                            : `Detect Outliers (${state.selectedColumns.length || eligibleColumns.length || state.columns.length} columns)`}
+                            : `Detect Outliers (${state.selectedColumns.length || eligibleColumns.length} columns)`}
                     </Button>
                 </Box>
             </Box>

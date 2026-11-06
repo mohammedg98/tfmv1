@@ -324,7 +324,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
         setData({ name: bdName, columns: columnsList });
       }
     } catch (error) {
-      console.error("❌ Error:", error);
+      console.error("Error:", error);
     } finally {
       setLoading(prev => ({ ...prev, data: false }));
     }
@@ -510,7 +510,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
 
   // ==================== GESTIONNAIRE DE CHANGEMENT DE PAGE POUR LES OUTLIERS ====================
   const handleOutlierPageChange = (newModel) => {
-    console.log("📄 Outlier page change requested:", newModel);
+    console.log("Outlier page change requested:", newModel);
     setOutlierPaginationModel(newModel);
     detectOutliers(newModel.page);
   };
@@ -1620,7 +1620,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
         );
         console.log("Checkpoint saved for next stage");
       } catch (error) {
-        console.warn("⚠️ Checkpoint save failed:", error);
+        console.warn("Checkpoint save failed:", error);
       }
 
       navigate("/data_transformation", {
@@ -1859,7 +1859,7 @@ function Outlier_manager({ embedded = false, bdName: bdNameProp = null, onClose 
                     // If boolean, show alert and prevent selection
                     if (response.data.isBoolean === true) {
                       const colName = data?.columns[selectedIndex - 1] || `Column ${selectedIndex}`;
-                      alert(`❌ Column "${colName}" is a BOOLEAN column.\n\nBoolean columns cannot be used for outlier detection because they only contain two values (True/False).\n\nPlease select a numeric column.`);
+                      alert(`Column "${colName}" is a BOOLEAN column.\n\nBoolean columns cannot be used for outlier detection because they only contain two values (True/False).\n\nPlease select a numeric column.`);
                       setSelectedColumn(null);
                       setIsNumericColumn(false);
                       setIsBooleanColumn(true);

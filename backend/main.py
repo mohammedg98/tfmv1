@@ -16,20 +16,14 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Same ceiling as the Upload page check (200 MB), enforced server-side so a
-# direct API call cannot bypass the browser limit.
 MAX_REQUEST_BYTES = 200 * 1024 * 1024
 
-# Dev setup: the CRA server (3000) calls the API (8000), so those two are a
-# legitimate cross-origin pair. The production entry point is listed too, so
-# the origin is trusted even if a reverse proxy rewrites the Host header.
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://46.62.212.226",
 ]
 
-# Extra production origins, e.g. CSRF_TRUSTED_ORIGINS=https://my-domain.com
 _EXTRA_TRUSTED_ORIGINS = {
     origin.strip().rstrip("/").lower()
     for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
@@ -90,8 +84,6 @@ def _is_trusted_origin(origin: str, request: Request) -> bool:
     }:
         return True
 
-    # Same-origin call: covers production behind Nginx without any config,
-    # since Nginx forwards the public Host header.
     host = (request.headers.get("host") or "").strip().lower()
     return bool(host) and urlsplit(origin).netloc == host
 
@@ -105,9 +97,6 @@ async def verify_request_origin(request: Request, call_next):
     """
     if request.method in CSRF_PROTECTED_METHODS:
         origin = _request_origin(request)
-        # No Origin and no Referer means a non-browser client (curl, tests).
-        # A browser always sends one on these methods, so an attacker cannot
-        # reach this branch to bypass the check.
         if origin is not None and not _is_trusted_origin(origin, request):
             return JSONResponse(
                 status_code=403,
@@ -172,9 +161,8 @@ async def sanitize_unhandled_errors(request: Request, exc: Exception):
 @app.on_event("startup")
 async def startup_event():
     init_connection_pool()
-    print("✅ Startup + CORS chargé")
+    print("Startup + CORS chargé")
 
-# Routes
 app.include_router(user_routes.router, prefix="/api/users")
 app.include_router(data_router)
 

@@ -375,7 +375,7 @@ def run_hyperparam_random_search(
         line = (
             f"Trial {completed}/{trials}: {_format_params(trial)} → "
             f"score={score:.4f}"
-            + (" ★ best" if improved else "")
+            + (" best" if improved else "")
         )
         trial_logs.append(
             {
